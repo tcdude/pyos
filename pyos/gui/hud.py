@@ -1,5 +1,5 @@
 """
-Everything regarding rendering in here...
+HUD to show stats during the game...
 """
 __author__ = 'tcdude'
 __copyright__ = 'Copyright (C) 2019 tcdude'

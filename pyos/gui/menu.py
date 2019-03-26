@@ -1,5 +1,5 @@
 """
-Solitaire game...
+Various Menus
 """
 __author__ = 'tcdude'
 __copyright__ = 'Copyright (C) 2019 tcdude'

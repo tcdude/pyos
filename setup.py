@@ -25,40 +25,31 @@ __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
 __license__ = 'MIT'
 __version__ = '0.1'
 
-from sdl2.ext import Applicator
+from distutils.core import setup
+from setuptools import find_packages
 
 
-class GameApplicator(Applicator):
-    """
-    Applicator to handle all Game Components.
-    """
-    def __init__(self):
-        super(GameApplicator, self).__init__()
-        self.componenttypes = ()
+options = {'apk': {'debug': None,
+                   'bootstrap': 'sdl2',
+                   'requirements': 'libffi,sdl2,sdl2_image,python3,pysdl2,'
+                                   'Pillow,plyer',
+                   'package': 'com.tizilogic.pyos',
+                   'android-api': 28,
+                   # 'arch': 'arm64-v8a',  # -> waiting for fix...
+                   'dist-name': 'pyostest',
+                   'icon': 'pyos/assets/app-images/icon192.png',
+                   'presplash': 'pyos/assets/app-images/splash.png',
+                   'presplash-color': '#224422',
+                   }}
 
-    def process(self, world, components):
-        pass
-
-    def enter(self):
-        pass
-
-    def exit(self):
-        pass
-
-
-class MenuApplicator(Applicator):
-    """
-    Applicator to handle all Menu/GUI Components.
-    """
-    def __init__(self):
-        super(MenuApplicator, self).__init__()
-        self.componenttypes = ()
-
-    def process(self, world, components):
-        pass
-
-    def enter(self):
-        pass
-
-    def exit(self):
-        pass
+setup(
+    name='pyos',
+    version='0.1',
+    description='An ad free, simple solitaire game',
+    author='tcdude',
+    author_email='info@tizilogic.com',
+    packages=find_packages(),
+    options=options,
+    package_data={'pyos': ['*.py', 'gui/*.py', 'assets/images/*.png']},
+    install_requires=['plyer', 'Pillow']
+)

@@ -25,40 +25,19 @@ __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
 __license__ = 'MIT'
 __version__ = '0.1'
 
-from sdl2.ext import Applicator
+from sdl2.ext import Entity
 
 
-class GameApplicator(Applicator):
-    """
-    Applicator to handle all Game Components.
-    """
-    def __init__(self):
-        super(GameApplicator, self).__init__()
-        self.componenttypes = ()
-
-    def process(self, world, components):
-        pass
-
-    def enter(self):
-        pass
-
-    def exit(self):
-        pass
+class Card(object):
+    def __init__(self, value, suit, visible=False):
+        self.value = value
+        self.suit = suit
+        self.visible = visible
 
 
-class MenuApplicator(Applicator):
-    """
-    Applicator to handle all Menu/GUI Components.
-    """
-    def __init__(self):
-        super(MenuApplicator, self).__init__()
-        self.componenttypes = ()
-
-    def process(self, world, components):
-        pass
-
-    def enter(self):
-        pass
-
-    def exit(self):
-        pass
+class CardEntity(Entity):
+    def __init__(self, world, sprite, value, suit, visible=False, x=0, y=0):
+        self.__world__ = world
+        self.sprite = sprite
+        self.sprite.position = x, y
+        self.card = Card(value, suit, visible)

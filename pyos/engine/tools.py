@@ -25,40 +25,20 @@ __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
 __license__ = 'MIT'
 __version__ = '0.1'
 
-from sdl2.ext import Applicator
+import sdl2.ext
+import plyer
 
 
-class GameApplicator(Applicator):
-    """
-    Applicator to handle all Game Components.
-    """
-    def __init__(self):
-        super(GameApplicator, self).__init__()
-        self.componenttypes = ()
-
-    def process(self, world, components):
-        pass
-
-    def enter(self):
-        pass
-
-    def exit(self):
-        pass
+def load_sprite(factory, fpath):
+    """Dirty hack to force image"""
+    return factory.from_surface(sdl2.ext.load_image(fpath, 'SDL'))
 
 
-class MenuApplicator(Applicator):
-    """
-    Applicator to handle all Menu/GUI Components.
-    """
-    def __init__(self):
-        super(MenuApplicator, self).__init__()
-        self.componenttypes = ()
+def nop():
+    pass
 
-    def process(self, world, components):
-        pass
 
-    def enter(self):
-        pass
+def toast(message):
+    plyer.notification.notify(message=message, toast=True)
 
-    def exit(self):
-        pass
+

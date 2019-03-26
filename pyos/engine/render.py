@@ -25,40 +25,21 @@ __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
 __license__ = 'MIT'
 __version__ = '0.1'
 
-from sdl2.ext import Applicator
+import sdl2.ext
+from engine.tools import nop
+
+try:  # Keep it possible to run on Linux dev machine
+    from android import hide_loading_screen
+    HAVE_ANDROID = True
+except ImportError:
+    HAVE_ANDROID = False
+    hide_loading_screen = nop
 
 
-class GameApplicator(Applicator):
-    """
-    Applicator to handle all Game Components.
-    """
-    def __init__(self):
-        super(GameApplicator, self).__init__()
-        self.componenttypes = ()
+class HWRenderer(sdl2.ext.TextureSpriteRenderSystem):
+    def __init__(self, window):
+        super(HWRenderer, self).__init__(window)
+        self.renderer = self.sdlrenderer
 
-    def process(self, world, components):
-        pass
-
-    def enter(self):
-        pass
-
-    def exit(self):
-        pass
-
-
-class MenuApplicator(Applicator):
-    """
-    Applicator to handle all Menu/GUI Components.
-    """
-    def __init__(self):
-        super(MenuApplicator, self).__init__()
-        self.componenttypes = ()
-
-    def process(self, world, components):
-        pass
-
-    def enter(self):
-        pass
-
-    def exit(self):
-        pass
+    def render(self, components, **kwargs):
+        super(HWRenderer, self).render(components, **kwargs)
