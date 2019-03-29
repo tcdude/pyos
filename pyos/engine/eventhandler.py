@@ -20,12 +20,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+import sdl2.ext
+
 __author__ = 'Tiziano Bettio'
 __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
 __license__ = 'MIT'
 __version__ = '0.1'
-
-import sdl2.ext
 
 
 class EventHandler(object):
@@ -42,7 +42,8 @@ class EventHandler(object):
 
         :str name: Unique name of the event
         :int sdl_event: SDL event type tested against `sdl2.ext.get_events()`
-        :callable callback: Method to execute
+        :callable callback: Method to execute. Must provide `event` as named
+                            argument.
         :int priority: Call priority, higher numbers get executed first
                        (default=0).
         :tuple args: optional positional arguments to pass to `callback`
@@ -71,4 +72,5 @@ class EventHandler(object):
                 ))
                 for n in k:
                     c, a, kw = self.__unique__[n]
+                    kw['event'] = event
                     c(*a, **kw)

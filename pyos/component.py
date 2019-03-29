@@ -20,12 +20,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from sdl2.ext import Entity
+
 __author__ = 'Tiziano Bettio'
 __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
 __license__ = 'MIT'
 __version__ = '0.1'
-
-from sdl2.ext import Entity
 
 
 class Card(object):
@@ -36,8 +36,18 @@ class Card(object):
 
 
 class CardEntity(Entity):
-    def __init__(self, world, sprite, value, suit, visible=False, x=0, y=0):
+    def __init__(
+            self, world, sprite, value, suit, visible=False, x=0, y=0, d=0):
         self.__world__ = world
         self.sprite = sprite
         self.sprite.position = x, y
+        self.sprite.depth = d
         self.card = Card(value, suit, visible)
+
+
+class PlaceHolderEntity(Entity):
+    def __init__(self, world, sprite, x=0, y=0, d=0):
+        self.__world__ = world
+        self.sprite = sprite
+        self.sprite.position = x, y
+        self.sprite.depth = d

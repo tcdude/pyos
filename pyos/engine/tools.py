@@ -20,17 +20,17 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+import sdl2.ext
+import plyer
+
 __author__ = 'Tiziano Bettio'
 __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
 __license__ = 'MIT'
 __version__ = '0.1'
 
-import sdl2.ext
-import plyer
-
 
 def load_sprite(factory, fpath):
-    """Dirty hack to force image"""
+    """Dirty hack -> Update when p4a's pysdl2 recipe is updated."""
     return factory.from_surface(sdl2.ext.load_image(fpath, 'SDL'))
 
 
@@ -40,5 +40,3 @@ def nop():
 
 def toast(message):
     plyer.notification.notify(message=message, toast=True)
-
-

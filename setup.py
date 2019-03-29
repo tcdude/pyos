@@ -20,13 +20,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+from distutils.core import setup
+from setuptools import find_packages
+
 __author__ = 'Tiziano Bettio'
 __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
 __license__ = 'MIT'
 __version__ = '0.1'
-
-from distutils.core import setup
-from setuptools import find_packages
 
 
 options = {'apk': {'debug': None,
@@ -35,7 +35,7 @@ options = {'apk': {'debug': None,
                                    'Pillow,plyer',
                    'package': 'com.tizilogic.pyos',
                    'android-api': 28,
-                   # 'arch': 'arm64-v8a',  # -> waiting for fix...
+                   'arch': 'arm64-v8a',  # -> waiting for fix...
                    'dist-name': 'pyostest',
                    'icon': 'pyos/assets/app-images/icon192.png',
                    'presplash': 'pyos/assets/app-images/splash.png',
@@ -50,6 +50,11 @@ setup(
     author_email='info@tizilogic.com',
     packages=find_packages(),
     options=options,
-    package_data={'pyos': ['*.py', 'gui/*.py', 'assets/images/*.png']},
+    package_data={'pyos': [
+        '*.py',
+        'gui/*.py',
+        'engine/*.py',
+        'assets/images/*.png'
+    ]},
     install_requires=['plyer', 'Pillow']
 )

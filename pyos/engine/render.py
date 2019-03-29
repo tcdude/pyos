@@ -20,13 +20,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+import sdl2.ext
+from engine.tools import nop
+
 __author__ = 'Tiziano Bettio'
 __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
 __license__ = 'MIT'
 __version__ = '0.1'
-
-import sdl2.ext
-from engine.tools import nop
 
 try:  # Keep it possible to run on Linux dev machine
     from android import hide_loading_screen
