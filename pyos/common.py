@@ -32,7 +32,7 @@ __license__ = 'MIT'
 __version__ = '0.1'
 
 # DEBUG ONLY
-subprocess.call(['rm', '-rf', 'assets/cache'])
+# subprocess.call(['rm', '-rf', 'assets/cache'])
 
 # Global Constants
 # Default Configuration
@@ -50,9 +50,11 @@ ASSETDIR = os.path.join(os.getcwd(), 'assets')
 CACHEDIR = os.path.join(ASSETDIR, 'cache')
 if not os.path.isdir(CACHEDIR):
     os.mkdir(CACHEDIR)
+STATEFILE = os.path.join(CACHEDIR, 'state.bin')
 CONFIGFILE = os.path.join(CACHEDIR, 'config.bin')
 BACKGROUND = os.path.join(ASSETDIR, 'images/bg.png')
 CARDBACK = os.path.join(ASSETDIR, 'images/card_back.png')
+BOTTOM_BAR_IMG = os.path.join(ASSETDIR, 'images/bt_bar.png')
 COLORS = tuple('dchs')
 DENOMINATIONS = tuple('a23456789') + ('10',) + tuple('jqk')
 CARDS = {
@@ -66,6 +68,12 @@ STACK = os.path.join(ASSETDIR, 'images/s_empty.png')
 TABLEAU = os.path.join(ASSETDIR, 'images/t_empty.png')
 WASTE = os.path.join(ASSETDIR, 'images/w_empty.png')
 
+# Fonts
+FONT_NORMAL = os.path.join(ASSETDIR, 'fonts/SpaceMono.ttf')
+FONT_BOLD = os.path.join(ASSETDIR, 'fonts/SpaceMonoBold.ttf')
+FONT_ITALIC = os.path.join(ASSETDIR, 'fonts/SpaceMonoItalic.ttf')
+FONT_BOLD_ITALIC = os.path.join(ASSETDIR, 'fonts/SpaceMonoBoldItalic.ttf')
+
 # Visual / Text
 APPNAME = 'Adfree Simple Solitaire'
 RATIO = (7.5, 4.7)
@@ -73,7 +81,8 @@ TOP_BAR = (0.96, 0.078125)
 BOTTOM_BAR = (0.96, 0.08125)
 TABLEAU_SPACING = 0.028125
 COL_SPACING = 0.5 / 7.5 / 8
-ROW_SPACING = 0.0165  # % of y resolution between stacked cards
+ROW_SPACING = 0.022  # % of y resolution between stacked cards
+BOTTOM_SPACING = 0.011
 
 
 # Helper Methods
@@ -176,5 +185,13 @@ def get_table(screen_size, ratio=(7.5, 4.7), left_handed=False):
                 (col + x * (cx + col), y_start),
                 placeholder['t']
             )
+
+        # Bottom Bar
+        x = int((screen_size[0] - screen_size[0] * BOTTOM_BAR[0]) / 2)
+        y = int(screen_size[1] * BOTTOM_BAR[1])
+        y_start = screen_size[1] - y - int(BOTTOM_SPACING * screen_size[1])
+        ph = Image.open(BOTTOM_BAR_IMG).resize((screen_size[0] - 2 * x, y))
+        img.paste(ph, (x, y_start), ph)
+
         img.save(p)
     return p

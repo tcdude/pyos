@@ -19,9 +19,9 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+import logging
 
-from distutils.core import setup
-from setuptools import find_packages
+from table import Table
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
@@ -29,33 +29,44 @@ __license__ = 'MIT'
 __version__ = '0.1'
 
 
-options = {'apk': {'debug': None,
-                   'bootstrap': 'sdl2',
-                   'requirements': 'libffi,sdl2,sdl2_image,sdl2_ttf,python3,'
-                                   'pysdl2,Pillow,plyer',
-                   'package': 'com.tizilogic.pyos',
-                   'android-api': 28,
-                   # 'arch': 'arm64-v8a',  # -> waiting for fix...
-                   'dist-name': 'pyostest',
-                   'icon': 'pyos/assets/app-images/icon192.png',
-                   'presplash': 'pyos/assets/app-images/splash.png',
-                   'presplash-color': '#224422',
-                   }}
+def try_tableau(t):
+    # type: (Table) -> bool
+    res = False
+    while True:
+        if not t.tableau_to_foundation():
+            break
+        else:
+            res = True
+    tableaus = [t.tableau[:]]
+    while True:
+        if not t.tableau_to_tableau():
+            break
+        else:
+            if t.tableau in tableaus:
+                break
+            else:
+                res = True
+                tableaus.append(t.tableau[:])
+    return res
 
-setup(
-    name='pyos',
-    version='0.1',
-    description='An ad free, simple solitaire game',
-    author='tcdude',
-    author_email='info@tizilogic.com',
-    packages=find_packages(),
-    options=options,
-    package_data={'pyos': [
-        '*.py',
-        'gui/*.py',
-        'engine/*.py',
-        'assets/images/*.png',
-        'assets/fonts/*.ttf'
-    ]},
-    install_requires=['plyer', 'Pillow']
-)
+
+def solve(random_seed=None):
+    t = Table()
+    t.deal(random_seed)
+    while not t.win_condition:
+        try_tableau(t)
+        while t.draw() not in (0, -1):
+            pass
+        while True:
+            if t.waste_to_tableau() or t.waste_to_foundation():
+                continue
+            break
+        if t.moves > 80000:
+            break
+
+    print(f'moves={t.moves}\nt={t.tableau}\nf={t.foundation}\ns={t.stack}\n'
+          f'w={t.waste}')
+
+
+if __name__ == '__main__':
+    solve(42)

@@ -58,6 +58,8 @@ class App(object):
         self.__taskmgr__ = TaskManager()
         self.__event_handler__ = EventHandler()
         self.__taskmgr__.add_task('___EVENT_HANDLER___', self.__event_handler__)
+        # noinspection PyTypeChecker
+        self.__font_manager__ = None  # type: sdl2.ext.FontManager
         self.__world__ = sdl2.ext.World()
         self.__renderer__ = None
         self.__factory__ = None
@@ -68,6 +70,7 @@ class App(object):
         self.__mouse_pos__ = Point()
         self.__taskmgr__.add_task('___MOUSE_WATCHER___', self.__update_mouse__)
         self.__sequences__ = {}
+        self.__anim_callbacks__ = {}
         self.__taskmgr__.add_task('___ANIMATION___', self.__animation__)
         self.__frames__ = 0
         self.__fps__ = 0.0
@@ -110,6 +113,52 @@ class App(object):
     def toast(message):
         toast(message)
 
+    def init_font_manager(
+            self,
+            font_path,
+            alias=None,
+            size=16,
+            color=sdl2.ext.Color(),
+            bg_color=sdl2.ext.Color(0, 0, 0, 0)):
+        if self.__font_manager__ is not None:
+            self.__font_manager__.close()
+        self.__font_manager__ = sdl2.ext.FontManager(
+            font_path,
+            alias,
+            size,
+            color,
+            bg_color
+        )
+
+    def add_font(self, font_path, alias=None, size=16):
+        if self.__font_manager__ is None:
+            raise ValueError('FontManager not initialized. Call '
+                             'init_font_manager() method first')
+        self.__font_manager__.add(font_path, alias, size)
+
+    def text_sprite(
+            self,
+            text,
+            alias=None,
+            size=None,
+            width=None,
+            color=None,
+            bg_color=None,
+            **kwargs):
+        if self.__font_manager__ is None:
+            raise ValueError('FontManager not initialized. Call '
+                             'init_font_manager() method first')
+        surface = self.__font_manager__.render(
+            text,
+            alias,
+            size,
+            width,
+            color,
+            bg_color,
+            **kwargs
+        )
+        return self.__factory__.from_surface(surface)
+
     # noinspection PyUnusedLocal
     def __update_mouse__(self, *args, **kwargs):
         if not self.__running__:
@@ -134,13 +183,26 @@ class App(object):
                 else:
                     break
         p = []
+        e = []
         for k in self.__sequences__:
             if not self.__sequences__[k]:
                 p.append(k)
+                if k in self.__anim_callbacks__:
+                    e.append(k)
         for k in p:
             self.__sequences__.pop(k)
+        for k in e:
+            f, args, kwargs = self.__anim_callbacks__.pop(k)
+            f(*args, **kwargs)
 
-    def position_sequence(self, entity, depth, sequence):
+    def position_sequence(
+            self,
+            entity,
+            depth,
+            sequence,
+            callback=None,
+            *args,
+            **kwargs):
         seq = []
         for duration, start_pos, end_pos in sequence:
             seq.append(PositionInterval(
@@ -150,11 +212,21 @@ class App(object):
                 start_pos,
                 end_pos
             ))
-        k = str(entity)
+        # k = str(entity)
+        k = str((entity, depth, sequence))
         if k in self.__sequences__:
             self.__sequences__[k] += seq
         else:
             self.__sequences__[k] = seq
+        if callback is not None:
+            self.__anim_callbacks__[k] = (callback, args, kwargs)
+
+    def stop_all_position_sequences(self):
+        for k in self.__anim_callbacks__:
+            f, args, kwargs = self.__anim_callbacks__[k]
+            f(*args, **kwargs)
+        self.__sequences__ = {}
+        self.__anim_callbacks__ = {}
 
     def run(self):
         try:
@@ -163,6 +235,7 @@ class App(object):
             while self.__running__:
                 self.task_manager(st)
                 self.world.process()
+                self.__frames__ += 1
                 nt = time.perf_counter()
                 time.sleep(max(0.0, 1 / 60 - (nt - st)))
                 st = nt

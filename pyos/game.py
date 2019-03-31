@@ -29,14 +29,17 @@ import sdl2
 from sdl2.ext import Applicator
 
 from common import APPNAME
+from common import BOTTOM_BAR
 from common import COL_SPACING
 from common import CONFIG
 from common import CONFIGFILE
+from common import FONT_NORMAL
 from common import get_scale
 from common import get_table
 from common import RATIO
 from common import get_cards
 from common import ROW_SPACING
+from common import STATEFILE
 from common import TABLEAU_SPACING
 from common import TOP_BAR
 from component import CardEntity
@@ -68,6 +71,7 @@ class Game(App):
         # Entities
         self.__bg__ = []
         self.__cards__ = {}
+        self.__bt_bar__ = []
 
         # Locations / Size
         self.__cr_sep__ = int(self.screen_size[1] * ROW_SPACING)
@@ -152,7 +156,7 @@ class Game(App):
             }
         })
 
-        self.log.error('pyos started')
+        self.log.info('pyos started')
 
     @property
     def log(self):
@@ -209,6 +213,8 @@ class Game(App):
             return 'w', [self.__cards__[self.table.waste[-1]]]
         elif a == 'f':
             for i, f in enumerate(self.table.foundation):
+                if not f:
+                    continue
                 sx = self.__f_pos__[i][0]
                 ex = sx + self.__cardsize__[0]
                 if sx <= self.__m_d_pos__.x <= ex:
@@ -257,6 +263,14 @@ class Game(App):
             self.tableau_click()
         elif a == 'f':
             self.foundation_click()
+        elif a == 'b' and self.mouse_pos.x < self.screen_size[0] // 3:
+            self.stop_all_position_sequences()
+            self.deal()
+        if self.table.win_condition:
+            self.stop_all_position_sequences()
+            t, p, b, m = self.table.result
+            self.log.info(f'{t:.1f} Seconds, {p} Points, {b} Bonus, {m} Moves')
+            self.deal()
 
     def end_drag(self, start_area, end_area):
         process_click = True
@@ -399,16 +413,43 @@ class Game(App):
         ey = self.__f_pos__[-1][1] + self.__cardsize__[1]
         if sx <= mouse_pos.x <= ex and sy <= mouse_pos.y <= ey:
             return 'f'
+
+        # Bottom Bar
+        sx = 0
+        ex = self.screen_size[0]
+        sy = self.screen_size[1] - int(self.screen_size[1] * BOTTOM_BAR[1])
+        ey = self.screen_size[1]
+        if sx <= mouse_pos.x <= ex and sy <= mouse_pos.y <= ey:
+            return 'b'
         return None
 
     def back(self, event):
         """Handles Android Back, Escape and Backspace Events"""
         if event.key.keysym.sym in (
                 sdl2.SDLK_AC_BACK, 27, sdl2.SDLK_BACKSPACE):
+            with open(STATEFILE, 'wb') as f:
+                f.write(self.table.get_state())
             self.quit(blocking=False)
 
     def setup(self):
+        # General
         left_handed = self.__config__['left_handed']
+        self.init_font_manager(
+            FONT_NORMAL,
+            'normal',
+            28,
+            bg_color=sdl2.ext.Color(85, 85, 85, 0)
+        )
+        self.__bt_bar__ = []
+        sprite = self.text_sprite('| New Deal |')
+        self.log.debug(f'{type(sprite)}, {str(sprite)}')
+        self.__bt_bar__.append(PlaceHolderEntity(
+            self.world,
+            sprite,
+            int(self.screen_size[0] * (1 - BOTTOM_BAR[0])),
+            self.screen_size[1] - int(self.screen_size[1] * BOTTOM_BAR[1] * 0.85)
+        ))
+        self.__bt_bar__[0].sprite.depth = 100
 
         # Table
         table = get_table(
@@ -445,12 +486,21 @@ class Game(App):
                 2
             ) for k in self.__card_img__
         }
-        self.deal()
+        if os.path.isfile(STATEFILE):
+            with open(STATEFILE, 'rb') as f:
+                self.table.set_state(f.read())
+            self.update_tableau()
+            self.update_foundation()
+            self.update_waste()
+        else:
+            self.deal()
 
     def deal(self, random_seed=None):
         self.table.deal(random_seed)
+        self.update_foundation()
         self.reset_stack()
         self.update_tableau()
+        self.update_waste()
 
     def stack_click(self):
         res = self.table.draw(self.__config__['draw_one'])
@@ -460,45 +510,114 @@ class Game(App):
             self.reset_stack()
 
     def waste_click(self):
+        k = self.table.waste[-1] if self.table.waste else None
         if self.table.waste_to_tableau():
-            self.update_tableau()
+            self.move_card(k, 't')
             self.update_waste()
             return
         if self.table.waste_to_foundation():
-            self.update_foundation()
+            self.move_card(k, 'f')
             self.update_waste()
             return
+        if self.table.waste:
+            self.anim_shake(self.__cards__[self.table.waste[-1]])
 
     def tableau_click(self):
         i = self.get_array_index('t', self.mouse_pos)
         row = self.get_tableau_row(i, self.mouse_pos)
         tableau = self.table.tableau[i]
-        if not tableau:
+        if not tableau or row is None:
             return
-        if tableau and tableau[row][1] == 0:
+        movable = tableau[row:]
+        if row > -1 and tableau[row] != tableau[-1]:
+            if tableau[row][0][1] == 12 and tableau[row][1] == 1 and row < 1:
+                for k, _ in movable:
+                    self.anim_shake(self.__cards__[k])
+                return
+        if tableau and tableau[row][1] == 0:  # Flip Card
             if row == -1:
                 tableau[row][1] = 1
                 self.__cards__[tableau[row][0]].card.visible = True
                 self.update_tableau(i)
+                self.table.increment_moves()
                 return
             if not self.__cards__[tableau[row][0]].card.visible:
                 return
         if row == -1:
+            k = self.table.tableau[i][row][0]
             if self.table.tableau_to_foundation(col=i):
-                self.update_foundation()
-                self.update_tableau(i)
+                self.move_card(k, 'f')
                 return
             if self.table.tableau_to_tableau(scol=i):
-                self.update_tableau()
+                self.move_card(k, 't')
                 return
         if self.table.tableau_to_tableau(scol=i, srow=row):
-            self.update_tableau()
+            self.log.debug(f'row={row} move {str(movable)}')
+            for k, _ in movable:
+                self.move_card(k, 't')
+        else:
+            for k, _ in movable:
+                if self.__cards__[k].card.visible:
+                    self.anim_shake(self.__cards__[k])
 
     def foundation_click(self):
         i = self.get_array_index('f', self.mouse_pos)
+        k = self.table.foundation[i][-1] if len(self.table.foundation[i]) else None
         if self.table.foundation_to_tableau(col=i):
-            self.update_foundation(i)
-            self.update_tableau()
+            self.move_card(k, 't')
+            # self.update_foundation(i)
+            # self.update_tableau()
+        else:
+            c = self.get_card_under_mouse('f')
+            if c is not None:
+                self.anim_shake(c)
+
+    def move_card(self, k, area):
+        dest = None
+        target_depth = 0
+        card = self.__cards__[k]
+        if area == 't':
+            search = [k, 1 if card.card.visible else 0]
+            arr = self.table.tableau
+        elif area == 'f':
+            search = k
+            arr = self.table.foundation
+        else:
+            raise ValueError('expected either "t" or "f" for argument area')
+
+        for i, t in enumerate(arr):
+            if search in t:
+                row = t.index(search)
+                if area == 't':
+                    dest = Vector(*self.get_tableau_pos(i, row))
+                else:
+                    dest = Vector(*self.__f_pos__[i])
+                target_depth = row + 2
+                break
+        if dest is None:
+            raise ValueError('cannot find moved card on tableau')
+        self.anim_fly_to(
+            self.__cards__[k],
+            dest,
+            target_depth
+        )
+
+    def anim_fly_to(self, card, dest, target_depth, speed=None):
+        if speed is None:
+            speed = 1.0 / (min(self.screen_size) * 3.8)
+        start = Vector(*card.sprite.position)
+        distance = (dest - start).length
+        depth = card.sprite.depth + 40
+        self.position_sequence(
+            card,
+            depth,
+            ((distance * speed, start, dest),),
+            self.update_card,
+            card,
+            new_depth=target_depth,
+            in_anim=False
+        )
+        card.card.in_anim = True
 
     def anim_shake(self, card, duration=0.2, delta_x=0.05, delta_y=0.0):
         x, y = card.sprite.position
@@ -517,6 +636,28 @@ class Game(App):
             (d, Vector(x - mx, y - my), Vector(x, y)),
         ))
 
+    def update_card(
+            self,
+            card,
+            position=None,
+            new_depth=None,
+            visible=None,
+            in_anim=None):
+        k = card.card.suit, card.card.value
+        if visible is not None:
+            if card.card.visible != visible:
+                card.card.visible = visible
+                if visible:
+                    card.sprite = self.load_sprite(self.__card_img__[k])
+                else:
+                    card.sprite = self.load_sprite(self.__cardback_img__)
+        if position is not None:
+            card.sprite.position = position
+        if new_depth is not None:
+            card.sprite.depth = new_depth
+        if in_anim is not None:
+            card.card.in_anim = in_anim
+
     def update_tableau(self, col=None):
         for col in range(7) if col is None else [col]:
             x = self.__t_pos__[col][0]
@@ -532,14 +673,22 @@ class Game(App):
                     self.__cards__[k].sprite = self.load_sprite(
                         self.__cardback_img__
                     )
-                self.__cards__[k].sprite.position = x, y
-                self.__cards__[k].sprite.depth = 2 + row
+                if not self.__cards__[k].card.in_anim:
+                    if self.__cards__[k].sprite.position != (x, y):
+                        self.__cards__[k].sprite.position = x, y
+                    self.__cards__[k].sprite.depth = 2 + row
 
     def update_foundation(self, col=None):
         for col in range(4) if col is None else [col]:
             for i, k in enumerate(self.table.foundation[col]):
-                self.__cards__[k].sprite.position = self.__f_pos__[col]
-                self.__cards__[k].sprite.depth = 2 + i
+                if not self.__cards__[k].card.visible:
+                    self.__cards__[k].card.visible = True
+                    self.__cards__[k].sprite = self.load_sprite(
+                        self.__card_img__[k]
+                    )
+                if not self.__cards__[k].card.in_anim:
+                    self.__cards__[k].sprite.position = self.__f_pos__[col]
+                    self.__cards__[k].sprite.depth = 2 + i
 
     def update_waste(self):
         x_rh = self.__w_pos__[0]
@@ -549,7 +698,8 @@ class Game(App):
             card.sprite = self.load_sprite(self.__card_img__[k])
             x = (x_lh if self.__config__['left_handed'] else x_rh)
             x -= i * self.__cr_sep__
-            card.sprite.position = x, self.__w_pos__[1]
+            if not card.card.in_anim:
+                card.sprite.position = x, self.__w_pos__[1]
             card.sprite.depth = 6 - i
             card.card.visible = True
         for i in range(len(self.table.waste) - 4):
@@ -563,6 +713,12 @@ class Game(App):
                 self.__s_pos__[1]
             )
             self.__cards__[k].card.visible = False
+
+    def get_tableau_pos(self, col, row):
+        return (
+            self.__t_pos__[col][0],
+            self.__t_pos__[col][1] + self.__cr_sep__ * row
+        )
 
     def get_array_index(self, area, mouse_pos=None):
         if mouse_pos is None:

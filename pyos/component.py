@@ -33,6 +33,7 @@ class Card(object):
         self.value = value
         self.suit = suit
         self.visible = visible
+        self.in_anim = False
 
 
 class CardEntity(Entity):

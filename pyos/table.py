@@ -45,7 +45,8 @@ class Table(object):
         self.__points__ = 0
         self.__last_move__ = 0.0
         self.__elapsed_time__ = 0.0
-        self.__paused__ = False
+        self.__paused__ = True
+        self.__fresh_deal__ = False
         self.__current_seed__ = None
         self.draw = self.__wrap_method__(self.__draw__)
         self.undo = self.__wrap_method__(self.__undo__)
@@ -119,10 +120,17 @@ class Table(object):
         self.__current_seed__, self.__tableau__, self.__stack__ = deal(
             random_seed
         )
+        self.__waste__ = []
+        self.__foundation__ = [[] for _ in range(4)]
+        self.__paused__ = True
+        self.__fresh_deal__ = True
 
     def start(self):
-        self.__start_time__ = time.perf_counter()
-        self.__moves__ = 0
+        if self.__fresh_deal__:
+            self.__start_time__ = time.perf_counter()
+            self.__moves__ = 0
+            self.__paused__ = False
+            self.__fresh_deal__ = False
 
     def pause(self):
         if self.__paused__:
@@ -161,8 +169,13 @@ class Table(object):
 
     def __wrap_method__(self, m):
         def wrapper(*args, **kwargs):
+            res = m(*args, **kwargs)
+            if res and self.__fresh_deal__:
+                self.start()
+            elif res and self.__paused__:
+                self.resume()
             self.increment_moves()
-            return m(*args, **kwargs)
+            return res
         return wrapper
 
     def __waste_to_tableau__(self, col=None):
@@ -236,6 +249,8 @@ class Table(object):
                 self.__moves__ -= 1
                 return False
         for ti, tab in en_t:
+            if not tab:
+                continue
             card = tab[-1][0]
             self.log.debug(f'testing ({card})')
             for fi, fnd in en_f:
@@ -264,9 +279,11 @@ class Table(object):
         if ecol is None:
             en_e = list(enumerate(self.tableau))
         else:
-            en_e = [(scol, self.tableau[ecol])]
+            en_e = [(ecol, self.tableau[ecol])]
 
         for si, stab in en_s:
+            if not stab:
+                continue
             card = stab[srow][0]
             self.log.debug(f'testing ({card})')
             for ei, etab in en_e:
