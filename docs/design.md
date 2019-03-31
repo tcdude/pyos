@@ -88,6 +88,7 @@ Background`
 | Tableau to Foundation | 10 |
 | Turn over Tableau card | 5 |
 | Foundation to Tableau | -15 |
+| Undo (*any*) | -15 |
 | Recycle waste<br> *(when playing draw one)* | -100 |
 
 ##### Bonus

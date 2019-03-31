@@ -34,7 +34,7 @@ Seed = Union[int, str, bytes, bytearray]
 
 def shuffled_deck(random_seed=None):
     # type: (Optional[Seed]) -> Tuple[Seed, List[Tuple[int, int]]]
-    """Returns the used random seed and the shuffled deck."""
+    """Return the used random seed and the shuffled deck."""
     s = random_seed or os.urandom(2500)
     random.seed(s)
     deck = [(s, v) for s in range(4) for v in range(13)]
@@ -46,7 +46,7 @@ def shuffled_deck(random_seed=None):
 def deal(random_seed=None):
     # type: (Optional[Seed]) -> Tuple[Seed, List, List]
     """
-    Returns the used random seed, tableau and stack.
+    Return the used random seed, tableau and stack.
 
     tableau = List[7][depth][2] => 7 Piles -> `depth` high -> card, open (1/0)
     stack = List[24] => card
@@ -61,3 +61,29 @@ def deal(random_seed=None):
             tableau[t].append([c, 1 if first else 0])
             first = False
     return s, tableau, stack
+
+
+def valid_move(card_from, card_to, to_foundation=False):
+    """Return True if the move is valid, otherwise False"""
+    sf, vf = card_from
+    if to_foundation:
+        if vf == 0 and card_to is None:
+            # Ace to empty Foundation
+            return True
+        if card_to is None:
+            return False
+    if not to_foundation and card_to is None:
+        # King to empty Tableau Pile
+        return True if vf == 12 else False
+    st, vt = card_to
+    if to_foundation and sf == st and vf - vt == 1:
+        # Valid Move to Foundation
+        return True
+    if not to_foundation and vt - vf == 1 and sf % 2 != st % 2:
+        # Valid Move to Tableau
+        return True
+    return False
+
+
+def bonus(t):
+    return int(700_000 / max(30, t))

@@ -44,7 +44,7 @@ class Task(object):
         self.__delay__ = delay
         self.__args__ = args
         self.__kwargs__ = kwargs
-        self.__last_exec__ = time.clock()
+        self.__last_exec__ = time.perf_counter()
         self.__active__ = True
         self.__paused__ = False
 
@@ -75,7 +75,7 @@ class Task(object):
 
     def resume(self, instant=True):
         """Resumes execution of current task."""
-        self.__last_exec__ = time.clock()
+        self.__last_exec__ = time.perf_counter()
         if instant:
             self.__last_exec__ -= self.delay
         self.__paused__ = False
@@ -92,8 +92,12 @@ class Task(object):
         if not self.__active__ or self.__paused__:
             return
         if self.__last_exec__ + self.delay <= clk:
+            dt = clk - self.__last_exec__
             self.__last_exec__ = clk
-            self.__callback__(*self.__args__, **self.__kwargs__)
+            kw = {}
+            kw.update(self.__kwargs__)
+            kw['dt'] = dt
+            self.__callback__(*self.__args__, **kw)
 
 
 class TaskManager(object):
@@ -105,10 +109,11 @@ class TaskManager(object):
 
     def add_task(self, name, callback, delay=0, *args, **kwargs):
         """
-        Returns a Task object.
+        Return a Task object.
 
         :str name: unique name of the task
-        :callable callback: method to call
+        :callable callback: method to call, must either have **kwargs or accept
+                            an argument called `dt`
         :float delay: number of seconds between execution (default=0). This
                       argument must be explicitly passed to `add_task` if
                       optional `args` and/or `kwargs` for `callback` will be
@@ -127,8 +132,8 @@ class TaskManager(object):
             self.__tasks__.pop(name).disable()
 
     def __call__(self, clk=None):
-        if clk is None:
-            clk = time.clock()
+        # if clk is None:
+        clk = time.perf_counter()
         for task in self.__tasks__.values():
             task(clk)
 

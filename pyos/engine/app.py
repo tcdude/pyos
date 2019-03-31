@@ -21,6 +21,7 @@ SOFTWARE.
 """
 
 import ctypes
+import logging
 import sys
 import time
 import traceback
@@ -29,6 +30,7 @@ import sdl2
 import sdl2.ext
 
 from engine.eventhandler import EventHandler
+from engine.interval import PositionInterval
 from engine.render import HWRenderer
 from engine.taskmanager import TaskManager
 from engine.tools import load_sprite
@@ -65,6 +67,10 @@ class App(object):
         self.__running__ = False
         self.__mouse_pos__ = Point()
         self.__taskmgr__.add_task('___MOUSE_WATCHER___', self.__update_mouse__)
+        self.__sequences__ = {}
+        self.__taskmgr__.add_task('___ANIMATION___', self.__animation__)
+        self.__frames__ = 0
+        self.__fps__ = 0.0
         self.__init_sdl__()
         self.__clean_exit__ = False
 
@@ -76,8 +82,9 @@ class App(object):
     def world(self):
         return self.__world__
 
+    # noinspection PyUnusedLocal
     @property
-    def event_handler(self):
+    def event_handler(self, *args, **kwargs):
         return self.__event_handler__
 
     @property
@@ -103,21 +110,62 @@ class App(object):
     def toast(message):
         toast(message)
 
-    def __update_mouse__(self):
+    # noinspection PyUnusedLocal
+    def __update_mouse__(self, *args, **kwargs):
         if not self.__running__:
             return
         x, y = ctypes.c_int(0), ctypes.c_int(0)
         _ = sdl2.mouse.SDL_GetMouseState(ctypes.byref(x), ctypes.byref(y))
         self.__mouse_pos__.x, self.__mouse_pos__.y = x.value, y.value
 
+    # noinspection PyUnusedLocal
+    def __animation__(self, dt, *args, **kwargs):
+        if not self.__running__ or not self.__sequences__:
+            return
+        for k in self.__sequences__:
+            sequence = self.__sequences__[k]
+            rt = sequence[0].step(dt)
+            if rt > 0:
+                continue
+            while rt <= 0:
+                sequence.pop(0)
+                if len(sequence):
+                    rt = sequence[0].step(dt)
+                else:
+                    break
+        p = []
+        for k in self.__sequences__:
+            if not self.__sequences__[k]:
+                p.append(k)
+        for k in p:
+            self.__sequences__.pop(k)
+
+    def position_sequence(self, entity, depth, sequence):
+        seq = []
+        for duration, start_pos, end_pos in sequence:
+            seq.append(PositionInterval(
+                entity,
+                depth,
+                duration,
+                start_pos,
+                end_pos
+            ))
+        k = str(entity)
+        if k in self.__sequences__:
+            self.__sequences__[k] += seq
+        else:
+            self.__sequences__[k] = seq
+
     def run(self):
         try:
             self.__running__ = True
+            st = time.perf_counter()
             while self.__running__:
-                st = time.clock()
                 self.task_manager(st)
                 self.world.process()
-                time.sleep(max(0.0, 0.016667 - (time.clock() - st)))
+                nt = time.perf_counter()
+                time.sleep(max(0.0, 1 / 60 - (nt - st)))
+                st = nt
         finally:
             sdl2.ext.quit()
             self.__clean_exit__ = True

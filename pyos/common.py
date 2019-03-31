@@ -40,7 +40,9 @@ CONFIG = {
     'draw_one': True,
     'tap_move': True,
     'auto_foundation': True,
+    'auto_flip': True,
     'left_handed': False,
+    'drag_threshold': 0
 }
 
 # Paths
@@ -71,12 +73,12 @@ TOP_BAR = (0.96, 0.078125)
 BOTTOM_BAR = (0.96, 0.08125)
 TABLEAU_SPACING = 0.028125
 COL_SPACING = 0.5 / 7.5 / 8
-ROW_SPACING = 0.0125  # % of y resolution between stacked cards
+ROW_SPACING = 0.0165  # % of y resolution between stacked cards
 
 
 # Helper Methods
 def get_scale(screen_size, ratio, orig=CARDS[(0, 0)]):
-    """Returns image scale to be applied in respect to screen size"""
+    """Return image scale to be applied in respect to screen size"""
     img = Image.open(orig)
     rx = (float(screen_size[0]) / ratio[0]) / img.size[0]
     ry = (float(screen_size[1]) / ratio[1]) / img.size[1]
@@ -88,7 +90,7 @@ def get_scale(screen_size, ratio, orig=CARDS[(0, 0)]):
 
 
 def get_cards(screen_size, ratio=(7.5, 4.7)):
-    """Returns a dict of cards and their image paths."""
+    """Return a dict of cards and their image paths."""
     if not os.path.isdir(CACHEDIR):
         os.mkdir(CACHEDIR)
     x, y = get_scale(screen_size, ratio)
@@ -109,7 +111,7 @@ def get_cards(screen_size, ratio=(7.5, 4.7)):
 
 
 def get_empty(screen_size, ratio=(7.5, 4.7)):
-    """Returns a dict of the 4 placeholders"""
+    """Return a dict of the 4 placeholders"""
     x, y = get_scale(screen_size, ratio, FOUNDATION)
     d = {}
     for e in (STACK, WASTE, FOUNDATION, TABLEAU):
@@ -124,7 +126,7 @@ def get_empty(screen_size, ratio=(7.5, 4.7)):
 
 
 def get_table(screen_size, ratio=(7.5, 4.7), left_handed=False):
-    """Returns the path of the table background image. Generates it if absent"""
+    """Return the path of the table background image. Generates it if absent"""
     p = "pl" if left_handed else "pr"
     p += f'{screen_size[0]:04d}{screen_size[1]:04d}.bmp'
     p = os.path.join(CACHEDIR, p)

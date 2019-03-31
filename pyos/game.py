@@ -21,30 +21,29 @@ SOFTWARE.
 """
 
 import pickle
-from math import ceil
 import os
+import logging
+from logging.config import dictConfig
 
 import sdl2
 from sdl2.ext import Applicator
 
 from common import APPNAME
-from common import ASSETDIR
-from common import BACKGROUND
 from common import COL_SPACING
 from common import CONFIG
 from common import CONFIGFILE
-from common import get_empty
 from common import get_scale
 from common import get_table
 from common import RATIO
 from common import get_cards
+from common import ROW_SPACING
 from common import TABLEAU_SPACING
 from common import TOP_BAR
 from component import CardEntity
 from component import PlaceHolderEntity
 from engine.app import App
-from rules import deal
-from rules import shuffled_deck
+from engine.vector import Vector
+from table import Table
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
@@ -68,23 +67,27 @@ class Game(App):
 
         # Entities
         self.__bg__ = []
-        self.__table__ = []
         self.__cards__ = {}
-        self.__tableau__ = [[] * 7]
-        self.__foundation__ = [[] * 4]
-        self.__stack__ = []
-        self.__waste__ = []
 
-        # Locations
+        # Locations / Size
+        self.__cr_sep__ = int(self.screen_size[1] * ROW_SPACING)
+        self.__cardsize__ = (0, 0)
         self.__f_pos__ = []
         self.__s_pos__ = (0, 0)
         self.__w_pos__ = (0, 0)
         self.__t_pos__ = []
 
         # State
+        self.__table__ = Table()
         self.__drag__ = False
-        self.__current_seed__ = None
-        self.__deck__ = []
+        self.__invalid_drag__ = False
+        self.__d_ent__ = []
+        self.__drag_origin__ = None
+        self.__orig_depth__ = 0
+        self.__last_click__ = 0.0
+        self.__m_d_pos__ = Vector()
+        self.__last_mouse__ = Vector()
+        self.__down__ = False
 
         # Setup
         self.setup()
@@ -100,6 +103,303 @@ class Game(App):
             sdl2.SDL_KEYUP,
             self.back
         )
+        if self.isandroid:
+            self.event_handler.listen(
+                'finger_down',
+                sdl2.SDL_FINGERDOWN,
+                self.mouse_down
+            )
+            self.event_handler.listen(
+                'finger_up',
+                sdl2.SDL_FINGERUP,
+                self.mouse_up
+            )
+        else:
+            self.event_handler.listen(
+                'mouse_down',
+                sdl2.SDL_MOUSEBUTTONDOWN,
+                self.mouse_down
+            )
+            self.event_handler.listen(
+                'mouse_up',
+                sdl2.SDL_MOUSEBUTTONUP,
+                self.mouse_up
+            )
+        self.task_manager.add_task('drag_task', self.drag_task)
+        # Logging
+        dictConfig({
+            'version': 1,
+            'disable_existing_loggers': True,
+            'formatters': {
+                'standard': {
+                    'format': '%(asctime)s | %(levelname)s | %(filename)s:'
+                              '%(funcName)s:%(lineno)d => %(message)s'
+                },
+            },
+            'handlers': {
+                'default': {
+                    'level': 'DEBUG',
+                    'class': 'logging.StreamHandler',
+                    'formatter': 'standard'
+                },
+            },
+            'loggers': {
+                '': {
+                    'handlers': ['default'],
+                    'level': 'DEBUG',
+                    'propagate': True
+                }
+            }
+        })
+
+        self.log.error('pyos started')
+
+    @property
+    def log(self):
+        return logging
+
+    @property
+    def table(self):
+        return self.__table__
+
+    # noinspection PyUnusedLocal
+    def mouse_down(self, event):
+        self.__down__ = True
+        if self.isandroid:
+            self.__update_mouse__()
+        if event.type == sdl2.SDL_TouchFingerEvent:
+            self.__m_d_pos__ = Vector(
+                int(event.x * (self.screen_size[0] - 1)),
+                int(event.y * (self.screen_size[1] - 1))
+            )
+            self.log.debug('finger down')
+        else:
+            self.__m_d_pos__ = self.mouse_pos
+            self.log.debug(f'mouse button down [{self.mouse_pos}]')
+
+    # noinspection PyUnusedLocal
+    def drag_task(self, *args, **kwargs):
+        if self.__invalid_drag__:
+            return
+        if self.__down__ and not self.__drag__:
+
+            dist = (self.mouse_pos - self.__m_d_pos__).length
+            if dist > self.__config__['drag_threshold']:
+                self.__drag_origin__, self.__d_ent__ = self.get_drag_entities()
+                if not self.__d_ent__:
+                    self.__invalid_drag__ = True
+                    return
+                self.__orig_depth__ = self.__d_ent__[0].sprite.depth
+                self.__drag__ = True
+                self.__last_mouse__ = self.__m_d_pos__
+                self.log.debug('start drag')
+        if self.__drag__:
+            dx, dy = self.mouse_pos - self.__last_mouse__
+            self.__last_mouse__ = self.mouse_pos
+            for i, e in enumerate(self.__d_ent__):
+                x, y = e.sprite.position
+                e.sprite.position = x + dx, y + dy
+                e.sprite.depth = 100 + i
+
+    def get_drag_entities(self):
+        a = self.check_click_pos(self.__m_d_pos__)
+        if a in ('s', None):
+            return 's', []
+        if a == 'w' and len(self.table.waste):
+            return 'w', [self.__cards__[self.table.waste[-1]]]
+        elif a == 'f':
+            for i, f in enumerate(self.table.foundation):
+                sx = self.__f_pos__[i][0]
+                ex = sx + self.__cardsize__[0]
+                if sx <= self.__m_d_pos__.x <= ex:
+                    return f'f{i}', [self.__cards__[f[-1]]]
+        elif a == 't':
+            col = self.__m_d_pos__.x / (self.screen_size[0] / 7)
+            col = min(6, int(col))
+            if not self.table.tableau[col]:
+                return f't{col}', []
+            row = self.get_tableau_row(col, self.__m_d_pos__)
+            if row == -1:
+                return f't{col}', [
+                    self.__cards__[self.table.tableau[col][-1][0]]
+                ]
+            else:
+                return (
+                    f't{col}',
+                    [
+                        self.__cards__[c[0]]
+                        for c in self.table.tableau[col][row:]
+                    ]
+                )
+        return None, None
+
+    # noinspection PyUnusedLocal
+    def mouse_up(self, event):
+        self.__down__ = False
+        sa = self.check_click_pos(self.__m_d_pos__)
+        ea = self.check_click_pos()
+        if self.__invalid_drag__:
+            self.__invalid_drag__ = False
+            if not (sa == ea is not None):
+                self.__drag__ = False
+                return
+        process_click = True
+        if self.__drag__:
+            process_click = self.end_drag(sa, ea)
+        if not process_click:
+            return
+        a = self.check_click_pos()
+        if a == 's':
+            self.stack_click()
+        elif a == 'w':
+            self.waste_click()
+        elif a == 't':
+            self.tableau_click()
+        elif a == 'f':
+            self.foundation_click()
+
+    def end_drag(self, start_area, end_area):
+        process_click = True
+        if start_area == end_area != 't':
+            invalid = True
+        else:
+            to_foundation = True if end_area == 'f' else False
+            if to_foundation and len(self.__d_ent__) > 1:
+                self.log.debug('tried to drag multiple cards to foundation')
+                invalid = True
+            elif end_area in ('w', 's', None):
+                self.log.debug(f'tried to drop on invalid area={str(end_area)}')
+                invalid = True
+            else:
+                sti = self.get_array_index('t', self.__m_d_pos__)
+                srow = self.get_tableau_row(sti, self.__m_d_pos__)
+                eti = self.get_array_index('t', self.mouse_pos)
+                sfi = self.get_array_index('f', self.__m_d_pos__)
+                efi = self.get_array_index('f', self.mouse_pos)
+                if start_area == 'w':
+                    if end_area == 't':
+                        self.log.debug(f'waste_to_tableau(col={eti})')
+                        invalid = not self.table.waste_to_tableau(
+                            col=eti
+                        )
+                        if not invalid:
+                            self.update_tableau(eti)
+                    elif end_area == 'f':
+                        self.log.debug(f'waste_to_foundation(col={efi})')
+                        invalid = not self.table.waste_to_foundation(
+                            col=efi
+                        )
+                        if not invalid:
+                            self.update_foundation(efi)
+                    else:
+                        self.log.debug('invalid waste_to_... move')
+                        invalid = True
+                    if not invalid:
+                        self.update_waste()
+                elif start_area == 't':
+                    if end_area == 't':
+                        self.log.debug(
+                            f'tableau_to_tableau(scol={sti}, ecol={eti}, srow='
+                            f'{srow})'
+                        )
+                        invalid = not self.table.tableau_to_tableau(
+                            scol=sti,
+                            ecol=eti,
+                            srow=srow
+                        )
+                        if not invalid:
+                            self.update_tableau(eti)
+                    elif end_area == 'f':
+                        self.log.debug(
+                            f'tableau_to_foundation(col={sti}, fcol={efi})'
+                        )
+                        invalid = not self.table.tableau_to_foundation(
+                            col=sti,
+                            fcol=efi
+                        )
+                        if not invalid:
+                            self.update_foundation(efi)
+                    else:
+                        self.log.debug('invalid tableau_to_... move')
+                        invalid = True
+                    if not invalid:
+                        self.update_tableau(sti)
+                elif start_area == 'f':
+                    if end_area == 't':
+                        self.log.debug(
+                            f'foundation_to_tableau(col={sfi}, tcol={eti})'
+                        )
+                        invalid = not self.table.foundation_to_tableau(
+                            col=sfi,
+                            tcol=eti,
+                        )
+                        if not invalid:
+                            self.update_tableau(eti)
+                    else:
+                        self.log.debug('invalid foundation_to_... move')
+                        invalid = True
+                    if not invalid:
+                        self.update_foundation(sfi)
+                else:
+                    self.log.warning(
+                        f'unhandled drag event: start_area={str(start_area)}, '
+                        f'end_area={str(end_area)}, sti={sti}, srow={srow}, '
+                        f'eti={eti}, sfi={sfi}, efi={efi}'
+                    )
+                    invalid = True
+        if invalid:
+            self.log.debug('!!invalid move!!')
+            dx, dy = self.__m_d_pos__ - self.mouse_pos
+            for i, e in enumerate(self.__d_ent__):
+                x, y = e.sprite.position
+                e.sprite.position = x + dx, y + dy
+                e.sprite.depth = self.__orig_depth__ + i
+        else:
+            self.log.debug('!!valid move!!')
+            process_click = False
+        self.__drag__ = False
+        self.__d_ent__ = []
+        return process_click
+
+    def check_click_pos(self, mouse_pos=None):
+        """Return a single lowercase letter for the clicked area or None"""
+        if mouse_pos is None:
+            mouse_pos = self.mouse_pos
+
+        # Stack
+        sx = self.__s_pos__[0]
+        ex = sx + self.__cardsize__[0]
+        sy = self.__s_pos__[1]
+        ey = sy + self.__cardsize__[1]
+        if sx <= mouse_pos.x <= ex and sy <= mouse_pos.y <= ey:
+            return 's'
+
+        # Waste
+        sx = self.__w_pos__[0]
+        if self.__config__['left_handed']:
+            sx += min(len(self.table.waste) - 1, 3) * self.__cr_sep__
+        ex = sx + self.__cardsize__[0]
+        sy = self.__w_pos__[1]
+        ey = sy + self.__cardsize__[1]
+        if sx <= mouse_pos.x <= ex and sy <= mouse_pos.y <= ey:
+            return 'w'
+
+        # Tableau
+        sy = self.__t_pos__[0][1]
+        max_pile = max([len(i) - 1 for i in self.table.tableau] + [0])
+        ey = sy + max_pile * self.__cr_sep__ + self.__cardsize__[1]
+        if sy <= mouse_pos.y <= ey:
+            return 't'
+
+        # Foundation
+        sx = min(self.__f_pos__[0][0], self.__f_pos__[-1][0])
+        ex = max(self.__f_pos__[0][0], self.__f_pos__[-1][0])
+        ex += self.__cardsize__[0]
+        sy = self.__f_pos__[0][1]
+        ey = self.__f_pos__[-1][1] + self.__cardsize__[1]
+        if sx <= mouse_pos.x <= ex and sy <= mouse_pos.y <= ey:
+            return 'f'
+        return None
 
     def back(self, event):
         """Handles Android Back, Escape and Backspace Events"""
@@ -119,7 +419,7 @@ class Game(App):
         self.__bg__ = PlaceHolderEntity(self.world, self.load_sprite(table))
 
         # Positions
-        cx, cy = get_scale(self.screen_size, RATIO)
+        cx, cy = self.__cardsize__ = get_scale(self.screen_size, RATIO)
         col = int(self.screen_size[0] * COL_SPACING)
         y_start = int(self.screen_size[1] * TOP_BAR[1])
         r = range(6, 2, -1) if left_handed else range(4)
@@ -148,21 +448,164 @@ class Game(App):
         self.deal()
 
     def deal(self, random_seed=None):
-        self.__current_seed__, self.__tableau__, self.__stack__ = deal(random_seed)
-        y_sep = int(self.screen_size[1] * TABLEAU_SPACING)
-        for x, pile in enumerate(self.__tableau__):
-            x_pos = self.__t_pos__[x][0]
-            y_start = self.__t_pos__[x][1]
-            for y, (k, o) in enumerate(pile):
-                card = self.__cards__[k]
-                if o:
-                    card.sprite = self.load_sprite(self.__card_img__[k])
-                    card.card.visible = True
+        self.table.deal(random_seed)
+        self.reset_stack()
+        self.update_tableau()
+
+    def stack_click(self):
+        res = self.table.draw(self.__config__['draw_one'])
+        if res == 0:
+            self.update_waste()
+        elif res == 1:
+            self.reset_stack()
+
+    def waste_click(self):
+        if self.table.waste_to_tableau():
+            self.update_tableau()
+            self.update_waste()
+            return
+        if self.table.waste_to_foundation():
+            self.update_foundation()
+            self.update_waste()
+            return
+
+    def tableau_click(self):
+        i = self.get_array_index('t', self.mouse_pos)
+        row = self.get_tableau_row(i, self.mouse_pos)
+        tableau = self.table.tableau[i]
+        if not tableau:
+            return
+        if tableau and tableau[row][1] == 0:
+            if row == -1:
+                tableau[row][1] = 1
+                self.__cards__[tableau[row][0]].card.visible = True
+                self.update_tableau(i)
+                return
+            if not self.__cards__[tableau[row][0]].card.visible:
+                return
+        if row == -1:
+            if self.table.tableau_to_foundation(col=i):
+                self.update_foundation()
+                self.update_tableau(i)
+                return
+            if self.table.tableau_to_tableau(scol=i):
+                self.update_tableau()
+                return
+        if self.table.tableau_to_tableau(scol=i, srow=row):
+            self.update_tableau()
+
+    def foundation_click(self):
+        i = self.get_array_index('f', self.mouse_pos)
+        if self.table.foundation_to_tableau(col=i):
+            self.update_foundation(i)
+            self.update_tableau()
+
+    def anim_shake(self, card, duration=0.2, delta_x=0.05, delta_y=0.0):
+        x, y = card.sprite.position
+        d = duration / 8
+        mx = int(self.__cardsize__[0] * delta_x)
+        my = int(self.__cardsize__[1] * delta_y)
+        od = card.sprite.depth
+        self.position_sequence(card, od, (
+            (d, Vector(x, y), Vector(x + mx, y + my)),
+            (d, Vector(x + mx, y + my), Vector(x, y)),
+            (d, Vector(x, y), Vector(x - mx, y - my)),
+            (d, Vector(x - mx, y - my), Vector(x, y)),
+            (d, Vector(x, y), Vector(x + mx, y + my)),
+            (d, Vector(x + mx, y + my), Vector(x, y)),
+            (d, Vector(x, y), Vector(x - mx, y - my)),
+            (d, Vector(x - mx, y - my), Vector(x, y)),
+        ))
+
+    def update_tableau(self, col=None):
+        for col in range(7) if col is None else [col]:
+            x = self.__t_pos__[col][0]
+            sy = self.__t_pos__[col][1]
+            for row, (k, v) in enumerate(self.table.tableau[col]):
+                y = sy + row * self.__cr_sep__
+                self.__cards__[k].card.visible = True if v else False
+                if self.__cards__[k].card.visible:
+                    self.__cards__[k].sprite = self.load_sprite(
+                        self.__card_img__[k]
+                    )
                 else:
-                    card.sprite = self.load_sprite(self.__cardback_img__)
-                    card.card.visible = False
-                card.sprite.position = x_pos, y_start + y * y_sep
-                card.sprite.depth = y + 1
+                    self.__cards__[k].sprite = self.load_sprite(
+                        self.__cardback_img__
+                    )
+                self.__cards__[k].sprite.position = x, y
+                self.__cards__[k].sprite.depth = 2 + row
+
+    def update_foundation(self, col=None):
+        for col in range(4) if col is None else [col]:
+            for i, k in enumerate(self.table.foundation[col]):
+                self.__cards__[k].sprite.position = self.__f_pos__[col]
+                self.__cards__[k].sprite.depth = 2 + i
+
+    def update_waste(self):
+        x_rh = self.__w_pos__[0]
+        x_lh = x_rh + min(len(self.table.waste) - 1, 3) * self.__cr_sep__
+        for i, k in enumerate(reversed(self.table.waste[-4:])):
+            card = self.__cards__[k]
+            card.sprite = self.load_sprite(self.__card_img__[k])
+            x = (x_lh if self.__config__['left_handed'] else x_rh)
+            x -= i * self.__cr_sep__
+            card.sprite.position = x, self.__w_pos__[1]
+            card.sprite.depth = 6 - i
+            card.card.visible = True
+        for i in range(len(self.table.waste) - 4):
+            self.__cards__[self.table.waste[i]].sprite.depth = 1
+
+    def reset_stack(self):
+        for k in self.table.stack:
+            self.__cards__[k].sprite = self.load_sprite(self.__cardback_img__)
+            self.__cards__[k].sprite.position = (
+                self.__s_pos__[0],
+                self.__s_pos__[1]
+            )
+            self.__cards__[k].card.visible = False
+
+    def get_array_index(self, area, mouse_pos=None):
+        if mouse_pos is None:
+            mouse_pos = self.mouse_pos
+        if area == 'f':
+            for i, _ in enumerate(self.table.foundation):
+                sx = self.__f_pos__[i][0]
+                ex = sx + self.__cardsize__[0]
+                if sx <= mouse_pos.x <= ex:
+                    return i
+        elif area == 't':
+            col = mouse_pos.x / (self.screen_size[0] / 7)
+            col = min(6, int(col))
+            return col
+        return -1
+
+    def get_tableau_row(self, col, mouse_pos=None):
+        if mouse_pos is None:
+            mouse_pos = self.mouse_pos
+        sy = self.__t_pos__[col][1]
+        ey = sy + self.__cardsize__[1]
+        ey += len(self.table.tableau[col]) * self.__cr_sep__
+        if sy <= mouse_pos.y <= ey:
+            if mouse_pos.y >= ey - self.__cardsize__[1]:
+                return -1
+            return int((mouse_pos.y - sy) / self.__cr_sep__)
+        return None
+
+    def get_card_under_mouse(self, area=None):
+        if area is None:
+            area = self.check_click_pos()
+        if area == 'f':
+            i = self.get_array_index(area)
+            if i != -1:
+                f = self.table.foundation[i]
+                return self.__cards__[f[-1]] if len(f) else None
+        elif area == 't':
+            col = self.get_array_index(area)
+            if len(self.table.tableau[col]):
+                return self.__cards__[self.table.tableau[col][-1][0]]
+        elif area == 'w':
+            return self.__cards__[self.table.waste[-1]]
+        return None
 
 
 class GameApplicator(Applicator):

@@ -127,6 +127,12 @@ class Vector(object):
         else:
             raise ValueError('Must be of type int or float')
 
+    def __rmul__(self, other):
+        if isinstance(other, (int, float)):
+            return Vector(self.x * other, self.y * other)
+        else:
+            raise ValueError('Must be of type int or float')
+
     def __truediv__(self, other):
         if isinstance(other, (int, float)):
             return Vector(self.x / other, self.y / other)
