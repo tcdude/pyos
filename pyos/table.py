@@ -49,6 +49,7 @@ class Table(object):
         self.__fresh_deal__ = False
         self.__current_seed__ = None
         self.draw = self.__wrap_method__(self.__draw__)
+        self.flip = self.__wrap_method__(self.__flip__)
         self.undo = self.__wrap_method__(self.__undo__)
         self.waste_to_tableau = self.__wrap_method__(self.__waste_to_tableau__)
         self.waste_to_foundation = self.__wrap_method__(
@@ -98,7 +99,11 @@ class Table(object):
 
     @property
     def time(self):
-        return time.perf_counter() - self.__start_time__
+        if not self.__paused__ and not self.__fresh_deal__:
+            return time.perf_counter() - self.__start_time__
+        if self.__paused__ and not self.__fresh_deal__:
+            return self.__elapsed_time__
+        return 0
 
     @property
     def points(self):
@@ -116,6 +121,10 @@ class Table(object):
     def win_condition(self):
         return True if sum([len(f) for f in self.foundation]) == 52 else False
 
+    @property
+    def is_paused(self):
+        return self.__paused__
+
     def deal(self, random_seed=None):
         self.__current_seed__, self.__tableau__, self.__stack__ = deal(
             random_seed
@@ -124,9 +133,13 @@ class Table(object):
         self.__foundation__ = [[] for _ in range(4)]
         self.__paused__ = True
         self.__fresh_deal__ = True
+        self.__points__ = 0
+        self.__moves__ = 0
+        self.__history__ = []
 
     def start(self):
         if self.__fresh_deal__:
+            self.log.info('First move of the game')
             self.__start_time__ = time.perf_counter()
             self.__moves__ = 0
             self.__paused__ = False
@@ -135,20 +148,30 @@ class Table(object):
     def pause(self):
         if self.__paused__:
             return
+        self.log.info('Pausing game')
         self.__elapsed_time__ = self.time
         self.__paused__ = True
 
     def resume(self):
         if not self.__paused__:
             return
-        self.__start_time__ = time.perf_counter() - self.__elapsed_time__
+        new_start = time.perf_counter() - self.__elapsed_time__
+        self.log.info(f'Resuming game old time = {self.__start_time__}, '
+                      f'new start time = {new_start}, elapsed time = '
+                      f'{self.__elapsed_time__}')
+        self.__start_time__ = new_start
         self.__paused__ = False
+
+    def reset(self):
+        self.log.info('Reset table')
+        self.deal(self.__current_seed__)
 
     def increment_moves(self):
         self.__moves__ += 1
         self.__last_move__ = time.perf_counter()
 
     def get_state(self):
+        self.log.info('Retrieving state')
         self.pause()
         return pickle.dumps((
             self.stack,
@@ -162,6 +185,7 @@ class Table(object):
         ))
 
     def set_state(self, state):
+        self.log.info('State set')
         self.__stack__, self.__waste__, self.__foundation__, self.__tableau__,\
             self.__points__, self.__elapsed_time__, self.__current_seed__, \
             self.__history__ = pickle.loads(state)
@@ -169,14 +193,26 @@ class Table(object):
 
     def __wrap_method__(self, m):
         def wrapper(*args, **kwargs):
+            self.log.debug(f'calling {m.__name__}')
             res = m(*args, **kwargs)
-            if res and self.__fresh_deal__:
-                self.start()
-            elif res and self.__paused__:
-                self.resume()
-            self.increment_moves()
+            if res or (m.__name__ == '__draw__' and res in (0, 1)):
+                if self.__fresh_deal__:
+                    self.start()
+                elif self.__paused__:
+                    self.resume()
+                self.log.info('Moves +1')
+                self.increment_moves()
             return res
         return wrapper
+
+    def __flip__(self, col):
+        if not self.tableau[col]:
+            raise ValueError(f'Tableau column {col} is empty')
+        if self.tableau[col][-1][1]:
+            raise ValueError(f'Top most card of Tableau column {col} is '
+                             f'already flipped')
+        self.tableau[col][-1][1] = 1
+        self.history.append(('c', f't{col}', self.tableau[col][-1][0]))
 
     def __waste_to_tableau__(self, col=None):
         """Return True if valid, otherwise False"""
@@ -238,7 +274,6 @@ class Table(object):
             if len(self.tableau[col]):
                 en_t = [(col, self.tableau[col])]
             else:
-                self.__moves__ -= 1
                 return False
         if fcol is None:
             en_f = list(enumerate(self.foundation))
@@ -246,7 +281,6 @@ class Table(object):
             if len(self.foundation[fcol]):
                 en_f = [(fcol, self.foundation[fcol])]
             else:
-                self.__moves__ -= 1
                 return False
         for ti, tab in en_t:
             if not tab:
@@ -266,7 +300,6 @@ class Table(object):
                     self.__points__ += 10
                     self.log.info('valid move found')
                     return True
-        self.__moves__ -= 1
         self.log.info('no valid move found')
         return False
 
@@ -284,6 +317,8 @@ class Table(object):
         for si, stab in en_s:
             if not stab:
                 continue
+            if srow is None:
+                return False
             card = stab[srow][0]
             self.log.debug(f'testing ({card})')
             for ei, etab in en_e:
@@ -308,14 +343,12 @@ class Table(object):
                     self.history.append((f't{sii}', f't{eii}', cards))
                     self.log.info('valid move found')
                     return True
-        self.__moves__ -= 1
         self.log.info('no valid move found')
         return False
 
     def __foundation_to_tableau__(self, col, tcol=None):
         """Return True if valid, otherwise False"""
         if not self.foundation[col]:
-            self.__moves__ -= 1
             return False
         en_t = list(enumerate(
             self.tableau if tcol is None else [self.tableau[tcol]]
@@ -332,7 +365,6 @@ class Table(object):
                 self.__points__ = max(0, self.points - 15)
                 self.log.info('valid move found')
                 return True
-        self.__moves__ -= 1
         self.log.info('no valid move found')
         return False
 
@@ -340,7 +372,6 @@ class Table(object):
         """Return int where 0 = draw, 1 = reset stack, -1 = empty"""
         if not self.stack:
             if not self.waste:
-                self.__moves__ -= 1
                 self.log.info('no more cards')
                 return -1
             self.__stack__ = list(reversed(self.waste))
@@ -348,10 +379,12 @@ class Table(object):
             self.__points__ -= 100 if draw_one else 0
             self.__points__ = max(self.points, 0)
             self.log.info('reset stack')
+            self.history.append(('w', 's', len(self.stack)))
             return 1
         for _ in range(1 if draw_one else 3):
             if self.stack:
                 self.waste.append(self.stack.pop())
+                self.history.append(('s', 'w', self.waste[-1]))
             else:
                 break
         self.log.info('draw successful')
@@ -359,19 +392,25 @@ class Table(object):
 
     def __undo__(self):
         if not self.history:
-            raise ValueError('history is empty')
+            self.log.info('history is empty')
+            return False
         dest, orig, card = self.history.pop()
         self.__points__ = max(0, self.points - 15)
         if dest == 's':
             if not self.waste:
-                raise ValueError('cannot undo action, Waste is empty')
+                raise ValueError(f'cannot undo action, Waste is empty.'
+                                 f'Got dest={dest}, orig={orig}, card={card}')
             self.stack.append(self.waste.pop())
             return True
         elif dest == 'w':
             if orig[0] == 'f':
                 c = self.foundation[int(orig[1])].pop()
             elif orig[0] == 't':
-                c = self.tableau[int(orig[1])].pop()
+                c, _ = self.tableau[int(orig[1])].pop()
+            elif orig[0] == 's':
+                self.__waste__ = list(reversed(self.stack))
+                self.__stack__ = []
+                return True
             else:
                 raise ValueError(f'cannot undo action ({(dest, orig, card)})')
             self.waste.append(c)
@@ -380,7 +419,7 @@ class Table(object):
             if orig == 'w':
                 c = self.waste.pop()
             elif orig[0] == 't':
-                c = self.tableau[int(orig[1])].pop()
+                c, _ = self.tableau[int(orig[1])].pop()
             else:
                 raise ValueError(f'cannot undo action ({(dest, orig, card)})')
             self.foundation[int(dest[1])].append(c)
@@ -390,8 +429,25 @@ class Table(object):
                 c = self.waste.pop()
             elif orig[0] == 'f':
                 c = self.foundation[int(orig[1])].pop()
+            elif orig[0] == 't':
+                cards = self.tableau[int(orig[1])][-len(card):]
+                self.tableau[int(dest[1])] += cards
+                orig_pile = self.tableau[int(orig[1])][:-len(card)]
+                self.tableau[int(orig[1])] = orig_pile
+                return True
             else:
                 raise ValueError(f'cannot undo action ({(dest, orig, card)})')
             self.tableau[int(dest[1])].append([c, 1])
+            return True
+        elif dest[0] == 'c':
+            col = int(orig[1])
+            try:
+                row = self.tableau[col].index([card, 1])
+            except ValueError:
+                try:
+                    row = self.tableau[col].index([card, 0])
+                except ValueError:
+                    raise
+            self.tableau[col][row][1] = 0
             return True
         raise ValueError(f'action not understood ({(dest, orig, card)})')

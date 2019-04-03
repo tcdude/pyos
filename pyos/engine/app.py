@@ -21,10 +21,7 @@ SOFTWARE.
 """
 
 import ctypes
-import logging
-import sys
 import time
-import traceback
 
 import sdl2
 import sdl2.ext
@@ -34,7 +31,6 @@ from engine.interval import PositionInterval
 from engine.render import HWRenderer
 from engine.taskmanager import TaskManager
 from engine.tools import load_sprite
-from engine.tools import nop
 from engine.tools import toast
 from engine.vector import Point
 
@@ -47,10 +43,8 @@ ISANDROID = False
 try:
     import android
     ISANDROID = True
-    from android import hide_loading_screen
 except ImportError:
-    traceback.print_exc(file=sys.stdout)
-    hide_loading_screen = nop
+    pass
 
 
 class App(object):
@@ -239,16 +233,22 @@ class App(object):
                 nt = time.perf_counter()
                 time.sleep(max(0.0, 1 / 60 - (nt - st)))
                 st = nt
+        except (KeyboardInterrupt, SystemExit):
+            self.quit(blocking=False)
         finally:
             sdl2.ext.quit()
             self.__clean_exit__ = True
 
     # noinspection PyUnusedLocal
     def quit(self, blocking=True, event=None):
+        self.on_quit()
         self.__running__ = False
         if blocking:
             while not self.__clean_exit__:
                 time.sleep(0.01)
+
+    def on_quit(self):
+        pass
 
     def __init_sdl__(self):
         sdl2.ext.init()
@@ -257,6 +257,7 @@ class App(object):
             sdl2.SDL_GetCurrentDisplayMode(0, dm)
             self.__screen_size__ = (dm.w, dm.h)
             toast(f'Got Screen Resolution of {dm.w}x{dm.h}')
+            sdl2.ext.Window.DEFAULTFLAGS = sdl2.SDL_WINDOW_FULLSCREEN
         else:
             self.__screen_size__ = (720, 1280)
         self.__window__ = sdl2.ext.Window(
@@ -265,8 +266,8 @@ class App(object):
         )
         self.__window__.show()
         self.__renderer__ = HWRenderer(self.window)
-        if self.isandroid:
-            hide_loading_screen()
+        # if self.isandroid:
+        #     hide_loading_screen()
         self.__factory__ = sdl2.ext.SpriteFactory(
             sdl2.ext.TEXTURE,
             renderer=self.__renderer__

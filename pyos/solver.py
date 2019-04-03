@@ -19,54 +19,68 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-import logging
-
-from table import Table
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
 __license__ = 'MIT'
 __version__ = '0.1'
 
-
-def try_tableau(t):
-    # type: (Table) -> bool
-    res = False
-    while True:
-        if not t.tableau_to_foundation():
-            break
-        else:
-            res = True
-    tableaus = [t.tableau[:]]
-    while True:
-        if not t.tableau_to_tableau():
-            break
-        else:
-            if t.tableau in tableaus:
-                break
-            else:
-                res = True
-                tableaus.append(t.tableau[:])
-    return res
+DISTANCE_MAX = 52 + 49 + 24
 
 
-def solve(random_seed=None):
-    t = Table()
-    t.deal(random_seed)
-    while not t.win_condition:
-        try_tableau(t)
-        while t.draw() not in (0, -1):
-            pass
-        while True:
-            if t.waste_to_tableau() or t.waste_to_foundation():
-                continue
-            break
-        if t.moves > 80000:
-            break
-
-    print(f'moves={t.moves}\nt={t.tableau}\nf={t.foundation}\ns={t.stack}\n'
-          f'w={t.waste}')
+def init_foundation():
+    return [[Card(s, v) for v in range(13)] for s in range(4)]
 
 
-if __name__ == '__main__':
-    solve(42)
+class ReverseSolve(object):
+    def __init__(self):
+        self.foundation = init_foundation()
+        self.tableau = [[] for _ in range(7)]
+        self.stack = []
+        self.waste = []
+
+    def get_distance(self):
+        distance = sum([len(f) for f in self.foundation])
+        distance += abs(49 - sum([len(t) for t in self.tableau]))
+        for i, t in enumerate(self.tableau):
+            for j, c in enumerate(t):
+                if j < i and not c.face_up:
+                    distance -= 1
+        distance += abs(24 - len(self.waste) - len(self.stack))
+
+    def reset(self):
+        self.foundation = init_foundation()
+        self.tableau = [[] for _ in range(7)]
+        self.stack = []
+        self.waste = []
+
+    def get_valid_moves(self):
+        pass
+
+
+class Tableau(object):
+    def __init__(self):
+        self.piles = [[] for _ in range(7)]
+        self.pile_distance = [i + 1 + i * 1 for i in range(7)]
+
+    @property
+    def distance(self):
+        return sum(self.pile_distance)
+
+    def add_card(self, card, col):
+        self.piles[col].append(card)
+        t = col + col * 1
+        p = self.piles[col]
+        self.pile_distance[col] = abs(t - sum(
+            [2 if not c.face_up and i < col else 1 for i, c in enumerate(p)]
+        ))
+
+    def move_stack(self, from_col, start_row, to_col):
+        pass
+
+
+class Card(object):
+    def __init__(self, suit=None, value=None, face_up=True):
+        self.suit = suit
+        self.value = value
+        self.face_up = face_up

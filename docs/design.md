@@ -19,6 +19,7 @@ bored with it, which can happen, you know...)*.
 * Playable Game Loop
 * Handling of `HW Back Button` / `Transition to Background` / `Restore from 
 Background`
+* Undo Move
 
 ##### V 0.2
 * Options Menu
@@ -27,7 +28,6 @@ Background`
 
 ##### V 0.3
 * Auto to Foundation
-* Undo Move
 * Screen Rotation and Layout for Landscape mode
 
 ##### V 0.4
@@ -123,3 +123,41 @@ Background`
 `+----------------------+`<br>
 `| T0 T1 T2 T3 T4 T5 T6 |`<br>
 `+----------------------+`<br>
+
+---
+
+# Winner Deal
+
+*An different way of dealing the deck to assure a winnable Game.*
+
+Instead of simply shuffling the deck and dealing, the process starts with a
+completed game *(all cards on foundation)* and works its way backwards to a
+valid starting state. To achieve a good level of randomness, a distance 
+function is introduced to measure the distance in moves to the desired state
+*(i.e. 24 cards on the stack and 28 cards on the tableau with the top most
+7 cards on the tableau face up and the rest face down)*. Since an average
+game can be finished on average in about 130 moves, this will be used as an 
+indicator to steer the random selection of moves. Only testing will show what
+number of maximum moves leads to adequate randomness.
+
+#### The algorithm should fulfill the following parameters:
+* High information entropy *(Good shuffled -> Interesting to play)*
+* No redundancy *(e.g. no repeat moves)*
+* Find a solution in reasonable time
+
+#### All the possible Moves
+
+| From | To | Remarks |
+| :---: | :---: | :--- |
+| Foundation | Tableau | Either to a valid position or as new top card |
+| Foundation | Waste | Face Up only |
+| Tableau | Waste | ^ |
+| Tableau | Tableau | Either to a valid position or as new top card |
+| Tableau | Tableau | Flip card when not top most anymore |
+| Tableau | Foundation | Limit to reduce potential unnecessary moves |
+| Waste | Stack | 1 or 3 cards only if a complete move is possible! |
+| Stack | Waste | 1 or 3 cards allowed at any time |
+
+
+#### Distance Function
+

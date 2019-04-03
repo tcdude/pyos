@@ -33,6 +33,7 @@ from common import BOTTOM_BAR
 from common import COL_SPACING
 from common import CONFIG
 from common import CONFIGFILE
+from common import FONT_BOLD
 from common import FONT_NORMAL
 from common import get_scale
 from common import get_table
@@ -41,6 +42,7 @@ from common import get_cards
 from common import ROW_SPACING
 from common import STATEFILE
 from common import TABLEAU_SPACING
+from common import text_box
 from common import TOP_BAR
 from component import CardEntity
 from component import PlaceHolderEntity
@@ -71,7 +73,12 @@ class Game(App):
         # Entities
         self.__bg__ = []
         self.__cards__ = {}
+        self.__points__ = None
+        self.__time__ = None
+        self.__moves__ = None
+        self.__top_bar__ = []
         self.__bt_bar__ = []
+        self.__score_box__ = []
 
         # Locations / Size
         self.__cr_sep__ = int(self.screen_size[1] * ROW_SPACING)
@@ -102,6 +109,7 @@ class Game(App):
             0,
             blocking=False
         )
+        self.task_manager.add_task('HUD_Update', self.update_hud, 0.05)
         self.event_handler.listen(
             'android_back',
             sdl2.SDL_KEYUP,
@@ -155,7 +163,38 @@ class Game(App):
                 }
             }
         })
-
+        if self.isandroid:
+            self.event_handler.listen(
+                'APP_TERMINATING',
+                sdl2.SDL_APP_TERMINATING,
+                self.quit,
+                0,
+                blocking=False
+            )
+            self.event_handler.listen(
+                'APP_WILLENTERBACKGROUND',
+                sdl2.SDL_APP_WILLENTERBACKGROUND,
+                self.quit,
+                0,
+                blocking=False
+            )
+            self.event_handler.listen(
+                'APP_DIDENTERBACKGROUND',
+                sdl2.SDL_APP_DIDENTERBACKGROUND,
+                self.quit,
+                0,
+                blocking=False
+            )
+            self.event_handler.listen(
+                'APP_LOWMEMORY',
+                sdl2.SDL_APP_LOWMEMORY,
+                self.log.warning,
+                0,
+                'The application is low on memory!!!'
+            )
+            # noinspection PyUnresolvedReferences
+            import android
+            android.remove_presplash()
         self.log.info('pyos started')
 
     @property
@@ -168,6 +207,8 @@ class Game(App):
 
     # noinspection PyUnusedLocal
     def mouse_down(self, event):
+        if self.__score_box__:
+            return
         self.__down__ = True
         if self.isandroid:
             self.__update_mouse__()
@@ -241,6 +282,11 @@ class Game(App):
 
     # noinspection PyUnusedLocal
     def mouse_up(self, event):
+        if self.__score_box__:
+            for e in self.__score_box__:
+                self.world.delete(e)
+            self.__score_box__ = []
+            return
         self.__down__ = False
         sa = self.check_click_pos(self.__m_d_pos__)
         ea = self.check_click_pos()
@@ -263,14 +309,14 @@ class Game(App):
             self.tableau_click()
         elif a == 'f':
             self.foundation_click()
-        elif a == 'b' and self.mouse_pos.x < self.screen_size[0] // 3:
-            self.stop_all_position_sequences()
-            self.deal()
+        elif a == 'b':
+            self.bt_bar_click()
         if self.table.win_condition:
             self.stop_all_position_sequences()
             t, p, b, m = self.table.result
             self.log.info(f'{t:.1f} Seconds, {p} Points, {b} Bonus, {m} Moves')
-            self.deal()
+            self.show_score()
+            # self.deal()
 
     def end_drag(self, start_area, end_area):
         process_click = True
@@ -427,9 +473,112 @@ class Game(App):
         """Handles Android Back, Escape and Backspace Events"""
         if event.key.keysym.sym in (
                 sdl2.SDLK_AC_BACK, 27, sdl2.SDLK_BACKSPACE):
-            with open(STATEFILE, 'wb') as f:
-                f.write(self.table.get_state())
             self.quit(blocking=False)
+
+    def on_quit(self):
+        self.log.info('Saving state and quiting pyos')
+        with open(STATEFILE, 'wb') as f:
+            f.write(self.table.get_state())
+
+    def show_score(self):
+        if not self.table.win_condition:
+            raise ValueError('win_condition is not True')
+        if self.__score_box__:
+            raise ValueError('score box is not empty')
+        t, pts, bonus, moves = self.table.result
+        ti = int(t)
+        cent = int((t - ti) * 10)
+        p, (x, y) = text_box(
+            self.screen_size,
+            f'\nYou WON!!!\n\n\n'
+            f'Points:     {pts + bonus}  \n'
+            f'Duration:   {ti // 60}:{ti % 60}.{cent}  \n'
+            f'Moves:      {moves}  \n\n'
+        )
+        self.__score_box__.append(PlaceHolderEntity(
+            self.world,
+            self.load_sprite(p),
+            (self.screen_size[0] - x) // 2,
+            (self.screen_size[1] - y) // 2,
+            200
+        ))
+
+    # noinspection PyUnusedLocal
+    def update_hud(self, *args, **kwargs):
+        # if self.table.is_paused:
+        #     return
+        if self.table.win_condition:
+            self.update_foundation()
+            t, p, b, m = self.table.result
+            p += b
+            t = int(t)
+        else:
+            t = int(self.table.time)
+            p = self.table.points
+            m = self.table.moves
+        x_spacing = int(self.screen_size[0] * (1 - BOTTOM_BAR[0]))
+        top_color = sdl2.ext.Color(29, 66, 39)
+        font_size = 24
+        y = int(x_spacing * 1.5)
+        sprite = self.text_sprite(
+            f'{p}',
+            alias='bold',
+            size=font_size,
+            bg_color=top_color
+        )
+        if self.__points__ is None:
+            self.__points__ = PlaceHolderEntity(
+                self.world,
+                sprite,
+                x_spacing,
+                y
+            )
+        else:
+            self.__points__.sprite = sprite
+            self.__points__.sprite.position = x_spacing, y
+        self.__points__.sprite.depth = 99
+
+        # t = int(self.table.time)
+        sprite = self.text_sprite(
+            f'{t // 60}:{t % 60:02d}',
+            alias='bold',
+            size=font_size,
+            bg_color=top_color
+        )
+        x = sprite.size[0] // 2
+        if self.__time__ is None:
+            self.__time__ = PlaceHolderEntity(
+                self.world,
+                sprite,
+                self.screen_size[0] // 2 - x,
+                y
+            )
+        else:
+            self.__time__.sprite = sprite
+            self.__time__.sprite.position = self.screen_size[0] // 2 - x, y
+        self.__time__.sprite.depth = 99
+
+        sprite = self.text_sprite(
+            f'{m}',
+            alias='bold',
+            size=font_size,
+            bg_color=top_color
+        )
+        x = sprite.size[0]
+        if self.__moves__ is None:
+            self.__moves__ = PlaceHolderEntity(
+                self.world,
+                sprite,
+                self.screen_size[0] - x - x_spacing,
+                y
+            )
+        else:
+            self.__moves__.sprite = sprite
+            self.__moves__.sprite.position = (
+                self.screen_size[0] - x - x_spacing,
+                y
+            )
+        self.__moves__.sprite.depth = 99
 
     def setup(self):
         # General
@@ -440,16 +589,107 @@ class Game(App):
             28,
             bg_color=sdl2.ext.Color(85, 85, 85, 0)
         )
-        self.__bt_bar__ = []
-        sprite = self.text_sprite('| New Deal |')
-        self.log.debug(f'{type(sprite)}, {str(sprite)}')
+        self.add_font(
+            FONT_BOLD,
+            'bold',
+            24
+        )
+
+        # Top Bar
+        x_spacing = int(self.screen_size[0] * (1 - BOTTOM_BAR[0]))
+        top_color = sdl2.ext.Color(29, 66, 39)
+        y = x_spacing // 2 + 1  # int(self.screen_size[1] * TOP_BAR[1])
+        self.__top_bar__ = []
+        font_size = 24
+        sprite = self.text_sprite(
+            f'Points:',
+            size=font_size,
+            bg_color=top_color
+        )
+        self.__top_bar__.append(PlaceHolderEntity(
+            self.world,
+            sprite,
+            x_spacing,
+            y
+        ))
+        self.__top_bar__[-1].sprite.depth = 100
+        sprite = self.text_sprite(f'Time:', size=font_size, bg_color=top_color)
+        x = sprite.size[0] // 2
+        self.__top_bar__.append(PlaceHolderEntity(
+            self.world,
+            sprite,
+            self.screen_size[0] // 2 - x,
+            y
+        ))
+        self.__top_bar__[-1].sprite.depth = 100
+        sprite = self.text_sprite(f'Moves:', size=font_size, bg_color=top_color)
+        x = sprite.size[0]
+        self.__top_bar__.append(PlaceHolderEntity(
+            self.world,
+            sprite,
+            self.screen_size[0] - x - x_spacing,
+            y
+        ))
+        self.__top_bar__[-1].sprite.depth = 100
+
+        # Bottom Bar
+        sprite = self.text_sprite(f'   Deal')
+        x_spacing = int(self.screen_size[0] * (1 - BOTTOM_BAR[0]))
         self.__bt_bar__.append(PlaceHolderEntity(
             self.world,
             sprite,
-            int(self.screen_size[0] * (1 - BOTTOM_BAR[0])),
-            self.screen_size[1] - int(self.screen_size[1] * BOTTOM_BAR[1] * 0.85)
+            x_spacing,
+            self.screen_size[1] - int(
+                self.screen_size[1] * BOTTOM_BAR[1] * 0.85
+            )
         ))
-        self.__bt_bar__[0].sprite.depth = 100
+        self.__bt_bar__[-1].sprite.depth = 100
+        sprite = self.text_sprite(f'{chr(0xf893)}', size=64)
+        self.__bt_bar__.append(PlaceHolderEntity(
+            self.world,
+            sprite,
+            x_spacing,
+            self.screen_size[1] - int(self.screen_size[1] * BOTTOM_BAR[1] * 1.1)
+        ))
+        self.__bt_bar__[-1].sprite.depth = 100
+        sprite = self.text_sprite(f'   Reset')
+        x = sprite.size[0] // 2
+        self.__bt_bar__.append(PlaceHolderEntity(
+            self.world,
+            sprite,
+            self.screen_size[0] // 2 - x,
+            self.screen_size[1] - int(
+                self.screen_size[1] * BOTTOM_BAR[1] * 0.85
+            )
+        ))
+        self.__bt_bar__[-1].sprite.depth = 100
+        sprite = self.text_sprite(f'{chr(0xf021)}', size=64)
+        self.__bt_bar__.append(PlaceHolderEntity(
+            self.world,
+            sprite,
+            self.screen_size[0] // 2 - x,
+            self.screen_size[1] - int(self.screen_size[1] * BOTTOM_BAR[1] * 1.1)
+        ))
+        self.__bt_bar__[-1].sprite.depth = 100
+        sprite = self.text_sprite(f'   Undo')
+        x = sprite.size[0]
+        self.__bt_bar__.append(PlaceHolderEntity(
+            self.world,
+            sprite,
+            self.screen_size[0] - x - x_spacing,
+            self.screen_size[1] - int(
+                self.screen_size[1] * BOTTOM_BAR[1] * 0.85
+            )
+        ))
+        self.__bt_bar__[-1].sprite.depth = 100
+        sprite = self.text_sprite(f'{chr(0xfa4b)}', size=64)
+        self.__bt_bar__.append(PlaceHolderEntity(
+            self.world,
+            sprite,
+            self.screen_size[0] - x - x_spacing,
+            self.screen_size[1] - int(self.screen_size[1] * BOTTOM_BAR[1] * 1.1)
+        ))
+        self.__bt_bar__[-1].sprite.depth = 100
 
         # Table
         table = get_table(
@@ -492,6 +732,7 @@ class Game(App):
             self.update_tableau()
             self.update_foundation()
             self.update_waste()
+            self.update_hud()
         else:
             self.deal()
 
@@ -502,10 +743,51 @@ class Game(App):
         self.update_tableau()
         self.update_waste()
 
+    def reset(self):
+        self.table.reset()
+        self.update_foundation()
+        self.reset_stack()
+        self.update_tableau()
+        self.update_waste()
+
+    def bt_bar_click(self):
+        but_width = self.screen_size[0] // 3
+        if self.mouse_pos.x < but_width:
+            self.stop_all_position_sequences()
+            self.deal()
+        elif but_width < self.mouse_pos.x < but_width * 2:
+            self.stop_all_position_sequences()
+            self.reset()
+        else:
+            self.table.undo()
+            self.stop_all_position_sequences()
+            self.update_tableau()
+            self.update_foundation()
+            self.update_waste()
+
     def stack_click(self):
         res = self.table.draw(self.__config__['draw_one'])
         if res == 0:
-            self.update_waste()
+            if len(self.table.waste) > 4:
+                self.__cards__[self.table.waste[-5]].sprite.depth = 1
+            x_rh = self.__w_pos__[0]
+            x_lh = x_rh + min(len(self.table.waste) - 1, 3) * self.__cr_sep__
+            for i, k in enumerate(reversed(self.table.waste[-4:])):
+                if not i:
+                    self.__cards__[k].sprite = self.load_sprite(
+                        self.__card_img__[k]
+                    )
+                    self.__cards__[k].card.visible = True
+                    self.__cards__[k].sprite.position = self.__s_pos__
+                x = (x_lh if self.__config__['left_handed'] else x_rh)
+                x -= i * self.__cr_sep__
+                speed = 1.0 / (min(self.screen_size) * 1.5)
+                self.anim_fly_to(
+                    self.__cards__[k],
+                    Vector(x, self.__w_pos__[1]),
+                    6 - i,
+                    speed
+                )
         elif res == 1:
             self.reset_stack()
 
@@ -536,10 +818,11 @@ class Game(App):
                 return
         if tableau and tableau[row][1] == 0:  # Flip Card
             if row == -1:
-                tableau[row][1] = 1
+                # tableau[row][1] = 1
+                self.table.flip(i)
                 self.__cards__[tableau[row][0]].card.visible = True
                 self.update_tableau(i)
-                self.table.increment_moves()
+                # self.table.increment_moves()
                 return
             if not self.__cards__[tableau[row][0]].card.visible:
                 return
@@ -547,14 +830,17 @@ class Game(App):
             k = self.table.tableau[i][row][0]
             if self.table.tableau_to_foundation(col=i):
                 self.move_card(k, 'f')
+                self.flip_cards()
                 return
             if self.table.tableau_to_tableau(scol=i):
                 self.move_card(k, 't')
+                self.flip_cards()
                 return
         if self.table.tableau_to_tableau(scol=i, srow=row):
             self.log.debug(f'row={row} move {str(movable)}')
             for k, _ in movable:
                 self.move_card(k, 't')
+            self.flip_cards()
         else:
             for k, _ in movable:
                 if self.__cards__[k].card.visible:
@@ -562,15 +848,23 @@ class Game(App):
 
     def foundation_click(self):
         i = self.get_array_index('f', self.mouse_pos)
-        k = self.table.foundation[i][-1] if len(self.table.foundation[i]) else None
+        if len(self.table.foundation[i]):
+            k = self.table.foundation[i][-1]
+        else:
+            k = None
         if self.table.foundation_to_tableau(col=i):
             self.move_card(k, 't')
-            # self.update_foundation(i)
-            # self.update_tableau()
         else:
             c = self.get_card_under_mouse('f')
             if c is not None:
                 self.anim_shake(c)
+
+    def flip_cards(self):
+        for i, t in enumerate(self.table.tableau):
+            if t and t[-1][1] == 0:
+                self.__cards__[t[-1][0]].card.visible = True
+                self.table.flip(i)
+        self.update_tableau()
 
     def move_card(self, k, area):
         dest = None
@@ -696,14 +990,21 @@ class Game(App):
         for i, k in enumerate(reversed(self.table.waste[-4:])):
             card = self.__cards__[k]
             card.sprite = self.load_sprite(self.__card_img__[k])
-            x = (x_lh if self.__config__['left_handed'] else x_rh)
-            x -= i * self.__cr_sep__
-            if not card.card.in_anim:
-                card.sprite.position = x, self.__w_pos__[1]
-            card.sprite.depth = 6 - i
             card.card.visible = True
+            if not card.card.in_anim:
+                x = (x_lh if self.__config__['left_handed'] else x_rh)
+                x -= i * self.__cr_sep__
+                card.sprite.position = x, self.__w_pos__[1]
+                card.sprite.depth = 6 - i
         for i in range(len(self.table.waste) - 4):
             self.__cards__[self.table.waste[i]].sprite.depth = 1
+        for c in self.table.stack:
+            if self.__cards__[c].sprite.position != self.__s_pos__:
+                self.__cards__[c].sprite = self.load_sprite(
+                    self.__cardback_img__
+                )
+                self.__cards__[c].sprite.position = self.__s_pos__
+                self.__cards__[c].sprite.depth = 2
 
     def reset_stack(self):
         for k in self.table.stack:

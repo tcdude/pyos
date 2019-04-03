@@ -22,9 +22,10 @@ SOFTWARE.
 
 import math
 import os
-import subprocess
 
 from PIL import Image
+from PIL import ImageDraw
+from PIL import ImageFont
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
@@ -32,6 +33,7 @@ __license__ = 'MIT'
 __version__ = '0.1'
 
 # DEBUG ONLY
+# import subprocess
 # subprocess.call(['rm', '-rf', 'assets/cache'])
 
 # Global Constants
@@ -55,6 +57,8 @@ CONFIGFILE = os.path.join(CACHEDIR, 'config.bin')
 BACKGROUND = os.path.join(ASSETDIR, 'images/bg.png')
 CARDBACK = os.path.join(ASSETDIR, 'images/card_back.png')
 BOTTOM_BAR_IMG = os.path.join(ASSETDIR, 'images/bt_bar.png')
+TOP_BAR_IMG = os.path.join(ASSETDIR, 'images/top_bar.png')
+BOX_IMG = os.path.join(ASSETDIR, 'images/box.png')
 COLORS = tuple('dchs')
 DENOMINATIONS = tuple('a23456789') + ('10',) + tuple('jqk')
 CARDS = {
@@ -186,12 +190,80 @@ def get_table(screen_size, ratio=(7.5, 4.7), left_handed=False):
                 placeholder['t']
             )
 
+        # Top Bar
+        x = int((screen_size[0] - screen_size[0] * TOP_BAR[0]) / 2)
+        y = int(screen_size[1] * TOP_BAR[1]) - 2 * x
+        y_start = x
+        ph = Image.open(TOP_BAR_IMG).resize(
+            (screen_size[0] - 2 * x, y),
+            Image.BICUBIC
+        )
+        img.paste(ph, (x, y_start), ph)
+
         # Bottom Bar
         x = int((screen_size[0] - screen_size[0] * BOTTOM_BAR[0]) / 2)
         y = int(screen_size[1] * BOTTOM_BAR[1])
         y_start = screen_size[1] - y - int(BOTTOM_SPACING * screen_size[1])
-        ph = Image.open(BOTTOM_BAR_IMG).resize((screen_size[0] - 2 * x, y))
+        ph = Image.open(BOTTOM_BAR_IMG).resize(
+            (screen_size[0] - 2 * x, y),
+            Image.BICUBIC
+        )
         img.paste(ph, (x, y_start), ph)
 
         img.save(p)
     return p
+
+
+def get_box(size):
+    p = os.path.join(CACHEDIR, f'box{size[0]:04d}{size[1]:04d}.bmp')
+    if not os.path.isfile(p):
+        Image.open(BOX_IMG).resize(size, Image.BICUBIC).save(p)
+    return p
+
+
+def text_box(text, size=24, color=None, filename='text.bmp', font=FONT_NORMAL):
+    f = ImageFont.truetype(font, size)
+    txt_box = f.getsize_multiline(text) if '\n' in text else f.getsize(text)
+    box = int(txt_box[0] * 1.2), int(txt_box[1] * 1.2)
+    base = Image.open(BOX_IMG)
+    img = Image.new('RGBA', box)
+    half_x = box[0] // 2
+    half_y = box[1] // 2
+    ul = base.crop((
+        0,
+        0,
+        half_x,
+        half_y
+    ))
+    ur = base.crop((
+        base.size[0] - half_x,
+        0,
+        base.size[0] - 1,
+        half_y
+    ))
+    dl = base.crop((
+        0,
+        base.size[1] - half_y,
+        half_x,
+        base.size[1] - 1
+    ))
+    dr = base.crop((
+        base.size[0] - half_x,
+        base.size[1] - half_y,
+        base.size[0] - 1,
+        base.size[1] - 1
+    ))
+    img.paste(ul, (0, 0), ul)
+    img.paste(ur, (half_x, 0), ur)
+    img.paste(dl, (0, half_y), dl)
+    img.paste(dr, (half_x, half_y), dr)
+    draw = ImageDraw.Draw(img)
+    draw.text(
+        ((box[0] - txt_box[0]) // 2, (box[1] - txt_box[1]) // 2),
+        text,
+        color,
+        f
+    )
+    p = os.path.join(CACHEDIR, filename)
+    img.save(p)
+    return p, box
