@@ -154,8 +154,8 @@ class Game(App):
             'disable_existing_loggers': True,
             'formatters': {
                 'standard': {
-                    'format': '%(asctime)s | %(levelname)s | %(filename)s:'
-                              '%(funcName)s:%(lineno)d => %(message)s'
+                    'format': '%(levelname)s %(filename)s:%(funcName)s:'
+                              '%(lineno)d => %(message)s'
                 },
             },
             'handlers': {
@@ -184,22 +184,17 @@ class Game(App):
             self.event_handler.listen(
                 'APP_WILLENTERBACKGROUND',
                 sdl2.SDL_APP_WILLENTERBACKGROUND,
-                self.log.warning,
-                0,
-                'Unhandled event APP_WILLENTERBACKGROUND!!!'
+                self.event_will_enter_bg
             )
             self.event_handler.listen(
                 'APP_DIDENTERBACKGROUND',
                 sdl2.SDL_APP_DIDENTERBACKGROUND,
-                self.event_pause,
-                0
+                self.event_pause
             )
             self.event_handler.listen(
                 'APP_LOWMEMORY',
                 sdl2.SDL_APP_LOWMEMORY,
-                self.log.warning,
-                0,
-                'The application is low on memory!!!'
+                self.event_low_memory
             )
             # noinspection PyUnresolvedReferences
             import android
@@ -218,6 +213,14 @@ class Game(App):
     def event_pause(self, event=None):
         self.log.info('Paused game')
         self.table.pause()
+
+    # noinspection PyUnusedLocal
+    def event_will_enter_bg(self, event=None):
+        self.log.warning('Unhandled event APP_WILLENTERBACKGROUND!!!')
+
+    # noinspection PyUnusedLocal
+    def event_low_memory(self, event=None):
+        self.log.warning('Unhandled event APP_LOWMEMORY!!!')
 
     # noinspection PyUnusedLocal
     def mouse_down(self, event):

@@ -213,7 +213,7 @@ class Table(object):
         def wrapper(*args, **kwargs):
             self.log.debug(f'calling {m.__name__}')
             res = m(*args, **kwargs)
-            if res:
+            if res or (isinstance(res, int) and res > -1):
                 if self.__fresh_deal__:
                     self.start()
                 elif self.__paused__:
