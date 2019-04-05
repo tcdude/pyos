@@ -228,7 +228,7 @@ def text_box(
         size=24,
         color=None,
         filename='text.bmp',
-        font=FONT_NORMAL):
+        font=FONT_BOLD):
     """
     Return path to image file containing the text box and its size tuple.
     """

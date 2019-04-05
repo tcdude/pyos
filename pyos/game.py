@@ -90,8 +90,8 @@ class Game(App):
         self.__t_pos__ = []
         self.__std_delay__ = 0.4
         self.__fast_delay__ = 0.2
-        self.__standard_speed__ = 1.0 / (min(self.screen_size) * 3.2)
-        self.__slow_speed__ = 1.0 / (min(self.screen_size) * 1.5)
+        self.__standard_speed__ = 1.0 / (min(self.screen_size) * 2.7)
+        self.__slow_speed__ = 1.0 / (min(self.screen_size) * 1.2)
         self.__font_size_large__ = get_relative_font_size(28, self.screen_size)
         self.__font_size_normal__ = get_relative_font_size(24, self.screen_size)
         self.__font_size_icon__ = get_relative_font_size(64, self.screen_size)
@@ -395,6 +395,7 @@ class Game(App):
                             ecol=eti,
                             srow=srow
                         )
+                        self.flip_cards()
                         if not invalid:
                             self.update_tableau(eti)
                     elif end_area == 'f':
@@ -405,6 +406,7 @@ class Game(App):
                             col=sti,
                             fcol=efi
                         )
+                        self.flip_cards()
                         if not invalid:
                             self.update_foundation(efi)
                     else:
@@ -996,6 +998,8 @@ class Game(App):
                 self.anim_shake(c)
 
     def flip_cards(self):
+        if not self.__config__['auto_flip']:
+            return
         for i, t in enumerate(self.table.tableau):
             if t and t[-1][1] == 0:
                 self.__cards__[t[-1][0]].card.visible = True
@@ -1034,15 +1038,17 @@ class Game(App):
 
     # noinspection PyUnusedLocal
     def anim_fly_to(self, card, dest, target_depth, speed=None):
-        if self.__standard_speed__ is None:
-            pass
+        if speed is None:
+            speed = self.__standard_speed__
+        if not card.card.visible:
+            self.update_card(card, visible=True)
         start = Vector(*card.sprite.position)
         distance = (dest - start).length
         depth = card.sprite.depth + 40
         self.position_sequence(
             card,
             depth,
-            ((distance * self.__standard_speed__, start, dest),),
+            ((distance * speed, start, dest),),
             self.update_card,
             card,
             new_depth=target_depth,
