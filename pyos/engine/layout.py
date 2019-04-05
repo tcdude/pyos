@@ -20,26 +20,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import sdl2.ext
-from engine.tools import nop
-
 __author__ = 'Tiziano Bettio'
 __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
 __license__ = 'MIT'
 __version__ = '0.2'
-
-try:  # Keep it possible to run on Linux dev machine
-    from android import hide_loading_screen
-    HAVE_ANDROID = True
-except ImportError:
-    HAVE_ANDROID = False
-    hide_loading_screen = nop
-
-
-class HWRenderer(sdl2.ext.TextureSpriteRenderSystem):
-    def __init__(self, window):
-        super(HWRenderer, self).__init__(window)
-        self.renderer = self.sdlrenderer
-
-    def render(self, components, **kwargs):
-        super(HWRenderer, self).render(components, **kwargs)

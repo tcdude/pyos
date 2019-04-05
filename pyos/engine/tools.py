@@ -26,7 +26,7 @@ import plyer
 __author__ = 'Tiziano Bettio'
 __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
 __license__ = 'MIT'
-__version__ = '0.1'
+__version__ = '0.2'
 
 
 def load_sprite(factory, fpath):

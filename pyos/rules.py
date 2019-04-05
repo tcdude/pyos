@@ -27,7 +27,7 @@ import random
 __author__ = 'Tiziano Bettio'
 __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
 __license__ = 'MIT'
-__version__ = '0.1'
+__version__ = '0.2'
 
 Seed = Union[int, str, bytes, bytearray]
 
