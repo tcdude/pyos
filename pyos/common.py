@@ -232,7 +232,7 @@ def text_box(
     """
     Return path to image file containing the text box and its size tuple.
     """
-    f = ImageFont.truetype(font, size)
+    f = ImageFont.truetype(font, get_relative_font_size(size, screen_size))
     txt_box = f.getsize_multiline(text) if '\n' in text else f.getsize(text)
     box = int(txt_box[0] * 1.2), int(txt_box[1] * 1.2)
     base = Image.open(BOX_IMG)
@@ -281,3 +281,8 @@ def text_box(
         img = img.resize(box, Image.BICUBIC)
     img.save(p)
     return p, box
+
+
+def get_relative_font_size(size, screen_size):
+    relative_size = int(size / 720 * screen_size[0])
+    return relative_size + relative_size % 2

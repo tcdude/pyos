@@ -35,6 +35,7 @@ from common import CONFIG
 from common import CONFIGFILE
 from common import FONT_BOLD
 from common import FONT_NORMAL
+from common import get_relative_font_size
 from common import get_scale
 from common import get_table
 from common import RATIO
@@ -91,6 +92,9 @@ class Game(App):
         self.__fast_delay__ = 0.2
         self.__standard_speed__ = 1.0 / (min(self.screen_size) * 3.2)
         self.__slow_speed__ = 1.0 / (min(self.screen_size) * 1.5)
+        self.__font_size_large__ = get_relative_font_size(28, self.screen_size)
+        self.__font_size_normal__ = get_relative_font_size(24, self.screen_size)
+        self.__font_size_icon__ = get_relative_font_size(64, self.screen_size)
 
         # State
         self.__table__ = Table()
@@ -600,12 +604,11 @@ class Game(App):
             m = self.table.moves
         x_spacing = int(self.screen_size[0] * (1 - BOTTOM_BAR[0]))
         top_color = sdl2.ext.Color(29, 66, 39)
-        font_size = 24
         y = int(x_spacing * 1.5)
         sprite = self.text_sprite(
             f'{p}',
             alias='bold',
-            size=font_size,
+            size=self.__font_size_normal__,
             bg_color=top_color
         )
         if self.__points__ is None:
@@ -624,7 +627,7 @@ class Game(App):
         sprite = self.text_sprite(
             f'{t // 60}:{t % 60:02d}',
             alias='bold',
-            size=font_size,
+            size=self.__font_size_normal__,
             bg_color=top_color
         )
         x = sprite.size[0] // 2
@@ -643,7 +646,7 @@ class Game(App):
         sprite = self.text_sprite(
             f'{m}',
             alias='bold',
-            size=font_size,
+            size=self.__font_size_normal__,
             bg_color=top_color
         )
         x = sprite.size[0]
@@ -668,13 +671,13 @@ class Game(App):
         self.init_font_manager(
             FONT_NORMAL,
             'normal',
-            28,
+            self.__font_size_large__,
             bg_color=sdl2.ext.Color(85, 85, 85, 0)
         )
         self.add_font(
             FONT_BOLD,
             'bold',
-            24
+            self.__font_size_normal__
         )
 
         # Top Bar
@@ -682,10 +685,10 @@ class Game(App):
         top_color = sdl2.ext.Color(29, 66, 39)
         y = x_spacing // 2 + 1  # int(self.screen_size[1] * TOP_BAR[1])
         self.__top_bar__ = []
-        font_size = 24
+        # self.__font_size_normal__ = 24
         sprite = self.text_sprite(
             f'Points:',
-            size=font_size,
+            size=self.__font_size_normal__,
             bg_color=top_color
         )
         self.__top_bar__.append(PlaceHolderEntity(
@@ -695,7 +698,7 @@ class Game(App):
             y
         ))
         self.__top_bar__[-1].sprite.depth = 100
-        sprite = self.text_sprite(f'Time:', size=font_size, bg_color=top_color)
+        sprite = self.text_sprite(f'Time:', size=self.__font_size_normal__, bg_color=top_color)
         x = sprite.size[0] // 2
         self.__top_bar__.append(PlaceHolderEntity(
             self.world,
@@ -704,7 +707,7 @@ class Game(App):
             y
         ))
         self.__top_bar__[-1].sprite.depth = 100
-        sprite = self.text_sprite(f'Moves:', size=font_size, bg_color=top_color)
+        sprite = self.text_sprite(f'Moves:', size=self.__font_size_normal__, bg_color=top_color)
         x = sprite.size[0]
         self.__top_bar__.append(PlaceHolderEntity(
             self.world,
@@ -726,7 +729,9 @@ class Game(App):
             )
         ))
         self.__bt_bar__[-1].sprite.depth = 100
-        sprite = self.text_sprite(f'{chr(0xf893)}', size=64)
+        sprite = self.text_sprite(
+            f'{chr(0xf893)}', size=self.__font_size_icon__
+        )
         self.__bt_bar__.append(PlaceHolderEntity(
             self.world,
             sprite,
@@ -745,7 +750,9 @@ class Game(App):
             )
         ))
         self.__bt_bar__[-1].sprite.depth = 100
-        sprite = self.text_sprite(f'{chr(0xf021)}', size=64)
+        sprite = self.text_sprite(
+            f'{chr(0xf021)}', size=self.__font_size_icon__
+        )
         self.__bt_bar__.append(PlaceHolderEntity(
             self.world,
             sprite,
@@ -764,7 +771,9 @@ class Game(App):
             )
         ))
         self.__bt_bar__[-1].sprite.depth = 100
-        sprite = self.text_sprite(f'{chr(0xfa4b)}', size=64)
+        sprite = self.text_sprite(
+            f'{chr(0xfa4b)}', size=self.__font_size_icon__
+        )
         self.__bt_bar__.append(PlaceHolderEntity(
             self.world,
             sprite,
@@ -1023,6 +1032,7 @@ class Game(App):
             target_depth
         )
 
+    # noinspection PyUnusedLocal
     def anim_fly_to(self, card, dest, target_depth, speed=None):
         if self.__standard_speed__ is None:
             pass
