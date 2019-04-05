@@ -29,10 +29,20 @@ __version__ = '0.1'
 
 
 class Card(object):
-    def __init__(self, value, suit, visible=False):
+    def __init__(
+            self,
+            value,
+            suit,
+            visible=False,
+            area='s',
+            col=None,
+            row=None):
         self.value = value
         self.suit = suit
         self.visible = visible
+        self.area = area
+        self.col = col
+        self.row = row
         self.in_anim = False
 
 

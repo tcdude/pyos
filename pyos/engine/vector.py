@@ -149,8 +149,8 @@ class Vector(object):
         if isinstance(other, Vector):
             if self.x == other.x and self.y == other.y:
                 return True
-        else:
-            raise ValueError('Can only compare with Vector2 objects')
+        # else:
+        #     raise ValueError('Can only compare with Vector2 objects')
         return False
 
 

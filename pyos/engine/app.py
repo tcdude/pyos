@@ -103,6 +103,9 @@ class App(object):
     def load_sprite(self, fpath):
         return load_sprite(self.__factory__, fpath)
 
+    def entity_in_sequences(self, entity):
+        return True if str(entity) in self.__sequences__ else False
+
     @staticmethod
     def toast(message):
         toast(message)
@@ -206,12 +209,15 @@ class App(object):
                 start_pos,
                 end_pos
             ))
-        # k = str(entity)
-        k = str((entity, depth, sequence))
+        k = str(entity)
+        # k = str((entity, depth, sequence))
         if k in self.__sequences__:
-            self.__sequences__[k] += seq
-        else:
-            self.__sequences__[k] = seq
+            if k in self.__anim_callbacks__:
+                f, args, kwargs = self.__anim_callbacks__[k]
+                f(*args, **kwargs)
+        #     self.__sequences__[k] += seq
+        # else:
+        self.__sequences__[k] = seq
         if callback is not None:
             self.__anim_callbacks__[k] = (callback, args, kwargs)
 

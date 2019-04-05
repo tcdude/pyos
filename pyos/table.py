@@ -134,6 +134,34 @@ class Table(object):
             return False
         return True
 
+    def find_card(self, k):
+        if not isinstance(k, tuple) or len(k) != 2:
+            raise ValueError(f'expected tuple of length 2 for argument k, '
+                             f'got "{type(k)} = {str(k)}" instead')
+        for i, f in enumerate(self.foundation):
+            try:
+                return 'f', i, f.index(k)
+            except ValueError:
+                pass
+        try:
+            return 's', None, self.stack.index(k)
+        except ValueError:
+            pass
+        try:
+            return 'w', None, self.waste.index(k)
+        except ValueError:
+            pass
+        for i, t in enumerate(self.tableau):
+            try:
+                return 't', i, t.index([k, 1])
+            except ValueError:
+                pass
+            try:
+                return 't', i, t.index([k, 1])
+            except ValueError:
+                pass
+        raise ValueError(f'card {str(k)} not found')
+
     def deal(self, random_seed=None):
         self.__current_seed__, self.__tableau__, self.__stack__ = deal(
             random_seed
@@ -218,7 +246,7 @@ class Table(object):
                     self.start()
                 elif self.__paused__:
                     self.resume()
-                self.log.info('Moves +1')
+                self.log.info(f'{m.__name__} returned valid move. Moves +1')
                 self.increment_moves()
             return res
         return wrapper
@@ -237,7 +265,7 @@ class Table(object):
         """Return True if valid, otherwise False"""
         wc = self.waste_card
         if wc is None:
-            self.log.info('no waste card')
+            self.log.debug('no waste card')
             return False
         suit, value = wc
         en = list(enumerate(
@@ -252,16 +280,16 @@ class Table(object):
                 self.waste.pop()
                 self.history.append(('w', f't{ii}', wc))
                 self.__points__ += 5
-                self.log.info('valid move found')
+                self.log.debug('valid move found')
                 return True
-        self.log.info('no valid move found')
+        self.log.debug('no valid move found')
         return False
 
     def __waste_to_foundation__(self, col=None):
         """Return True if valid, otherwise False"""
         wc = self.waste_card
         if wc is None:
-            self.log.info('no waste card')
+            self.log.debug('no waste card')
             return False
         suit, value = wc
         en = list(enumerate(
@@ -276,9 +304,9 @@ class Table(object):
                 self.waste.pop()
                 self.history.append(('w', f'f{ii}', wc))
                 self.__points__ += 10
-                self.log.info('valid move found')
+                self.log.debug('valid move found')
                 return True
-        self.log.info('no valid move found')
+        self.log.debug('no valid move found')
         return False
 
     def __tableau_to_foundation__(self, col=None, fcol=None):
@@ -313,9 +341,9 @@ class Table(object):
                     self.tableau[tii].pop()
                     self.history.append((f't{tii}', f'f{fii}', card))
                     self.__points__ += 10
-                    self.log.info('valid move found')
+                    self.log.debug('valid move found')
                     return True
-        self.log.info('no valid move found')
+        self.log.debug('no valid move found')
         return False
 
     def __tableau_to_tableau__(self, scol=None, ecol=None, srow=-1):
@@ -356,9 +384,9 @@ class Table(object):
                     for _ in range(len(stab[srow:])):
                         self.tableau[sii].pop()
                     self.history.append((f't{sii}', f't{eii}', cards))
-                    self.log.info('valid move found')
+                    self.log.debug('valid move found')
                     return True
-        self.log.info('no valid move found')
+        self.log.debug('no valid move found')
         return False
 
     def __foundation_to_tableau__(self, col, tcol=None):
@@ -378,16 +406,16 @@ class Table(object):
                 self.tableau[tii].append([card, 1])
                 self.history.append((f'f{col}', f't{tii}', card))
                 self.__points__ = max(0, self.points - 15)
-                self.log.info('valid move found')
+                self.log.debug('valid move found')
                 return True
-        self.log.info('no valid move found')
+        self.log.debug('no valid move found')
         return False
 
     def __draw__(self, draw_one=True):
         """Return int where 0 = draw, 1 = reset stack, -1 = empty"""
         if not self.stack:
             if not self.waste:
-                self.log.info('no more cards')
+                self.log.debug('no more cards')
                 return False
             self.__stack__ = list(reversed(self.waste))
             self.__waste__ = []
@@ -407,7 +435,7 @@ class Table(object):
 
     def __undo__(self):
         if not self.history:
-            self.log.info('history is empty')
+            self.log.warning('history is empty')
             return False
         dest, orig, card = self.history.pop()
         self.__points__ = max(0, self.points - 15)

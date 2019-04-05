@@ -45,7 +45,7 @@ CONFIG = {
     'auto_solve': True,
     'auto_flip': True,
     'left_handed': False,
-    'drag_threshold': 0
+    'drag_threshold': 0.025
 }
 
 # Paths
@@ -88,6 +88,10 @@ TABLEAU_SPACING = 0.028125
 COL_SPACING = 0.5 / 7.5 / 8
 ROW_SPACING = 0.022  # % of y resolution between stacked cards
 BOTTOM_SPACING = 0.011
+
+# Timing
+AUTO_SLOW = 0.4
+AUTO_FAST = 0.2
 
 
 # Helper Methods

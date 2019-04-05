@@ -29,6 +29,8 @@ import sdl2
 from sdl2.ext import Applicator
 
 from common import APPNAME
+from common import AUTO_FAST
+from common import AUTO_SLOW
 from common import BOTTOM_BAR
 from common import COL_SPACING
 from common import CONFIG
@@ -88,8 +90,7 @@ class Game(App):
         self.__s_pos__ = (0, 0)
         self.__w_pos__ = (0, 0)
         self.__t_pos__ = []
-        self.__std_delay__ = 0.4
-        self.__fast_delay__ = 0.2
+        self.__auto_delay__ = AUTO_SLOW
         self.__standard_speed__ = 1.0 / (min(self.screen_size) * 2.7)
         self.__slow_speed__ = 1.0 / (min(self.screen_size) * 1.2)
         self.__font_size_large__ = get_relative_font_size(28, self.screen_size)
@@ -108,6 +109,7 @@ class Game(App):
         self.__last_mouse__ = Vector()
         self.__down__ = False
         self.__last_undo__ = False
+        self.__last_auto__ = 0
 
         # Setup
         self.setup()
@@ -147,10 +149,11 @@ class Game(App):
                 self.mouse_up
             )
         self.task_manager.add_task('drag_task', self.drag_task)
+        self.task_manager.add_task('auto_save', self.auto_save_task, 5)
         self.task_manager.add_task(
             'auto_complete',
             self.auto_foundation,
-            self.__std_delay__
+            0.05
         )
         # Logging
         dictConfig({
@@ -164,7 +167,7 @@ class Game(App):
             },
             'handlers': {
                 'default': {
-                    'level': 'WARNING',
+                    'level': 'INFO',
                     'class': 'logging.StreamHandler',
                     'formatter': 'standard'
                 },
@@ -172,7 +175,7 @@ class Game(App):
             'loggers': {
                 '': {
                     'handlers': ['default'],
-                    'level': 'WARNING',
+                    'level': 'INFO',
                     'propagate': True
                 }
             }
@@ -214,6 +217,13 @@ class Game(App):
         return self.__table__
 
     # noinspection PyUnusedLocal
+    def auto_save_task(self, *args, **kwargs):
+        if not self.table.is_paused:
+            self.log.debug('Auto Save')
+            self.save()
+            self.table.resume()
+
+    # noinspection PyUnusedLocal
     def event_pause(self, event=None):
         self.log.info('Paused game')
         self.table.pause()
@@ -250,7 +260,7 @@ class Game(App):
         if self.__down__ and not self.__drag__:
 
             dist = (self.mouse_pos - self.__m_d_pos__).length
-            if dist > self.__config__['drag_threshold']:
+            if dist > self.__config__['drag_threshold'] * min(self.screen_size):
                 self.__drag_origin__, self.__d_ent__ = self.get_drag_entities()
                 if not self.__d_ent__:
                     self.__invalid_drag__ = True
@@ -398,6 +408,8 @@ class Game(App):
                         self.flip_cards()
                         if not invalid:
                             self.update_tableau(eti)
+                        else:
+                            process_click = False
                     elif end_area == 'f':
                         self.log.debug(
                             f'tableau_to_foundation(col={sti}, fcol={efi})'
@@ -438,13 +450,16 @@ class Game(App):
                         f'eti={eti}, sfi={sfi}, efi={efi}'
                     )
                     invalid = True
-        if invalid:
+        if invalid or not process_click:
             self.log.debug('!!invalid move!!')
             dx, dy = self.__m_d_pos__ - self.mouse_pos
             for i, e in enumerate(self.__d_ent__):
                 x, y = e.sprite.position
                 e.sprite.position = x + dx, y + dy
                 e.sprite.depth = self.__orig_depth__ + i
+            self.update_waste()
+            self.update_foundation()
+            self.update_tableau()
         else:
             self.log.debug('!!valid move!!')
             process_click = False
@@ -508,24 +523,36 @@ class Game(App):
 
     def on_quit(self):
         self.log.info('Saving state and quiting pyos')
+        self.save()
+
+    def save(self):
         with open(STATEFILE, 'wb') as f:
             f.write(self.table.get_state())
 
     # noinspection PyUnusedLocal
-    def auto_foundation(self, *args, **kwargs):
+    def auto_foundation(self, dt, *args, **kwargs):
+        self.__last_auto__ += dt
+        if self.__last_auto__ < self.__auto_delay__:
+            return
+        self.__last_auto__ -= self.__auto_delay__
         if self.table.win_condition and not self.__score_box__:
             self.show_score()
-            self.task_manager['auto_complete'].delay = self.__std_delay__
+            self.__auto_delay__ = AUTO_SLOW
         if self.table.is_paused or self.__last_undo__:
             return
         if self.table.solved and self.__config__['auto_solve']:
-            if self.task_manager['auto_complete'].delay != self.__fast_delay__:
-                self.task_manager['auto_complete'].delay = self.__fast_delay__
+            if self.__auto_delay__ != AUTO_FAST:
+                self.__auto_delay__ = AUTO_FAST
             self.auto_solve()
         elif self.__config__['auto_foundation']:
+            # before = [len(t) for t in self.table.foundation]
             if self.__try_tableau_to_foundation__():
+                # card = self.__cards__[self.__last_foundation__(before)]
+                # self.anim_shake(card, 0.6, 0, 0.1)
                 return
             if self.__try_waste_to_foundation__():
+                # card = self.__cards__[self.__last_foundation__(before)]
+                # self.anim_shake(card, 0.6, 0, 0.1)
                 return
 
     def __try_tableau_to_foundation__(self):
@@ -533,7 +560,10 @@ class Game(App):
         tableau = self.table.tableau_to_foundation()
         if not tableau:
             return False
-        self.animate_tableau_to_foundation(self.__last_foundation__(before))
+        self.animate_tableau_to_foundation(
+            self.__last_foundation__(before),
+            shake=True
+        )
         return True
 
     def __last_foundation__(self, before):
@@ -552,7 +582,10 @@ class Game(App):
         waste = self.table.waste_to_foundation()
         if not waste:
             return False
-        self.animate_waste_to_foundation(self.__last_foundation__(before))
+        self.animate_waste_to_foundation(
+            self.__last_foundation__(before),
+            shake=True
+        )
         self.animate_stack(left_to_right=True)
         return True
 
@@ -700,7 +733,11 @@ class Game(App):
             y
         ))
         self.__top_bar__[-1].sprite.depth = 100
-        sprite = self.text_sprite(f'Time:', size=self.__font_size_normal__, bg_color=top_color)
+        sprite = self.text_sprite(
+            f'Time:',
+            size=self.__font_size_normal__,
+            bg_color=top_color
+        )
         x = sprite.size[0] // 2
         self.__top_bar__.append(PlaceHolderEntity(
             self.world,
@@ -709,7 +746,11 @@ class Game(App):
             y
         ))
         self.__top_bar__[-1].sprite.depth = 100
-        sprite = self.text_sprite(f'Moves:', size=self.__font_size_normal__, bg_color=top_color)
+        sprite = self.text_sprite(
+            f'Moves:',
+            size=self.__font_size_normal__,
+            bg_color=top_color
+        )
         x = sprite.size[0]
         self.__top_bar__.append(PlaceHolderEntity(
             self.world,
@@ -920,15 +961,17 @@ class Game(App):
         if self.table.waste_to_foundation():
             self.animate_waste_to_foundation(k)
             return
-        if self.table.waste:
-            self.anim_shake(self.__cards__[self.table.waste[-1]])
 
-    def animate_waste_to_tableau(self, k):
-        self.move_card(k, 't')
+        card = self.__cards__[self.table.waste[-1]]
+        if self.table.waste and not self.entity_in_sequences(card):
+            self.anim_shake(card)
+
+    def animate_waste_to_tableau(self, k, shake=False):
+        self.move_card(k, 't', shake=shake)
         self.update_waste()
 
-    def animate_waste_to_foundation(self, k):
-        self.move_card(k, 'f')
+    def animate_waste_to_foundation(self, k, shake=False):
+        self.move_card(k, 'f', shake=shake)
         self.update_waste()
 
     def tableau_click(self):
@@ -941,15 +984,12 @@ class Game(App):
         if row > -1 and tableau[row] != tableau[-1]:
             if tableau[row][0][1] == 12 and tableau[row][1] == 1 and row < 1:
                 for k, _ in movable:
-                    self.anim_shake(self.__cards__[k])
+                    if not self.entity_in_sequences(self.__cards__[k]):
+                        self.anim_shake(self.__cards__[k])
                 return
         if tableau and tableau[row][1] == 0:  # Flip Card
             if row == -1:
-                # tableau[row][1] = 1
-                self.table.flip(i)
-                self.__cards__[tableau[row][0]].card.visible = True
-                self.update_tableau(i)
-                # self.table.increment_moves()
+                self.flip_cards()
                 return
             if not self.__cards__[tableau[row][0]].card.visible:
                 return
@@ -960,26 +1000,24 @@ class Game(App):
                 return
             if self.table.tableau_to_tableau(scol=i):
                 self.animate_tableau_to_tableau(movable)
-                # self.move_card(k, 't')
-                # if self.__config__['auto_flip']:
-                #     self.flip_cards()
                 return
         if self.table.tableau_to_tableau(scol=i, srow=row):
             self.log.debug(f'row={row} move {str(movable)}')
             self.animate_tableau_to_tableau(movable)
         else:
             for k, _ in movable:
-                if self.__cards__[k].card.visible:
-                    self.anim_shake(self.__cards__[k])
+                card = self.__cards__[k]
+                if card.card.visible and not self.entity_in_sequences(card):
+                    self.anim_shake(card)
 
-    def animate_tableau_to_tableau(self, cards):
+    def animate_tableau_to_tableau(self, cards, shake=False):
         for k, _ in cards:
-            self.move_card(k, 't')
+            self.move_card(k, 't', shake=shake)
         if self.__config__['auto_flip']:
             self.flip_cards()
 
-    def animate_tableau_to_foundation(self, k):
-        self.move_card(k, 'f')
+    def animate_tableau_to_foundation(self, k, shake=False):
+        self.move_card(k, 'f', shake=shake)
         if self.__config__['auto_flip']:
             self.flip_cards()
 
@@ -994,19 +1032,30 @@ class Game(App):
             self.__last_undo__ = True  # almost equal to an undo move
         else:
             c = self.get_card_under_mouse('f')
-            if c is not None:
+            if c is not None and not self.entity_in_sequences(c):
                 self.anim_shake(c)
 
     def flip_cards(self):
         if not self.__config__['auto_flip']:
             return
+        flipped = []
         for i, t in enumerate(self.table.tableau):
             if t and t[-1][1] == 0:
                 self.__cards__[t[-1][0]].card.visible = True
+                flipped.append(t[-1][0])
                 self.table.flip(i)
         self.update_tableau()
+        for k in flipped:
+            if not self.entity_in_sequences(self.__cards__[k]):
+                self.log.info(f'shake card {k}')
+                self.anim_shake(
+                    self.__cards__[k],
+                    duration=0.6,
+                    delta_x=0,
+                    delta_y=0.1
+                )
 
-    def move_card(self, k, area):
+    def move_card(self, k, area, shake=False):
         dest = None
         target_depth = 0
         card = self.__cards__[k]
@@ -1033,11 +1082,12 @@ class Game(App):
         self.anim_fly_to(
             self.__cards__[k],
             dest,
-            target_depth
+            target_depth,
+            shake=shake
         )
 
     # noinspection PyUnusedLocal
-    def anim_fly_to(self, card, dest, target_depth, speed=None):
+    def anim_fly_to(self, card, dest, target_depth, speed=None, shake=False):
         if speed is None:
             speed = self.__standard_speed__
         if not card.card.visible:
@@ -1049,12 +1099,22 @@ class Game(App):
             card,
             depth,
             ((distance * speed, start, dest),),
-            self.update_card,
+            self.after_fly_to,
             card,
             new_depth=target_depth,
-            in_anim=False
+            shake=shake
         )
         card.card.in_anim = True
+
+    def after_fly_to(self, card, new_depth, shake):
+        self.update_card(
+            card,
+            new_depth=new_depth,
+            in_anim=False,
+            position=True
+        )
+        if shake:
+            self.anim_shake(card, 0.6, 0, 0.1)
 
     def anim_shake(self, card, duration=0.2, delta_x=0.05, delta_y=0.0):
         x, y = card.sprite.position
@@ -1089,7 +1149,32 @@ class Game(App):
                 else:
                     card.sprite = self.load_sprite(self.__cardback_img__)
         if position is not None:
-            card.sprite.position = position
+            if isinstance(position, bool):
+                area, col, row = self.table.find_card(
+                    (card.card.suit, card.card.value)
+                )
+                if area == 'f':
+                    card.sprite.position = self.__f_pos__[col]
+                elif area == 't':
+                    x = self.__t_pos__[col][0]
+                    y = self.__t_pos__[col][1] + row * self.__cr_sep__
+                    card.sprite.position = x, y
+                elif area == 's':
+                    card.sprite.position = self.__s_pos__
+                elif area == 'w':
+                    self.log.warning('unhandled position update waste...')
+                else:
+                    raise ValueError(f'unknown area "{area}"')
+                if new_depth is None:
+                    card.sprite.depth = row + 2
+                elif new_depth != row + 2:
+                    self.log.warning('correcting wrong depth')
+                    new_depth = row + 2
+            elif isinstance(position, tuple):
+                card.sprite.position = position
+            else:
+                raise ValueError(f'expected either bool or tuple for argument'
+                                 f'position, got {type(position)} instead')
         if new_depth is not None:
             card.sprite.depth = new_depth
         if in_anim is not None:
