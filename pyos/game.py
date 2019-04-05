@@ -556,10 +556,10 @@ class Game(App):
         if self.__try_waste_to_foundation__():
             return
         r = self.table.draw()
-        if r == 1:
+        if r == 2:
             self.reset_stack()
             self.table.draw()
-        if r == 0:
+        if r == 1:
             self.animate_stack()
 
     def show_score(self):
@@ -859,9 +859,9 @@ class Game(App):
 
     def stack_click(self):
         res = self.table.draw(self.__config__['draw_one'])
-        if res == 0:
+        if res == 1:
             self.animate_stack()
-        elif res == 1:
+        elif res == 2:
             self.reset_stack()
 
     def animate_stack(self, left_to_right=False):

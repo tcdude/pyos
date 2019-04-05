@@ -213,14 +213,13 @@ class Table(object):
         def wrapper(*args, **kwargs):
             self.log.debug(f'calling {m.__name__}')
             res = m(*args, **kwargs)
-            if res or (isinstance(res, int) and res > -1):
+            if res:
                 if self.__fresh_deal__:
                     self.start()
                 elif self.__paused__:
                     self.resume()
-                if res != -1:
-                    self.log.info('Moves +1')
-                    self.increment_moves()
+                self.log.info('Moves +1')
+                self.increment_moves()
             return res
         return wrapper
 
@@ -389,14 +388,14 @@ class Table(object):
         if not self.stack:
             if not self.waste:
                 self.log.info('no more cards')
-                return -1
+                return False
             self.__stack__ = list(reversed(self.waste))
             self.__waste__ = []
             self.__points__ -= 100 if draw_one else 0
             self.__points__ = max(self.points, 0)
             self.log.info('reset stack')
             self.history.append(('w', 's', len(self.stack)))
-            return 1
+            return 2
         for _ in range(1 if draw_one else 3):
             if self.stack:
                 self.waste.append(self.stack.pop())
@@ -404,7 +403,7 @@ class Table(object):
             else:
                 break
         self.log.info('draw successful')
-        return 0
+        return 1
 
     def __undo__(self):
         if not self.history:
