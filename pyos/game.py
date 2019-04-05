@@ -80,13 +80,17 @@ class Game(App):
         self.__bt_bar__ = []
         self.__score_box__ = []
 
-        # Locations / Size
+        # Locations / Size / Duration / Speed
         self.__cr_sep__ = int(self.screen_size[1] * ROW_SPACING)
         self.__cardsize__ = (0, 0)
         self.__f_pos__ = []
         self.__s_pos__ = (0, 0)
         self.__w_pos__ = (0, 0)
         self.__t_pos__ = []
+        self.__std_delay__ = 0.4
+        self.__fast_delay__ = 0.2
+        self.__standard_speed__ = 1.0 / (min(self.screen_size) * 3.2)
+        self.__slow_speed__ = 1.0 / (min(self.screen_size) * 1.5)
 
         # State
         self.__table__ = Table()
@@ -99,6 +103,7 @@ class Game(App):
         self.__m_d_pos__ = Vector()
         self.__last_mouse__ = Vector()
         self.__down__ = False
+        self.__last_undo__ = False
 
         # Setup
         self.setup()
@@ -138,6 +143,11 @@ class Game(App):
                 self.mouse_up
             )
         self.task_manager.add_task('drag_task', self.drag_task)
+        self.task_manager.add_task(
+            'auto_complete',
+            self.auto_foundation,
+            self.__std_delay__
+        )
         # Logging
         dictConfig({
             'version': 1,
@@ -150,7 +160,7 @@ class Game(App):
             },
             'handlers': {
                 'default': {
-                    'level': 'DEBUG',
+                    'level': 'WARNING',
                     'class': 'logging.StreamHandler',
                     'formatter': 'standard'
                 },
@@ -158,7 +168,7 @@ class Game(App):
             'loggers': {
                 '': {
                     'handlers': ['default'],
-                    'level': 'DEBUG',
+                    'level': 'WARNING',
                     'propagate': True
                 }
             }
@@ -174,16 +184,15 @@ class Game(App):
             self.event_handler.listen(
                 'APP_WILLENTERBACKGROUND',
                 sdl2.SDL_APP_WILLENTERBACKGROUND,
-                self.quit,
+                self.log.warning,
                 0,
-                blocking=False
+                'Unhandled event APP_WILLENTERBACKGROUND!!!'
             )
             self.event_handler.listen(
                 'APP_DIDENTERBACKGROUND',
                 sdl2.SDL_APP_DIDENTERBACKGROUND,
-                self.quit,
-                0,
-                blocking=False
+                self.event_pause,
+                0
             )
             self.event_handler.listen(
                 'APP_LOWMEMORY',
@@ -204,6 +213,11 @@ class Game(App):
     @property
     def table(self):
         return self.__table__
+
+    # noinspection PyUnusedLocal
+    def event_pause(self, event=None):
+        self.log.info('Paused game')
+        self.table.pause()
 
     # noinspection PyUnusedLocal
     def mouse_down(self, event):
@@ -282,11 +296,11 @@ class Game(App):
 
     # noinspection PyUnusedLocal
     def mouse_up(self, event):
+        self.__last_undo__ = False
         if self.__score_box__:
             for e in self.__score_box__:
                 self.world.delete(e)
             self.__score_box__ = []
-            return
         self.__down__ = False
         sa = self.check_click_pos(self.__m_d_pos__)
         ea = self.check_click_pos()
@@ -311,6 +325,13 @@ class Game(App):
             self.foundation_click()
         elif a == 'b':
             self.bt_bar_click()
+        if self.table.is_paused:
+            return
+
+        # if self.__config__['auto_foundation'] and not self.__last_undo__:
+        #     self.auto_foundation()
+        # if self.__config__['auto_solve']:
+        #     self.auto_solve()
         if self.table.win_condition:
             self.stop_all_position_sequences()
             t, p, b, m = self.table.result
@@ -395,6 +416,7 @@ class Game(App):
                         )
                         if not invalid:
                             self.update_tableau(eti)
+                            self.__last_undo__ = True
                     else:
                         self.log.debug('invalid foundation_to_... move')
                         invalid = True
@@ -480,6 +502,63 @@ class Game(App):
         with open(STATEFILE, 'wb') as f:
             f.write(self.table.get_state())
 
+    # noinspection PyUnusedLocal
+    def auto_foundation(self, *args, **kwargs):
+        if self.table.win_condition and not self.__score_box__:
+            self.show_score()
+            self.task_manager['auto_complete'].delay = self.__std_delay__
+        if self.table.is_paused or self.__last_undo__:
+            return
+        if self.table.solved and self.__config__['auto_solve']:
+            if self.task_manager['auto_complete'].delay != self.__fast_delay__:
+                self.task_manager['auto_complete'].delay = self.__fast_delay__
+            self.auto_solve()
+        elif self.__config__['auto_foundation']:
+            if self.__try_tableau_to_foundation__():
+                return
+            if self.__try_waste_to_foundation__():
+                return
+
+    def __try_tableau_to_foundation__(self):
+        before = [len(t) for t in self.table.foundation]
+        tableau = self.table.tableau_to_foundation()
+        if not tableau:
+            return False
+        self.animate_tableau_to_foundation(self.__last_foundation__(before))
+        return True
+
+    def __last_foundation__(self, before):
+        after = [len(t) for t in self.table.foundation]
+        col = -1
+        for i, (t, c) in enumerate(zip(before, after)):
+            if t != c:
+                col = i
+                break
+        if col > -1:
+            return self.table.foundation[col][-1]
+        raise ValueError('unable to find last foundation card')
+
+    def __try_waste_to_foundation__(self):
+        before = [len(t) for t in self.table.foundation]
+        waste = self.table.waste_to_foundation()
+        if not waste:
+            return False
+        self.animate_waste_to_foundation(self.__last_foundation__(before))
+        self.animate_stack(left_to_right=True)
+        return True
+
+    def auto_solve(self):
+        if self.__try_tableau_to_foundation__():
+            return
+        if self.__try_waste_to_foundation__():
+            return
+        r = self.table.draw()
+        if r == 1:
+            self.reset_stack()
+            self.table.draw()
+        if r == 0:
+            self.animate_stack()
+
     def show_score(self):
         if not self.table.win_condition:
             raise ValueError('win_condition is not True')
@@ -492,7 +571,7 @@ class Game(App):
             self.screen_size,
             f'\nYou WON!!!\n\n\n'
             f'Points:     {pts + bonus}  \n'
-            f'Duration:   {ti // 60}:{ti % 60}.{cent}  \n'
+            f'Duration:   {ti // 60}:{ti % 60:02d}.{cent}  \n'
             f'Moves:      {moves}  \n\n'
         )
         self.__score_box__.append(PlaceHolderEntity(
@@ -753,56 +832,90 @@ class Game(App):
     def bt_bar_click(self):
         but_width = self.screen_size[0] // 3
         if self.mouse_pos.x < but_width:
-            self.stop_all_position_sequences()
-            self.deal()
+            self.new_deal()
         elif but_width < self.mouse_pos.x < but_width * 2:
-            self.stop_all_position_sequences()
-            self.reset()
+            self.reset_deal()
         else:
-            self.table.undo()
-            self.stop_all_position_sequences()
-            self.update_tableau()
-            self.update_foundation()
-            self.update_waste()
+            self.undo_move()
+
+    def undo_move(self):
+        self.__last_undo__ = True
+        self.table.undo()
+        self.stop_all_position_sequences()
+        self.update_tableau()
+        self.update_foundation()
+        self.update_waste()
+
+    def reset_deal(self):
+        self.stop_all_position_sequences()
+        self.reset()
+
+    def new_deal(self):
+        self.stop_all_position_sequences()
+        self.deal()
 
     def stack_click(self):
         res = self.table.draw(self.__config__['draw_one'])
         if res == 0:
-            if len(self.table.waste) > 4:
-                self.__cards__[self.table.waste[-5]].sprite.depth = 1
-            x_rh = self.__w_pos__[0]
-            x_lh = x_rh + min(len(self.table.waste) - 1, 3) * self.__cr_sep__
+            self.animate_stack()
+        elif res == 1:
+            self.reset_stack()
+
+    def animate_stack(self, left_to_right=False):
+        x_rh = self.__w_pos__[0]
+        x_lh = x_rh + min(len(self.table.waste) - 1, 3) * self.__cr_sep__
+        if left_to_right:
             for i, k in enumerate(reversed(self.table.waste[-4:])):
-                if not i:
-                    self.__cards__[k].sprite = self.load_sprite(
-                        self.__card_img__[k]
-                    )
-                    self.__cards__[k].card.visible = True
-                    self.__cards__[k].sprite.position = self.__s_pos__
                 x = (x_lh if self.__config__['left_handed'] else x_rh)
                 x -= i * self.__cr_sep__
-                speed = 1.0 / (min(self.screen_size) * 1.5)
+                if i == 3:
+                    x_prev = x
+                else:
+                    x_prev = x - self.__cr_sep__
+                self.__cards__[k].sprite.position = x_prev, self.__w_pos__[1]
                 self.anim_fly_to(
                     self.__cards__[k],
                     Vector(x, self.__w_pos__[1]),
                     6 - i,
-                    speed
+                    self.__slow_speed__
                 )
-        elif res == 1:
-            self.reset_stack()
+            return
+        if len(self.table.waste) > 4:
+            self.__cards__[self.table.waste[-5]].sprite.depth = 1
+        for i, k in enumerate(reversed(self.table.waste[-4:])):
+            if not i:
+                self.__cards__[k].sprite = self.load_sprite(
+                    self.__card_img__[k]
+                )
+                self.__cards__[k].card.visible = True
+                self.__cards__[k].sprite.position = self.__s_pos__
+            x = (x_lh if self.__config__['left_handed'] else x_rh)
+            x -= i * self.__cr_sep__
+            self.anim_fly_to(
+                self.__cards__[k],
+                Vector(x, self.__w_pos__[1]),
+                6 - i,
+                self.__slow_speed__
+            )
 
     def waste_click(self):
         k = self.table.waste[-1] if self.table.waste else None
         if self.table.waste_to_tableau():
-            self.move_card(k, 't')
-            self.update_waste()
+            self.animate_waste_to_tableau(k)
             return
         if self.table.waste_to_foundation():
-            self.move_card(k, 'f')
-            self.update_waste()
+            self.animate_waste_to_foundation(k)
             return
         if self.table.waste:
             self.anim_shake(self.__cards__[self.table.waste[-1]])
+
+    def animate_waste_to_tableau(self, k):
+        self.move_card(k, 't')
+        self.update_waste()
+
+    def animate_waste_to_foundation(self, k):
+        self.move_card(k, 'f')
+        self.update_waste()
 
     def tableau_click(self):
         i = self.get_array_index('t', self.mouse_pos)
@@ -829,22 +942,32 @@ class Game(App):
         if row == -1:
             k = self.table.tableau[i][row][0]
             if self.table.tableau_to_foundation(col=i):
-                self.move_card(k, 'f')
-                self.flip_cards()
+                self.animate_tableau_to_foundation(k)
                 return
             if self.table.tableau_to_tableau(scol=i):
-                self.move_card(k, 't')
-                self.flip_cards()
+                self.animate_tableau_to_tableau(movable)
+                # self.move_card(k, 't')
+                # if self.__config__['auto_flip']:
+                #     self.flip_cards()
                 return
         if self.table.tableau_to_tableau(scol=i, srow=row):
             self.log.debug(f'row={row} move {str(movable)}')
-            for k, _ in movable:
-                self.move_card(k, 't')
-            self.flip_cards()
+            self.animate_tableau_to_tableau(movable)
         else:
             for k, _ in movable:
                 if self.__cards__[k].card.visible:
                     self.anim_shake(self.__cards__[k])
+
+    def animate_tableau_to_tableau(self, cards):
+        for k, _ in cards:
+            self.move_card(k, 't')
+        if self.__config__['auto_flip']:
+            self.flip_cards()
+
+    def animate_tableau_to_foundation(self, k):
+        self.move_card(k, 'f')
+        if self.__config__['auto_flip']:
+            self.flip_cards()
 
     def foundation_click(self):
         i = self.get_array_index('f', self.mouse_pos)
@@ -854,6 +977,7 @@ class Game(App):
             k = None
         if self.table.foundation_to_tableau(col=i):
             self.move_card(k, 't')
+            self.__last_undo__ = True  # almost equal to an undo move
         else:
             c = self.get_card_under_mouse('f')
             if c is not None:
@@ -897,15 +1021,15 @@ class Game(App):
         )
 
     def anim_fly_to(self, card, dest, target_depth, speed=None):
-        if speed is None:
-            speed = 1.0 / (min(self.screen_size) * 3.8)
+        if self.__standard_speed__ is None:
+            pass
         start = Vector(*card.sprite.position)
         distance = (dest - start).length
         depth = card.sprite.depth + 40
         self.position_sequence(
             card,
             depth,
-            ((distance * speed, start, dest),),
+            ((distance * self.__standard_speed__, start, dest),),
             self.update_card,
             card,
             new_depth=target_depth,

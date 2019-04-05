@@ -42,6 +42,7 @@ CONFIG = {
     'draw_one': True,
     'tap_move': True,
     'auto_foundation': True,
+    'auto_solve': True,
     'auto_flip': True,
     'left_handed': False,
     'drag_threshold': 0
@@ -221,7 +222,16 @@ def get_box(size):
     return p
 
 
-def text_box(text, size=24, color=None, filename='text.bmp', font=FONT_NORMAL):
+def text_box(
+        screen_size,
+        text,
+        size=24,
+        color=None,
+        filename='text.bmp',
+        font=FONT_NORMAL):
+    """
+    Return path to image file containing the text box and its size tuple.
+    """
     f = ImageFont.truetype(font, size)
     txt_box = f.getsize_multiline(text) if '\n' in text else f.getsize(text)
     box = int(txt_box[0] * 1.2), int(txt_box[1] * 1.2)
@@ -265,5 +275,9 @@ def text_box(text, size=24, color=None, filename='text.bmp', font=FONT_NORMAL):
         f
     )
     p = os.path.join(CACHEDIR, filename)
+    if img.size[0] > screen_size[0] or img.size[1] > screen_size[1]:
+        r = min(screen_size[0] / img.size[0], screen_size[1] / img.size[0])
+        box = (int(img.size[0] * r), int(img.size[1] * r))
+        img = img.resize(box, Image.BICUBIC)
     img.save(p)
     return p, box

@@ -14,29 +14,21 @@ bored with it, which can happen, you know...)*.
 
 # Roadmap
 
-##### V 0.1
-* Working Prototype on Android
-* Playable Game Loop
-* Handling of `HW Back Button` / `Transition to Background` / `Restore from 
-Background`
-* Undo Move
-
-##### V 0.2
-* Options Menu
-* Different Play Types (`Draw One`, `Draw Three`)
-* Stats (`Personal Best [moves, time, score]`)
-
-##### V 0.3
-* Auto to Foundation
-* Screen Rotation and Layout for Landscape mode
+##### V 0.1 - V 0.3
+See: 
+* [V 0.1](https://github.com/tcdude/pyos/projects/1)
+* [V 0.2](https://github.com/tcdude/pyos/projects/2)
+* [V 0.3](https://github.com/tcdude/pyos/projects/3)
 
 ##### V 0.4
 * Online Features
-    * Implement Google Play Games Services API
+    * Server (Free GCE or similar)
+        * Light weight message protocol
+        * Avoid unnecessary traffic
+        * Keep it simple
     * *Pseudo* Multiplayer one-vs-one (Recorded Gameplay)
-        * Find free or cheap way to pass messages between players<br> 
-        (maybe register custom Protocol?)
-        * Matchmaking?
+        * Use the **share** feature of the OS
+        * Register Protocol to open App directly
         * TBD
         
 ##### V 1.0 *(probably...)*
@@ -46,7 +38,7 @@ Background`
 
 ## Setup
 
-1. Shuffle Cards (fixed seed for pseudo *online play*)
+1. Shuffle Cards (seed aware for pseudo *online play*)
 1. Place Cards on the **Tableau** 7 columns with `column index` 
    cards face down and on top 1 card face up
 1. Place remaining cards on Stock face down

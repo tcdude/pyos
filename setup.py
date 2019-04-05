@@ -29,25 +29,25 @@ __license__ = 'MIT'
 __version__ = '0.1'
 
 
-options = {'apk': {'debug': None,
+options = {'apk': {  # 'debug': None,
                    'bootstrap': 'sdl2',
                    'requirements': 'libffi,sdl2,sdl2_image,sdl2_ttf,python3,'
                                    'pysdl2,Pillow,plyer',
                    'package': 'com.tizilogic.pyos',
                    'android-api': 28,
                    # 'arch': 'arm64-v8a',  # -> waiting for fix...
-                   'dist-name': 'pyostest',
+                   'dist-name': 'pyos-beta',
                    'icon': 'pyos/assets/app-images/icon192.png',
                    'presplash': 'pyos/assets/app-images/splash.png',
                    'presplash-color': '#224422',
                    }}
 
 setup(
-    name='pyos',
-    version='0.1',
+    name='Simple Solitaire',
+    version='0.1.1',
     description='An ad free, simple solitaire game',
     author='tcdude',
-    author_email='info@tizilogic.com',
+    author_email='tizilogic@gmail.com',
     packages=find_packages(),
     options=options,
     package_data={'pyos': [

@@ -30,6 +30,8 @@ class Interval(object):
     def __init__(self, entity, depth, duration):
         self.__entity__ = entity
         self.__depth__ = depth
+        if duration < 0.005:
+            duration = 0.005
         self.__duration__ = duration
         self.__time__ = 0.0
         self.__norm_time__ = 1.0 / duration

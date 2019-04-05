@@ -119,11 +119,20 @@ class Table(object):
 
     @property
     def win_condition(self):
-        return True if sum([len(f) for f in self.foundation]) == 52 else False
+        if sum([len(f) for f in self.foundation]) == 52:
+            self.__paused__ = True
+            return True
+        return False
 
     @property
     def is_paused(self):
         return self.__paused__
+
+    @property
+    def solved(self):
+        if sum([0 if o else 1 for t in self.tableau for _, o in t]):
+            return False
+        return True
 
     def deal(self, random_seed=None):
         self.__current_seed__, self.__tableau__, self.__stack__ = deal(
@@ -179,6 +188,7 @@ class Table(object):
             self.foundation,
             self.tableau,
             self.points,
+            self.moves,
             self.__elapsed_time__,
             self.__current_seed__,
             self.__history__
@@ -186,22 +196,31 @@ class Table(object):
 
     def set_state(self, state):
         self.log.info('State set')
-        self.__stack__, self.__waste__, self.__foundation__, self.__tableau__,\
-            self.__points__, self.__elapsed_time__, self.__current_seed__, \
-            self.__history__ = pickle.loads(state)
+        (
+            self.__stack__,
+            self.__waste__,
+            self.__foundation__,
+            self.__tableau__,
+            self.__points__,
+            self.__moves__,
+            self.__elapsed_time__,
+            self.__current_seed__,
+            self.__history__
+        ) = pickle.loads(state)
         self.__paused__ = True
 
     def __wrap_method__(self, m):
         def wrapper(*args, **kwargs):
             self.log.debug(f'calling {m.__name__}')
             res = m(*args, **kwargs)
-            if res or (m.__name__ == '__draw__' and res in (0, 1)):
+            if res:
                 if self.__fresh_deal__:
                     self.start()
                 elif self.__paused__:
                     self.resume()
-                self.log.info('Moves +1')
-                self.increment_moves()
+                if res != -1:
+                    self.log.info('Moves +1')
+                    self.increment_moves()
             return res
         return wrapper
 
@@ -213,12 +232,12 @@ class Table(object):
                              f'already flipped')
         self.tableau[col][-1][1] = 1
         self.history.append(('c', f't{col}', self.tableau[col][-1][0]))
+        return True
 
     def __waste_to_tableau__(self, col=None):
         """Return True if valid, otherwise False"""
         wc = self.waste_card
         if wc is None:
-            self.__moves__ -= 1
             self.log.info('no waste card')
             return False
         suit, value = wc
@@ -236,7 +255,6 @@ class Table(object):
                 self.__points__ += 5
                 self.log.info('valid move found')
                 return True
-        self.__moves__ -= 1
         self.log.info('no valid move found')
         return False
 
@@ -244,7 +262,6 @@ class Table(object):
         """Return True if valid, otherwise False"""
         wc = self.waste_card
         if wc is None:
-            self.__moves__ -= 1
             self.log.info('no waste card')
             return False
         suit, value = wc
@@ -262,7 +279,6 @@ class Table(object):
                 self.__points__ += 10
                 self.log.info('valid move found')
                 return True
-        self.__moves__ -= 1
         self.log.info('no valid move found')
         return False
 
