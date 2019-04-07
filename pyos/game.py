@@ -583,10 +583,24 @@ class Game(App):
         self.animate_stack(left_to_right=True)
         return True
 
+    def __try_waste_to_tableau__(self):
+        k = self.table.waste[-1] if self.table.waste else None
+        waste = self.table.waste_to_tableau()
+        if not waste:
+            return False
+        self.animate_waste_to_tableau(
+            k,
+            shake=True
+        )
+        self.animate_stack(left_to_right=True)
+        return True
+
     def auto_solve(self):
         if self.__try_tableau_to_foundation__():
             return
         if self.__try_waste_to_foundation__():
+            return
+        if self.__try_waste_to_tableau__():
             return
         r = self.table.draw()
         if r == 2:

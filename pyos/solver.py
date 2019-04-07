@@ -32,8 +32,12 @@ __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
 __license__ = 'MIT'
 __version__ = '0.2'
 
+START_MAX_STEPS = 36
+START_MIN_STEPS = 16
+MIN_F2T = 0
+BIAS = 1
 DISTANCE_MAX = 52 + 49 + 48
-STEP_TO_DISTANCE = 20
+STEP_TO_DISTANCE = 2
 
 # Custom Types
 CARD_TUPLE = Tuple[int, int]
@@ -56,7 +60,7 @@ class ReverseSolve(object):
         self.history = History()
         self.r = Random(self.seed)
         self.max_steps = self.r.randint(100, 170)
-        self.max_f2w = self.r.randint(4, 20)
+        self.max_f2w = self.r.randint(4, 16)
         self.f2w_count = 0
         self.step = 0
 
@@ -77,6 +81,31 @@ class ReverseSolve(object):
     def solved(self):
         return False if self.distance else True
 
+    def randomize_start_position(self):
+        empty = list(range(4)) + self.r.choices(list(range(4, 52)), k=3)
+        f_idx = [0, 1, 2, 3]
+        t_idx = [0, 1, 2, 3, 4, 5, 6]
+        for i in range(13):
+            must_empty = True if i in empty else False
+            self.r.shuffle(f_idx)
+            for origin in f_idx:
+                if not self.foundation[origin]:
+                    continue
+                card = self.foundation[origin][-1]
+                self.r.shuffle(t_idx)
+                for dest in t_idx:
+                    result = self.tableau.is_valid_move(card, dest)
+                    if result == 1 and not must_empty:
+                        self.foundation.remove_card(card)
+                        self.tableau.add_card(card, dest)
+                        break
+                    elif result == 2 and must_empty:
+                        self.foundation.remove_card(card)
+                        self.tableau.add_card(card, dest)
+                        break
+        self.step = 0
+        return
+
     def get_valid_moves(self):
         moves = []
         f_top = self.foundation.top_cards
@@ -92,7 +121,8 @@ class ReverseSolve(object):
                 continue
             for ti, t_card in enumerate(t_top):
                 if t_card is None:
-                    moves.append((f'f{fi}', f't{ti}', f_card, -2))
+                    if self.step > MIN_F2T or f_card.value == 12:
+                        moves.append((f'f{fi}', f't{ti}', f_card, -2))
                     continue
                 valid, _ = t_card + f_card
                 pile = self.tableau[ti]
@@ -101,65 +131,74 @@ class ReverseSolve(object):
                     before = abs(ti + 1 - len(pile))
                     after = abs(ti - len(pile))
                     move = (f'f{fi}', f't{ti}', f_card, after - before)
-                    moves += [move] * 3
+                    moves += [move] * BIAS
 
     def tableau_moves(self, moves, f_top, t_top):
         # type: (list, List[Card], List[Card]) -> None
 
         # Tableau to Foundation
-        for ti, t_card in enumerate(t_top):
-            if t_card is None:
-                continue
-            for fi, f_card in enumerate(f_top):
-                if f_card is None:
+        if self.step > MIN_F2T:
+            for ti, t_card in enumerate(t_top):
+                if t_card is None or t_card.blocked:
                     continue
-                _, valid = f_card + t_card
-                pile = self.foundation[fi]
-                if valid:
-                    before = abs(ti + 1 - len(pile))
-                    after = abs(ti - len(pile))
-                    moves.append((f'f{fi}', f't{ti}', f_card, after - before))
+                for fi, f_card in enumerate(f_top):
+                    if f_card is None:
+                        continue
+                    _, valid = f_card + t_card
+                    pile = self.foundation[fi]
+                    if valid:
+                        before = abs(ti + 1 - len(pile))
+                        after = abs(ti - len(pile))
+                        moves.append(
+                            (f'f{fi}', f't{ti}', f_card, after - before)
+                        )
 
         # Tableau to Tableau
-        for s_col, s_pile in enumerate(self.tableau):
-            if not s_pile:
-                continue
-            for s_row, s_card in enumerate(s_pile):
-                if not s_card.face_up:
+        if self.step > MIN_F2T:
+            for s_col, s_pile in enumerate(self.tableau):
+                if not s_pile:
                     continue
-                for e_col, e_card in enumerate(t_top):
-                    if s_col == e_col:
+                for s_row, s_card in enumerate(s_pile):
+                    if not s_card.face_up or s_card.blocked:
                         continue
-                    s_len = len(s_pile)
-                    s_rows = s_row + 1
-                    s_before = abs(s_col + 1 - s_len)
-                    s_after = abs(s_col + 1 - (s_len - s_rows))
-                    s_delta = s_after - s_before
-                    pile = self.tableau[e_col]
-                    e_len = len(pile)
-                    e_before = abs(e_col + 1 - e_len)
-                    e_after = abs(e_col + 1 - (e_len + s_rows))
-                    e_delta = e_after - e_before
-                    move = (
-                        f't{s_col}:{s_row}', f't{e_col}',
-                        s_card,
-                        s_delta + e_delta
-                    )
-                    if e_card is None:
-                        moves += [move] * 2
-                        continue
-                    valid, _ = e_card + s_card
-                    if valid:
-                        moves += [move] * 2
-                        continue
-                    if e_len == 1 \
-                            or (not pile[-2].face_up and len(pile) < e_col + 1):
+                    for e_col, e_card in enumerate(t_top):
+                        if s_col == e_col:
+                            continue
+                        s_len = len(s_pile)
+                        if s_row <= s_len:
+                            mult = BIAS * 2
+                        else:
+                            mult = BIAS
+                        s_rows = s_row + 1
+                        s_before = abs(s_col + 1 - s_len)
+                        s_after = abs(s_col + 1 - (s_len - s_rows))
+                        s_delta = s_after - s_before
+                        pile = self.tableau[e_col]
+                        e_len = len(pile)
+                        e_before = abs(e_col + 1 - e_len)
+                        e_after = abs(e_col + 1 - (e_len + s_rows))
+                        e_delta = e_after - e_before
                         move = (
                             f't{s_col}:{s_row}', f't{e_col}',
                             s_card,
-                            s_delta + e_delta - 1
+                            s_delta + e_delta
                         )
-                        moves += [move] * 2
+                        if e_card is None:
+                            moves += [move] * mult
+                            continue
+                        valid, _ = e_card + s_card
+                        if valid:
+                            moves += [move] * mult
+                            continue
+                        if e_len == 1 or \
+                                (not pile[-2].face_up and
+                                 len(pile) < e_col + 1):
+                            move = (
+                                f't{s_col}:{s_row}', f't{e_col}',
+                                s_card,
+                                s_delta + e_delta - 1
+                            )
+                            moves += [move] * mult
 
     def waste_moves(self, moves, f_top, t_top):
         waste_full = self.waste.full
@@ -170,7 +209,7 @@ class ReverseSolve(object):
                         continue
                     moves.append((f'f{i}', 'w', card, -2))
             for i, card in enumerate(t_top):
-                if card is None:
+                if card is None or card.blocked:
                     continue
                 num_cards = len(self.tableau.piles[i])
                 before = abs(i + 1 - num_cards)
@@ -179,14 +218,15 @@ class ReverseSolve(object):
         if self.waste.valid_reset_waste:
             s_len = len(self.waste['stack'])
             move = ('s', 'w', None, s_len)
-            moves += [move] * 4
+            moves += [move]
         if self.waste.valid_to_stack:
             move = ('w', 's', None, -self.draw)
-            moves += [move] * 6
+            moves += [move] * BIAS
 
     def solve(self):
         if self.solved:
             return
+        self.randomize_start_position()
         while not self.solved:
             moves = self.get_valid_moves()
             self.r.shuffle(moves)
@@ -299,65 +339,66 @@ class Tableau(object):
         return sum(self.pile_distance)
 
     @property
-    def valid_moves(self):
-        # type: () -> List[TABLEAU_MOVES]
-        valid = []
-        for pile in self.piles:
-            if not pile:
-                valid.append((-1, -1, True))
-                continue
-            card = pile[-1]
-            if len(pile) == 1 or not pile[-2].face_up:
-                valid.append((
-                    0 if card.suit % 2 else 1,
-                    card.value - 1 if card.value > 0 else 13,
-                    True
-                ))
-            else:
-                valid.append((
-                    0 if card.suit % 2 else 1,
-                    card.value - 1 if card.value > 0 else 13,
-                    False
-                ))
-        return valid
-
-    @property
-    def movable_cards(self):
-        # type: () -> List[Tuple[int, int]]
-        return [
-            (
-                col,
-                row
-            ) for col, p in enumerate(self.piles)
-            for row in range(len(p)) if self.piles[col][row].face_up
-        ]
-
-    @property
     def top_cards(self):
         return [p[-1] if p else None for p in self.piles]
+
+    def is_valid_move(self, card, col):
+        """
+        Return:
+            0 = invalid move
+            1 = valid move
+            2 = valid to empty pile
+            3 = valid with flip top card
+        """
+        if card.blocked:
+            return 0
+        pile = self.piles[col]
+        if not pile:
+            return 2
+        valid, _ = pile[-1] + card
+        if valid:
+            return 1
+        pl = len(pile)
+        if pl == 1:
+            if col > 0:
+                return 3
+            return 0
+        if not pile[-2].face_up and pl < col + 1:
+            return 3
+        return 0
 
     def __update_distance__(self, col):
         # type: (int) -> None
         t = 2 * col + 1
         p = self.piles[col]
-        self.pile_distance[col] = abs(t - sum(
-            [2 if not c.face_up and i < col else 1 for i, c in enumerate(p)]
-        ))
+        d = 0
+        for i, c in enumerate(p):
+            if not c.face_up and i < col or (not col and not c.face_up):
+                d += 2
+            else:
+                d += 1
+        self.pile_distance[col] = abs(t - d)
 
     def add_card(self, card, col):
         # type: (Card, int) -> bool
+        move_type = self.is_valid_move(card, col)
         pile = self.piles[col]
-        result = False
-        if not pile:
+        if move_type == 0:
+            return False
+        elif move_type == 1:
+            result = True
+        elif move_type == 2:
+            if card.value != 12 or col == 0:
+                card.blocked = True
+            result = True
+        elif move_type == 3:
+            # if the card was blocked to hold in place, it can now be flipped
+            pile[-1].blocked = False
+            pile[-1].face_up = False
             result = True
         else:
-            valid, _ = pile[-1] + card
-            if valid:
-                result = True
-            elif len(pile) == 1 \
-                    or (not pile[-2].face_up and len(pile) < col + 1):
-                pile[-1].face_up = False
-                result = True
+            raise ValueError(f'Got wrong move_type {move_type}')
+
         if result:
             pile.append(card)
             self.__update_distance__(col)
@@ -379,12 +420,24 @@ class Tableau(object):
                 first_valid = True
         for _ in range(len(stack)):
             self.remove_card(from_col)
+        pile = self.piles[from_col]
+        pl = len(pile)
+        if pl == 1 or (1 < pl < from_col + 1 and not pile[-2].face_up):
+            if not pile[-1].blocked:
+                pile[-1].face_up = False
+        self.__update_distance__(from_col)
+        self.__update_distance__(to_col)
         return True
 
     def remove_card(self, col):
         # type: (int) -> bool
-        if self.piles[col]:
-            self.piles[col].pop()
+        pile = self.piles[col]
+        if pile:
+            pile.pop()
+            # pl = len(pile)
+            # if pl == 1 or (1 < pl < col + 1 and not pile[-2].face_up):
+            #     if not pile[-1].blocked:
+            #         pile[-1].face_up = False
             self.__update_distance__(col)
             return True
         return False
@@ -453,7 +506,7 @@ class Waste(object):
     @property
     def distance(self):
         # type: () -> int
-        return 24 - len(self.stack) + 24 - len(self.stack) - len(self.waste)
+        return abs(24 - len(self.stack) + 24 - len(self.stack) - len(self.waste))
 
     @property
     def full(self):
@@ -538,10 +591,10 @@ class Card(object):
         return self.suit, self.value
 
     def __str__(self):
-        return f'{self.suit}{self.value:02d}'
+        return f'{self.suit}{self.value:02d}{"u" if self.face_up else "d"}'
 
     def __repr__(self):
-        return f'{self.suit}{self.value:02d}'
+        return f'{self.suit}{self.value:02d}{"u" if self.face_up else "d"}'
 
     def __eq__(self, other):
         # type: (Any) -> bool
@@ -608,6 +661,9 @@ if __name__ == '__main__':
         except RuntimeError:
             print('fail')
             r = ReverseSolve(draw=1, seed=r.r.getrandbits(2500))
+        except KeyboardInterrupt:
+            print('interrupted')
+            break
         else:
             print('success')
             unsolved = False
@@ -618,6 +674,8 @@ if __name__ == '__main__':
         r.foundation.distance,
         '\n\ttableau:',
         r.tableau.piles,
+        '\n\ttableau_distances:',
+        r.tableau.pile_distance,
         '\n\tfoundation:',
         r.foundation.piles,
         '\n\twaste:',

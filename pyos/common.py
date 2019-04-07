@@ -42,7 +42,7 @@ CONFIG = {
     'winner_deal': True,
     'draw_one': True,
     'tap_move': True,
-    'auto_foundation': True,
+    'auto_foundation': False,
     'auto_solve': True,
     'auto_flip': True,
     'left_handed': False,

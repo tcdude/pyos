@@ -66,7 +66,7 @@ def deal(random_seed=None):
 
 
 def winner_deal(random_seed=None, draw=1):
-    # type: (Optional[Seed]) -> Tuple[Seed, List, List]
+    # type: (Optional[Seed], Optional[int]) -> Tuple[Seed, List, List]
     """
     Return the used random seed, tableau and stack.
 
