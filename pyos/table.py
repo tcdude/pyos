@@ -48,6 +48,7 @@ class Table(object):
         self.__paused__ = True
         self.__fresh_deal__ = False
         self.__current_seed__ = None
+        self.__result__ = None
         self.draw = self.__wrap_method__(self.__draw__)
         self.flip = self.__wrap_method__(self.__flip__)
         self.undo = self.__wrap_method__(self.__undo__)
@@ -113,9 +114,11 @@ class Table(object):
     def result(self):
         if not self.win_condition:
             raise ValueError('only available when win_condition is True')
-        t = self.__last_move__ - self.__start_time__
-        b = bonus(t)
-        return t, self.points, b, self.moves
+        if self.__result__ is None:
+            t = self.__last_move__ - self.__start_time__
+            b = bonus(t)
+            self.__result__ = t, self.points, b, self.moves
+        return self.__result__
 
     @property
     def win_condition(self):
@@ -172,6 +175,7 @@ class Table(object):
         self.__fresh_deal__ = True
         self.__points__ = 0
         self.__moves__ = 0
+        self.__result__ = None
         self.__history__ = []
 
     def start(self):
@@ -207,9 +211,10 @@ class Table(object):
         self.__moves__ += 1
         self.__last_move__ = time.perf_counter()
 
-    def get_state(self):
+    def get_state(self, pause=True):
         self.log.info('Retrieving state')
-        self.pause()
+        if pause:
+            self.pause()
         return pickle.dumps((
             self.stack,
             self.waste,
@@ -219,6 +224,7 @@ class Table(object):
             self.moves,
             self.__elapsed_time__,
             self.__current_seed__,
+            self.__result__,
             self.__history__
         ))
 
@@ -233,6 +239,7 @@ class Table(object):
             self.__moves__,
             self.__elapsed_time__,
             self.__current_seed__,
+            self.__result__,
             self.__history__
         ) = pickle.loads(state)
         self.__paused__ = True

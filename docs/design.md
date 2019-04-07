@@ -128,7 +128,7 @@ valid starting state. To achieve a good level of randomness, a distance
 function is introduced to measure the distance in moves to the desired state
 *(i.e. 24 cards on the stack and 28 cards on the tableau with the top most
 7 cards on the tableau face up and the rest face down)*. Since an average
-game can be finished on average in about 130 moves, this will be used as an 
+game can be finished in approx. 130 moves, this will be used as an 
 indicator to steer the random selection of moves. Only testing will show what
 number of maximum moves leads to adequate randomness.
 
@@ -139,17 +139,19 @@ number of maximum moves leads to adequate randomness.
 
 #### All the possible Moves
 
-| From | To | Remarks |
-| :---: | :---: | :--- |
-| Foundation | Tableau | Either to a valid position or as new top card |
-| Foundation | Waste | Face Up only |
-| Tableau | Waste | ^ |
-| Tableau | Tableau | Either to a valid position or as new top card |
+| From | To | Single Card | Remarks |
+| :---: | :---: | :---: | :--- |
+| Foundation | Tableau | Y | Either to a valid position or as new top card |
+| Foundation | Waste | Y | Face Up only |
+| Tableau | Waste | Y | ^ |
+| Tableau | Tableau | N | Either to a valid position or as new top card<sup>1</sup> |
 | Tableau | Tableau | Flip card when not top most anymore |
 | Tableau | Foundation | Limit to reduce potential unnecessary moves |
 | Waste | Stack | 1 or 3 cards only if a complete move is possible! |
 | Stack | Waste | 1 or 3 cards allowed at any time |
 
+<sup>1</sup> *when moving a card/stack to an invalid position leads to flipping
+the card below* 
 
 #### Distance Function
 

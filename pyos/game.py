@@ -221,7 +221,7 @@ class Game(App):
         if not self.table.is_paused:
             self.log.debug('Auto Save')
             self.save()
-            self.table.resume()
+            # self.table.resume()
 
     # noinspection PyUnusedLocal
     def event_pause(self, event=None):
@@ -334,7 +334,7 @@ class Game(App):
         a = self.check_click_pos()
         if a == 's':
             self.stack_click()
-        elif a == 'w':
+        elif a == 'w' and self.table.waste:
             self.waste_click()
         elif a == 't':
             self.tableau_click()
@@ -527,7 +527,7 @@ class Game(App):
 
     def save(self):
         with open(STATEFILE, 'wb') as f:
-            f.write(self.table.get_state())
+            f.write(self.table.get_state(pause=False))
 
     # noinspection PyUnusedLocal
     def auto_foundation(self, dt, *args, **kwargs):
@@ -545,14 +545,9 @@ class Game(App):
                 self.__auto_delay__ = AUTO_FAST
             self.auto_solve()
         elif self.__config__['auto_foundation']:
-            # before = [len(t) for t in self.table.foundation]
             if self.__try_tableau_to_foundation__():
-                # card = self.__cards__[self.__last_foundation__(before)]
-                # self.anim_shake(card, 0.6, 0, 0.1)
                 return
             if self.__try_waste_to_foundation__():
-                # card = self.__cards__[self.__last_foundation__(before)]
-                # self.anim_shake(card, 0.6, 0, 0.1)
                 return
 
     def __try_tableau_to_foundation__(self):
@@ -862,7 +857,13 @@ class Game(App):
         }
         if os.path.isfile(STATEFILE):
             with open(STATEFILE, 'rb') as f:
-                self.table.set_state(f.read())
+                try:
+                    self.table.set_state(f.read())
+                except ValueError:
+                    os.remove(STATEFILE)
+                    self.log.error('state file could not be unpacked')
+                    self.deal()
+                    return
             self.update_tableau()
             self.update_foundation()
             self.update_waste()
@@ -961,8 +962,9 @@ class Game(App):
         if self.table.waste_to_foundation():
             self.animate_waste_to_foundation(k)
             return
-
-        card = self.__cards__[self.table.waste[-1]]
+        if k is None:
+            return
+        card = self.__cards__[k]
         if self.table.waste and not self.entity_in_sequences(card):
             self.anim_shake(card)
 
