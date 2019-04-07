@@ -29,7 +29,7 @@ __license__ = 'MIT'
 __version__ = '0.1'
 
 
-options = {'apk': {  # 'debug': None,
+options = {'apk': {'debug': None,
                    'bootstrap': 'sdl2',
                    'requirements': 'libffi,sdl2,sdl2_image,sdl2_ttf,python3,'
                                    'pysdl2,Pillow,plyer',
@@ -44,7 +44,7 @@ options = {'apk': {  # 'debug': None,
 
 setup(
     name='Simple Solitaire',
-    version='0.1.6',
+    version='0.2.0',
     description='An ad free, simple solitaire game',
     author='tcdude',
     author_email='tizilogic@gmail.com',

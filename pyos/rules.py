@@ -24,6 +24,8 @@ import os
 from typing import Optional, Union, Tuple, List
 import random
 
+from solver import ReverseSolve
+
 __author__ = 'Tiziano Bettio'
 __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
 __license__ = 'MIT'
@@ -60,6 +62,41 @@ def deal(random_seed=None):
             c = stack.pop()
             tableau[t].append([c, 1 if first else 0])
             first = False
+    return s, tableau, stack
+
+
+def winner_deal(random_seed=None, draw=1):
+    # type: (Optional[Seed]) -> Tuple[Seed, List, List]
+    """
+    Return the used random seed, tableau and stack.
+
+    tableau = List[7][depth][2] => 7 Piles -> `depth` high -> card, open (1/0)
+    stack = List[24] => card
+    card = Tuple(suit, value)
+    """
+    s = random_seed or os.urandom(16)
+    rs = ReverseSolve(draw, s)
+    unsolved = True
+    while unsolved:
+        try:
+            rs.solve()
+        except RuntimeError:
+            rs = ReverseSolve(draw, rs.r.getrandbits(2500))
+        else:
+            unsolved = False
+    stack = [c.tup for c in rs.waste.stack]
+    tableau = [[[c.tup, 1 if c.face_up else 0] for c in p] for p in rs.tableau]
+    for i in range(7):
+        if not tableau[i][i][1]:
+            tableau[i][i][1] = 1
+    # s, stack = shuffled_deck(random_seed)
+    # tableau = [[] for _ in range(7)]
+    # for start in range(7):
+    #     first = True
+    #     for t in range(start, 7):
+    #         c = stack.pop()
+    #         tableau[t].append([c, 1 if first else 0])
+    #         first = False
     return s, tableau, stack
 
 

@@ -39,6 +39,7 @@ __version__ = '0.2'
 # Global Constants
 # Default Configuration
 CONFIG = {
+    'winner_deal': True,
     'draw_one': True,
     'tap_move': True,
     'auto_foundation': True,
@@ -90,8 +91,8 @@ ROW_SPACING = 0.022  # % of y resolution between stacked cards
 BOTTOM_SPACING = 0.011
 
 # Timing
-AUTO_SLOW = 0.4
-AUTO_FAST = 0.2
+AUTO_SLOW = 0.5
+AUTO_FAST = 0.3
 
 
 # Helper Methods

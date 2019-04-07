@@ -33,7 +33,7 @@ __license__ = 'MIT'
 __version__ = '0.2'
 
 DISTANCE_MAX = 52 + 49 + 48
-STEP_TO_DISTANCE = 3
+STEP_TO_DISTANCE = 20
 
 # Custom Types
 CARD_TUPLE = Tuple[int, int]
@@ -100,7 +100,8 @@ class ReverseSolve(object):
                         or (not pile[-2].face_up and len(pile) < ti + 1):
                     before = abs(ti + 1 - len(pile))
                     after = abs(ti - len(pile))
-                    moves.append((f'f{fi}', f't{ti}', f_card, after - before))
+                    move = (f'f{fi}', f't{ti}', f_card, after - before)
+                    moves += [move] * 3
 
     def tableau_moves(self, moves, f_top, t_top):
         # type: (list, List[Card], List[Card]) -> None
@@ -139,28 +140,26 @@ class ReverseSolve(object):
                     e_before = abs(e_col + 1 - e_len)
                     e_after = abs(e_col + 1 - (e_len + s_rows))
                     e_delta = e_after - e_before
+                    move = (
+                        f't{s_col}:{s_row}', f't{e_col}',
+                        s_card,
+                        s_delta + e_delta
+                    )
                     if e_card is None:
-                        moves.append((
-                            f't{s_col}:{s_row}', f't{e_col}',
-                            s_card,
-                            s_delta + e_delta
-                        ))
+                        moves += [move] * 2
                         continue
                     valid, _ = e_card + s_card
                     if valid:
-                        moves.append((
-                            f't{s_col}:{s_row}', f't{e_col}',
-                            s_card,
-                            s_delta + e_delta
-                        ))
+                        moves += [move] * 2
                         continue
                     if e_len == 1 \
                             or (not pile[-2].face_up and len(pile) < e_col + 1):
-                        moves.append((
+                        move = (
                             f't{s_col}:{s_row}', f't{e_col}',
                             s_card,
                             s_delta + e_delta - 1
-                        ))
+                        )
+                        moves += [move] * 2
 
     def waste_moves(self, moves, f_top, t_top):
         waste_full = self.waste.full
@@ -179,10 +178,11 @@ class ReverseSolve(object):
                 moves.append((f't{i}', 'w', card, after - before))
         if self.waste.valid_reset_waste:
             s_len = len(self.waste['stack'])
-            moves.append(('s', 'w', None, s_len))
+            move = ('s', 'w', None, s_len)
+            moves += [move] * 4
         if self.waste.valid_to_stack:
-            moves.append(('w', 's', None, -self.draw))
-        # return waste_full
+            move = ('w', 's', None, -self.draw)
+            moves += [move] * 6
 
     def solve(self):
         if self.solved:

@@ -26,6 +26,7 @@ import time
 from rules import bonus
 from rules import deal
 from rules import valid_move
+from rules import winner_deal
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
@@ -49,6 +50,7 @@ class Table(object):
         self.__fresh_deal__ = False
         self.__current_seed__ = None
         self.__result__ = None
+        self.__draw_count__ = 1
         self.draw = self.__wrap_method__(self.__draw__)
         self.flip = self.__wrap_method__(self.__flip__)
         self.undo = self.__wrap_method__(self.__undo__)
@@ -69,6 +71,17 @@ class Table(object):
     @property
     def log(self):
         return logging
+
+    @property
+    def draw_count(self):
+        return self.__draw_count__
+
+    @draw_count.setter
+    def draw_count(self, value):
+        if value in (1, 3):
+            self.__draw_count__ = value
+            return
+        raise ValueError('only values 1 or 3 are allowed')
 
     @property
     def tableau(self):
@@ -165,10 +178,14 @@ class Table(object):
                 pass
         raise ValueError(f'card {str(k)} not found')
 
-    def deal(self, random_seed=None):
-        self.__current_seed__, self.__tableau__, self.__stack__ = deal(
-            random_seed
-        )
+    def deal(self, random_seed=None, win_deal=True):
+        if win_deal:
+            seed, tableau, stack = winner_deal(random_seed, self.draw_count)
+        else:
+            seed, tableau, stack = deal(random_seed)
+        self.__current_seed__ = seed
+        self.__tableau__ = tableau
+        self.__stack__ = stack
         self.__waste__ = []
         self.__foundation__ = [[] for _ in range(4)]
         self.__paused__ = True
@@ -450,7 +467,14 @@ class Table(object):
             if not self.waste:
                 raise ValueError(f'cannot undo action, Waste is empty.'
                                  f'Got dest={dest}, orig={orig}, card={card}')
-            self.stack.append(self.waste.pop())
+            self.log.info(f'draw count is {self.draw_count}')
+            for i in range(self.draw_count):
+                if self.waste:
+                    self.stack.append(self.waste.pop())
+                    if i:
+                        self.history.pop()
+                else:
+                    break
             return True
         elif dest == 'w':
             if orig[0] == 'f':

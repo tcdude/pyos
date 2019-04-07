@@ -64,10 +64,9 @@ class Game(App):
         super(Game, self).__init__(APPNAME)
         # Config
         self.__config__ = {}
+        self.__config__.update(CONFIG)
         if os.path.isfile(CONFIGFILE):
             self.__config__.update(pickle.loads(open(CONFIGFILE, 'rb').read()))
-        else:
-            self.__config__.update(CONFIG)
 
         # Image Paths
         self.__card_img__ = {}
@@ -864,6 +863,7 @@ class Game(App):
                     self.log.error('state file could not be unpacked')
                     self.deal()
                     return
+            self.table.draw_count = 1 if self.__config__['draw_one'] else 3
             self.update_tableau()
             self.update_foundation()
             self.update_waste()
@@ -872,7 +872,11 @@ class Game(App):
             self.deal()
 
     def deal(self, random_seed=None):
-        self.table.deal(random_seed)
+        if self.__config__['draw_one']:
+            self.table.draw_count = 1
+        else:
+            self.table.draw_count = 3
+        self.table.deal(random_seed, self.__config__['winner_deal'])
         self.update_foundation()
         self.reset_stack()
         self.update_tableau()
@@ -939,7 +943,7 @@ class Game(App):
         if len(self.table.waste) > 4:
             self.__cards__[self.table.waste[-5]].sprite.depth = 1
         for i, k in enumerate(reversed(self.table.waste[-4:])):
-            if not i:
+            if (not i and self.__config__['draw_one']) or not self.__config__['draw_one']:
                 self.__cards__[k].sprite = self.load_sprite(
                     self.__card_img__[k]
                 )
