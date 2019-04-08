@@ -1098,7 +1098,9 @@ class Game(App):
                 target_depth = row + 2
                 break
         if dest is None:
-            raise ValueError('cannot find moved card on tableau')
+            self.log.error(f'could not find {k} in area {area}')
+            return
+            # raise ValueError('cannot find moved card on tableau')
         self.anim_fly_to(
             self.__cards__[k],
             dest,

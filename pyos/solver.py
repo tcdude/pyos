@@ -82,29 +82,58 @@ class ReverseSolve(object):
         return False if self.distance else True
 
     def randomize_start_position(self):
-        empty = list(range(4)) + self.r.choices(list(range(4, 52)), k=3)
+        steps = self.r.randint(5, 13)
+        empty = list(range(4)) + self.r.choices(list(range(4, steps * 4)), k=3)
         f_idx = [0, 1, 2, 3]
-        t_idx = [0, 1, 2, 3, 4, 5, 6]
-        for i in range(13):
-            must_empty = True if i in empty else False
-            self.r.shuffle(f_idx)
-            for origin in f_idx:
-                if not self.foundation[origin]:
-                    continue
-                card = self.foundation[origin][-1]
-                self.r.shuffle(t_idx)
-                for dest in t_idx:
-                    result = self.tableau.is_valid_move(card, dest)
-                    if result == 1 and not must_empty:
-                        self.foundation.remove_card(card)
-                        self.tableau.add_card(card, dest)
-                        break
-                    elif result == 2 and must_empty:
-                        self.foundation.remove_card(card)
-                        self.tableau.add_card(card, dest)
-                        break
-        self.step = 0
+        t_idx = f_idx + [4, 5, 6]
+        must_empty = 0
+        for i in range(steps):
+            must_empty += sum(
+                [1 for v in range(i * 4, i * 4 + 4) if v in empty]
+            )
+            add_count = 0
+            while add_count < 4:
+                self.r.shuffle(f_idx)
+                for origin in f_idx:
+                    if not self.foundation[origin]:
+                        continue
+                    card = self.foundation[origin][-1]
+                    self.r.shuffle(t_idx)
+                    for dest in t_idx:
+                        result = self.tableau.is_valid_move(card, dest)
+                        if result == 1 and not must_empty:
+                            self.foundation.remove_card(card)
+                            self.tableau.add_card(card, dest)
+                            add_count += 1
+                            break
+                        elif result == 2 and must_empty:
+                            self.foundation.remove_card(card)
+                            self.tableau.add_card(card, dest)
+                            add_count += 1
+                            must_empty = max(must_empty - 1, 0)
+                            break
+        self.step = steps * 4
+        print('randomized')
+        self.print_current_position()
+        print('valid moves')
+        print(self.get_valid_moves())
         return
+
+    def print_current_position(self):
+        f = [str(card) for card in self.foundation.top_cards]
+        print('\nFoundation')
+        print(' | '.join(f))
+        print('\n\nTableau')
+        for row in range(max([len(p) for p in self.tableau])):
+            print('| ', end='')
+            for col in range(7):
+                if len(self.tableau[col]) > row:
+                    print(str(self.tableau[col][row]) + ' | ', end='')
+                else:
+                    print('     | ', end='')
+            print()
+        print('Stack: ', str(self.waste.stack))
+        print('Waste: ', str(self.waste.waste))
 
     def get_valid_moves(self):
         moves = []
@@ -242,6 +271,7 @@ class ReverseSolve(object):
                     self.step += 1
                     break
         print(f'solved in {self.step} steps')
+        self.print_current_position()
 
     def try_move(self, move):
         s, e, card, cost = move
@@ -383,26 +413,18 @@ class Tableau(object):
         # type: (Card, int) -> bool
         move_type = self.is_valid_move(card, col)
         pile = self.piles[col]
-        if move_type == 0:
-            return False
-        elif move_type == 1:
-            result = True
-        elif move_type == 2:
+        if move_type == 2:
             if card.value != 12 or col == 0:
                 card.blocked = True
-            result = True
         elif move_type == 3:
             # if the card was blocked to hold in place, it can now be flipped
             pile[-1].blocked = False
             pile[-1].face_up = False
-            result = True
-        else:
-            raise ValueError(f'Got wrong move_type {move_type}')
 
-        if result:
+        if move_type > 0:
             pile.append(card)
             self.__update_distance__(col)
-        return result
+        return move_type
 
     def move_stack(self, from_col, start_row, to_col):
         # type: (int, int, int) -> bool
@@ -418,6 +440,8 @@ class Tableau(object):
                 return False
             if not first_valid:
                 first_valid = True
+                if result == 3:
+                    card.blocked = True
         for _ in range(len(stack)):
             self.remove_card(from_col)
         pile = self.piles[from_col]
@@ -591,10 +615,18 @@ class Card(object):
         return self.suit, self.value
 
     def __str__(self):
-        return f'{self.suit}{self.value:02d}{"u" if self.face_up else "d"}'
+        # return f'{self.suit}{self.value:02d}{"u" if self.face_up else "d"}'
+        return self.repr()
 
     def __repr__(self):
-        return f'{self.suit}{self.value:02d}{"u" if self.face_up else "d"}'
+        # return f'{self.suit}{self.value:02d}{"u" if self.face_up else "d"}'
+        return self.repr()
+
+    def repr(self):
+        s = 'dchs'.upper()
+        v = ' A 2 3 4 5 6 7 8 910 J Q K'
+        return f'{v[self.value * 2:self.value * 2 + 2]}' \
+            f'{s[self.suit]}{"^" if self.face_up else "v"}'
 
     def __eq__(self, other):
         # type: (Any) -> bool
