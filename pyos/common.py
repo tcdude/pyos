@@ -27,6 +27,7 @@ from PIL import Image
 from PIL import ImageDraw
 from PIL import ImageFont
 
+
 __author__ = 'Tiziano Bettio'
 __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
 __license__ = 'MIT'
@@ -54,6 +55,9 @@ ASSETDIR = os.path.join(os.getcwd(), 'assets')
 CACHEDIR = os.path.join(ASSETDIR, 'cache')
 if not os.path.isdir(CACHEDIR):
     os.mkdir(CACHEDIR)
+TEXT_CACHE = os.path.join(CACHEDIR, 'text')
+if not os.path.isdir(TEXT_CACHE):
+    os.mkdir(TEXT_CACHE)
 STATEFILE = os.path.join(CACHEDIR, 'state.bin')
 CONFIGFILE = os.path.join(CACHEDIR, 'config.bin')
 BACKGROUND = os.path.join(ASSETDIR, 'images/bg.png')
@@ -291,3 +295,36 @@ def text_box(
 def get_relative_font_size(size, screen_size):
     relative_size = int(size / 720 * screen_size[0])
     return relative_size + relative_size % 2
+
+
+def text_img(
+        screen_size,
+        text,
+        size=24,
+        color=None,
+        font=FONT_BOLD):
+    """
+    Return path to image file containing the text.
+    """
+    p = os.path.join(
+        CACHEDIR,
+        f'{hash((screen_size, text, size, color, font))}.bmp'
+    )
+    if os.path.isfile(p):
+        return p
+    f = ImageFont.truetype(font, get_relative_font_size(size, screen_size))
+    box = f.getsize_multiline(text) if '\n' in text else f.getsize(text)
+    img = Image.new('RGBA', box)
+    draw = ImageDraw.Draw(img)
+    draw.text(
+        (0, 0),
+        text,
+        color,
+        f
+    )
+    if img.size[0] > screen_size[0] or img.size[1] > screen_size[1]:
+        r = min(screen_size[0] / img.size[0], screen_size[1] / img.size[0])
+        box = (int(img.size[0] * r), int(img.size[1] * r))
+        img = img.resize(box, Image.BICUBIC)
+    img.save(p)
+    return p

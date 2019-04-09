@@ -154,7 +154,9 @@ class App(object):
             bg_color,
             **kwargs
         )
-        return self.__factory__.from_surface(surface)
+        sprite = self.__factory__.from_surface(surface)
+        sdl2.SDL_FreeSurface(surface)
+        return sprite
 
     # noinspection PyUnusedLocal
     def __update_mouse__(self, *args, **kwargs):

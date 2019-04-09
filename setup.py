@@ -35,7 +35,7 @@ options = {'apk': {'debug': None,
                                    'pysdl2,Pillow,plyer',
                    'package': 'com.tizilogic.pyos',
                    'android-api': 28,
-                   # 'arch': 'arm64-v8a',  # -> waiting for fix...
+                   'arch': 'arm64-v8a',  # -> waiting for fix...
                    'dist-name': 'pyos-beta',
                    'icon': 'pyos/assets/app-images/icon192.png',
                    'presplash': 'pyos/assets/app-images/splash.png',
@@ -44,7 +44,7 @@ options = {'apk': {'debug': None,
 
 setup(
     name='Simple Solitaire',
-    version='0.2.3',
+    version='0.2.4',
     description='An ad free, simple solitaire game',
     author='tcdude',
     author_email='tizilogic@gmail.com',

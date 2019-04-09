@@ -666,7 +666,6 @@ class Game(App):
             self.__points__.sprite.position = x_spacing, y
         self.__points__.sprite.depth = 99
 
-        # t = int(self.table.time)
         sprite = self.text_sprite(
             f'{t // 60}:{t % 60:02d}',
             alias='bold',
@@ -957,7 +956,8 @@ class Game(App):
         if len(self.table.waste) > 4:
             self.__cards__[self.table.waste[-5]].sprite.depth = 1
         for i, k in enumerate(reversed(self.table.waste[-4:])):
-            if (not i and self.__config__['draw_one']) or not self.__config__['draw_one']:
+            draw_one = self.__config__['draw_one']
+            if (not i and draw_one) or not draw_one:
                 self.__cards__[k].sprite = self.load_sprite(
                     self.__card_img__[k]
                 )
@@ -974,6 +974,10 @@ class Game(App):
 
     def waste_click(self):
         k = self.table.waste[-1] if self.table.waste else None
+        if k is not None and k[1] == 0:
+            self.table.waste_to_foundation()
+            self.animate_waste_to_foundation(k)
+            return
         if self.table.waste_to_tableau():
             self.animate_waste_to_tableau(k)
             return

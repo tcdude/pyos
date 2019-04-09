@@ -31,7 +31,10 @@ __version__ = '0.2'
 
 def load_sprite(factory, fpath):
     """Dirty hack -> Update when p4a's pysdl2 recipe is updated."""
-    return factory.from_surface(sdl2.ext.load_image(fpath, 'SDL'))
+    surface = sdl2.ext.load_image(fpath, 'SDL')
+    sprite = factory.from_surface(surface)
+    sdl2.SDL_FreeSurface(surface)
+    return sprite
 
 
 def nop():

@@ -82,8 +82,8 @@ class ReverseSolve(object):
         return False if self.distance else True
 
     def randomize_start_position(self):
-        steps = self.r.randint(5, 13)
-        empty = list(range(4)) + self.r.choices(list(range(4, steps * 4)), k=3)
+        steps = 13  # self.r.randint(4, 8)
+        empty = list(range(4)) + self.r.choices(list(range(4, steps * 4)), k=2)
         f_idx = [0, 1, 2, 3]
         t_idx = f_idx + [4, 5, 6]
         must_empty = 0
@@ -255,7 +255,7 @@ class ReverseSolve(object):
     def solve(self):
         if self.solved:
             return
-        self.randomize_start_position()
+        # self.randomize_start_position()
         while not self.solved:
             moves = self.get_valid_moves()
             self.r.shuffle(moves)
@@ -270,8 +270,8 @@ class ReverseSolve(object):
                 if self.try_move(move):
                     self.step += 1
                     break
-        print(f'solved in {self.step} steps')
-        self.print_current_position()
+        # print(f'solved in {self.step} steps')
+        # self.print_current_position()
 
     def try_move(self, move):
         s, e, card, cost = move
@@ -410,11 +410,11 @@ class Tableau(object):
         self.pile_distance[col] = abs(t - d)
 
     def add_card(self, card, col):
-        # type: (Card, int) -> bool
+        # type: (Card, int) -> int
         move_type = self.is_valid_move(card, col)
         pile = self.piles[col]
         if move_type == 2:
-            if card.value != 12 or col == 0:
+            if card.value not in (0, 12) or col == 0:
                 card.blocked = True
         elif move_type == 3:
             # if the card was blocked to hold in place, it can now be flipped
@@ -530,7 +530,9 @@ class Waste(object):
     @property
     def distance(self):
         # type: () -> int
-        return abs(24 - len(self.stack) + 24 - len(self.stack) - len(self.waste))
+        return abs(
+            24 - len(self.stack) + 24 - len(self.stack) - len(self.waste)
+        )
 
     @property
     def full(self):
