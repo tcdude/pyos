@@ -36,6 +36,7 @@ class Vector(object):
         self.__y__ = y
         self.__changed__ = True
         self.__length__ = None
+        self.__rtype__ = Vector
 
     def __repr__(self):
         return f'Vector({self.__x__:.4f}, {self.__y__:.4f})'
@@ -95,8 +96,8 @@ class Vector(object):
 
     def asint(self, rounding=False):
         if rounding:
-            return Vector(int(round(self.x, 0)), int(round(self.y, 0)))
-        return Vector(int(self.x), int(self.y))
+            return self.__rtype__(int(round(self.x, 0)), int(round(self.y, 0)))
+        return self.__rtype__(int(self.x), int(self.y))
 
     def __getitem__(self, key):
         if key in (0, 'x'):
@@ -107,41 +108,41 @@ class Vector(object):
 
     def __add__(self, other):
         if isinstance(other, (int, float)):
-            return Vector(self.x + other, self.y + other)
+            return self.__rtype__(self.x + other, self.y + other)
         elif isinstance(other, Vector):
-            return Vector(self.x + other.x, self.y + other.y)
+            return self.__rtype__(self.x + other.x, self.y + other.y)
         else:
             raise ValueError('Must be of type Vector2, int or float')
 
     def __sub__(self, other):
         if isinstance(other, (int, float)):
-            return Vector(self.x - other, self.y - other)
+            return self.__rtype__(self.x - other, self.y - other)
         elif isinstance(other, Vector):
-            return Vector(self.x - other.x, self.y - other.y)
+            return self.__rtype__(self.x - other.x, self.y - other.y)
         else:
             raise ValueError('Must be of type Vector2, int or float')
 
     def __mul__(self, other):
         if isinstance(other, (int, float)):
-            return Vector(self.x * other, self.y * other)
+            return self.__rtype__(self.x * other, self.y * other)
         else:
             raise ValueError('Must be of type int or float')
 
     def __rmul__(self, other):
         if isinstance(other, (int, float)):
-            return Vector(self.x * other, self.y * other)
+            return self.__rtype__(self.x * other, self.y * other)
         else:
             raise ValueError('Must be of type int or float')
 
     def __truediv__(self, other):
         if isinstance(other, (int, float)):
-            return Vector(self.x / other, self.y / other)
+            return self.__rtype__(self.x / other, self.y / other)
         else:
             raise ValueError('Must be of type int or float')
 
     def __floordiv__(self, other):
         if isinstance(other, (int, float)):
-            return Vector(self.x // other, self.y // other)
+            return self.__rtype__(self.x // other, self.y // other)
         else:
             raise ValueError('Must be of type int or float')
 
@@ -155,6 +156,11 @@ class Vector(object):
 
 
 class Point(Vector):
+    def __init__(self, x=0, y=0):
+        # type: (Union[int, float], Union[int, float]) -> None
+        super(Point, self).__init__(x, y)
+        self.__rtype__ = Point
+
     def __repr__(self):
         return f'Point({self.__x__:.4f}, {self.__y__:.4f})'
 

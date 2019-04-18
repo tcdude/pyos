@@ -21,6 +21,10 @@ SOFTWARE.
 """
 
 import sdl2.ext
+import plyer
+
+from engine.tools.vector import Point
+from engine.tools.vector import Vector
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
@@ -28,10 +32,17 @@ __license__ = 'MIT'
 __version__ = '0.2'
 
 
-class HWRenderer(sdl2.ext.TextureSpriteRenderSystem):
-    def __init__(self, window):
-        super(HWRenderer, self).__init__(window)
-        self.renderer = self.sdlrenderer
+def load_sprite(factory, fpath):
+    """Dirty hack -> Update when p4a's pysdl2 recipe is updated."""
+    surface = sdl2.ext.load_image(fpath, 'SDL')
+    sprite = factory.from_surface(surface)
+    sdl2.SDL_FreeSurface(surface)
+    return sprite
 
-    def render(self, components, **kwargs):
-        super(HWRenderer, self).render(components, **kwargs)
+
+def nop():
+    pass
+
+
+def toast(message):
+    plyer.notification.notify(message=message, toast=True)

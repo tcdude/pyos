@@ -20,8 +20,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import sdl2.ext
-import plyer
+import os
+from typing import Optional
+
+from PIL import Image
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
@@ -29,17 +31,15 @@ __license__ = 'MIT'
 __version__ = '0.2'
 
 
-def load_sprite(factory, fpath):
-    """Dirty hack -> Update when p4a's pysdl2 recipe is updated."""
-    surface = sdl2.ext.load_image(fpath, 'SDL')
-    sprite = factory.from_surface(surface)
-    sdl2.SDL_FreeSurface(surface)
-    return sprite
-
-
-def nop():
-    pass
-
-
-def toast(message):
-    plyer.notification.notify(message=message, toast=True)
+def cache_image(fpath, scale, cache_dir, suffix=None):
+    # type: (str, float, str, Optional[str]) -> str
+    img = Image.open(fpath)
+    x, y = img.size
+    out_x, out_y = int(round(x * scale, 0)), int(round(y * scale, 0))
+    fname = os.path.split(fpath)[1]
+    out_path = os.path.join(cache_dir, f'{out_x:05d}{out_y:05d}{fname}')
+    if suffix is not None:
+        out_path += suffix
+    if not os.path.isfile(out_path):
+        img.resize((out_x, out_y), Image.BICUBIC).save(out_path)
+    return out_path

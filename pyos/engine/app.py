@@ -32,19 +32,24 @@ from engine.render import HWRenderer
 from engine.taskmanager import TaskManager
 from engine.tools import load_sprite
 from engine.tools import toast
-from engine.vector import Point
+from engine.tools.vector import Point
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
 __license__ = 'MIT'
 __version__ = '0.2'
 
+FRAME_TIME = 1 / 60
+
 ISANDROID = False
 try:
     import android
     ISANDROID = True
 except ImportError:
-    pass
+    class Android(object):
+        def remove_presplash(self):
+            pass
+    android = Android()
 
 
 class App(object):
@@ -212,13 +217,10 @@ class App(object):
                 end_pos
             ))
         k = str(entity)
-        # k = str((entity, depth, sequence))
         if k in self.__sequences__:
             if k in self.__anim_callbacks__:
                 f, args, kwargs = self.__anim_callbacks__[k]
                 f(*args, **kwargs)
-        #     self.__sequences__[k] += seq
-        # else:
         self.__sequences__[k] = seq
         if callback is not None:
             self.__anim_callbacks__[k] = (callback, args, kwargs)
@@ -239,7 +241,7 @@ class App(object):
                 self.world.process()
                 self.__frames__ += 1
                 nt = time.perf_counter()
-                time.sleep(max(0.0, 1 / 60 - (nt - st)))
+                time.sleep(max(0.0, FRAME_TIME - (nt - st)))
                 st = nt
         except (KeyboardInterrupt, SystemExit):
             self.quit(blocking=False)
@@ -264,7 +266,6 @@ class App(object):
             dm = sdl2.SDL_DisplayMode()
             sdl2.SDL_GetCurrentDisplayMode(0, dm)
             self.__screen_size__ = (dm.w, dm.h)
-            toast(f'Got Screen Resolution of {dm.w}x{dm.h}')
             sdl2.ext.Window.DEFAULTFLAGS = sdl2.SDL_WINDOW_FULLSCREEN
         else:
             self.__screen_size__ = (720, 1280)
@@ -274,8 +275,7 @@ class App(object):
         )
         self.__window__.show()
         self.__renderer__ = HWRenderer(self.window)
-        # if self.isandroid:
-        #     hide_loading_screen()
+        android.remove_presplash()
         self.__factory__ = sdl2.ext.SpriteFactory(
             sdl2.ext.TEXTURE,
             renderer=self.__renderer__

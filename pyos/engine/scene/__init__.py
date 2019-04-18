@@ -1,4 +1,4 @@
-"""
+"""scene
 Copyright (c) 2019 Tiziano Bettio
 
 Permission is hereby granted, free of charge, to any person obtaining a copy

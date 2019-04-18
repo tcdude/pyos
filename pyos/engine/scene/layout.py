@@ -24,3 +24,8 @@ __author__ = 'Tiziano Bettio'
 __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
 __license__ = 'MIT'
 __version__ = '0.2'
+
+# Position Constants
+CENTER = 0
+LEFT_TOP = 1
+RIGHT_BOTTOM = 2

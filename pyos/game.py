@@ -50,7 +50,7 @@ from common import TOP_BAR
 from component import CardEntity
 from component import PlaceHolderEntity
 from engine.app import App
-from engine.vector import Vector
+from engine.tools.vector import Vector
 from table import Table
 
 __author__ = 'Tiziano Bettio'
@@ -202,9 +202,6 @@ class Game(App):
                 sdl2.SDL_APP_LOWMEMORY,
                 self.event_low_memory
             )
-            # noinspection PyUnresolvedReferences
-            import android
-            android.remove_presplash()
         self.log.info('pyos started')
 
     @property
