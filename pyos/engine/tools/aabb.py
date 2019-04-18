@@ -117,7 +117,7 @@ class AABB(object):
         raise IndexError
 
     def __repr__(self):
-        return f'AABB({", ".join([str(i) for i in self.box])})'
+        return f'{type(self).__name__}({", ".join([str(i) for i in self.box])})'
 
     def __str__(self):
         return self.__repr__()

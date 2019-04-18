@@ -59,7 +59,7 @@ class ViewPort(object):
         if isinstance(pos, Point):
             self.__position__ = pos
         else:
-            raise ValueError('expected type Point')
+            raise TypeError('expected type Point')
 
     @property
     def screen_size(self):
@@ -72,7 +72,7 @@ class ViewPort(object):
         if isinstance(value, (tuple, list)) and len(value) == 2:
             self.__scr_size__ = tuple(value)
         else:
-            raise ValueError('expected Tuple/List of length 2')
+            raise TypeError('expected Tuple/List of length 2')
 
     @property
     def pixel_ratio(self):
@@ -85,7 +85,7 @@ class ViewPort(object):
         if isinstance(value, (int, float)):
             self.__pixel_ratio__ = float(value)
         else:
-            raise ValueError('expected type float or int')
+            raise TypeError('expected type float or int')
 
     @property
     def root_node(self):
@@ -98,7 +98,7 @@ class ViewPort(object):
         if isinstance(value, NodePath):
             self.__root_node__ = value
         else:
-            raise ValueError('expected type Node')
+            raise TypeError('expected type Node')
 
     @property
     def view_size(self):
@@ -121,7 +121,8 @@ class ViewPort(object):
         return False
 
     def __repr__(self):
-        return f'ViewPort({str(self.screen_size)}, {self.pixel_ratio})'
+        return f'{type(self).__name__}({str(self.screen_size)}, ' \
+               f'{self.pixel_ratio})'
 
     def __str__(self):
         return self.__repr__()

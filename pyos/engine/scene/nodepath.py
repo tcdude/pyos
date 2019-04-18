@@ -101,7 +101,7 @@ class NodePath(object):
         if isinstance(value, bool):
             self.visible = value
         else:
-            raise ValueError('visible must be of type bool')
+            raise TypeError('visible must be of type bool')
 
     @property
     def relative_position(self):
@@ -128,7 +128,7 @@ class NodePath(object):
         if isinstance(value, (Point, Vector)):
             self.__position__ = value
         else:
-            raise ValueError('position must be of type Point or Vector')
+            raise TypeError('position must be of type Point or Vector')
 
     @property
     def angle(self):
@@ -139,7 +139,7 @@ class NodePath(object):
         if isinstance(value, (int, float)):
             self.__angle__ = float(value)
         else:
-            raise ValueError('rotation must be of type float or int')
+            raise TypeError('rotation must be of type float or int')
 
     @property
     def scale(self):
@@ -150,7 +150,7 @@ class NodePath(object):
         if isinstance(value, (int, float)):
             self.__scale__ = float(value)
         else:
-            raise ValueError('scale must be of type float or int')
+            raise TypeError('scale must be of type float or int')
 
     @property
     def depth(self):
@@ -161,7 +161,7 @@ class NodePath(object):
         if isinstance(value, int):
             self.__depth__ = value
         else:
-            raise ValueError('depth must be of type int')
+            raise TypeError('depth must be of type int')
 
     @property
     def nodes(self):
@@ -224,7 +224,8 @@ class NodePath(object):
         )
 
     def __repr__(self):
-        return f'Node({str(self.__np_name__)} / {self.__np_id__})'
+        return f'{type(self).__name__}({str(self.__np_name__)} / ' \
+               f'{self.__np_id__})'
 
     def __str__(self):
         return self.__repr__()

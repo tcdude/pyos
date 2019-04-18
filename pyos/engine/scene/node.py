@@ -72,6 +72,12 @@ class Node(object):
     def name(self):
         return self.__node_name__
 
+    def __repr__(self):
+        return f'{type(self).__name__}({self.name}, {self.size})'
+
+    def __str__(self):
+        return self.__repr__()
+
 
 class ImageNode(Node):
     def __init__(self, node_path, name=None, image=None):

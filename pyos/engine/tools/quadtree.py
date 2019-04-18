@@ -167,7 +167,8 @@ class QuadTree(object):
                          'QuadTree')
 
     def __repr__(self):
-        return f'QuadTree({str(self.aabb)}) / Level {self.max_level}'
+        return f'{type(self).__name__}({str(self.aabb)}) / Level ' \
+               f'{self.max_level}'
 
     def __str__(self):
         return self.__repr__()
@@ -226,7 +227,7 @@ class Children(object):
         raise IndexError(f'no such item "{str(item)}"')
 
     def __repr__(self):
-        return f'Children({", ".join([str(i) for i in self])})'
+        return f'{type(self).__name__}({", ".join([str(i) for i in self])})'
 
     def __str__(self):
         return self.__repr__()
