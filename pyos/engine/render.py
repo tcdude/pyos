@@ -19,6 +19,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+import time
 
 import sdl2.ext
 
@@ -34,4 +35,5 @@ class HWRenderer(sdl2.ext.TextureSpriteRenderSystem):
         self.renderer = self.sdlrenderer
 
     def render(self, components, **kwargs):
+        self._renderer.clear()
         super(HWRenderer, self).render(components, **kwargs)

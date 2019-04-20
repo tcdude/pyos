@@ -27,5 +27,5 @@ __version__ = '0.2'
 
 # Position Constants
 CENTER = 0
-LEFT_TOP = 1
-RIGHT_BOTTOM = 2
+TOP_LEFT = 1
+BOTTOM_RIGHT = 2

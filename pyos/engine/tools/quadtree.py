@@ -26,6 +26,8 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
+from math import inf
+
 from engine.tools import Vector
 from engine.tools.aabb import AABB
 from engine.tools.vector import Point
@@ -39,7 +41,7 @@ POS_TYPE = Union[Vector, Point, Tuple[float, float], List[float]]
 FLOAT4 = Tuple[float, float, float, float]
 
 
-class QuadTree(object):
+class Quadtree(object):
     """
     Simplistic QuadTree to store hashable objects in relation to their
     position indicated by either a Point, Tuple or an AABB instance.
@@ -49,7 +51,7 @@ class QuadTree(object):
     thus be removed with the appropriate call to `QuadTree.remove(obj)`!
 
     Example Usage:
-    >>> q = QuadTree()
+    >>> q = Quadtree()
     >>> some_obj = tuple(range(10))
     >>> some_other_obj = tuple(reversed(range(10)))
     >>> some_aabb = AABB((0.1, 0.1, 0.2, 0.2))
@@ -67,7 +69,7 @@ class QuadTree(object):
         # type: (FLOAT4, int) -> None
         self.aabb = AABB(box)
         self.children = Children(box)
-        self.child_nodes = []  # type: List[QuadTree]
+        self.child_nodes = []  # type: List[Quadtree]
         self.items = []  # type: List[Any]
         self.max_level = max_level
         self.child_objects = {}
@@ -145,7 +147,7 @@ class QuadTree(object):
             if not self.max_level:
                 return False
             for child in self.children:
-                self.child_nodes.append(QuadTree(child.box, self.max_level - 1))
+                self.child_nodes.append(Quadtree(child.box, self.max_level - 1))
         return self.child_nodes[i].add(obj, pos)
 
     def __getitem__(self, item):
@@ -231,3 +233,23 @@ class Children(object):
 
     def __str__(self):
         return self.__repr__()
+
+
+def quadtree_from_pairs(quad_tree_pairs, max_level=8):
+    # type: (List[Tuple[AABB, Any]], Optional[int]) -> Union[Quadtree, None]
+    if not quad_tree_pairs:
+        return
+    x_min, y_min = inf
+    x_max, y_max = -inf
+    for aabb, _ in quad_tree_pairs:
+        x_min = min(aabb[0], aabb[2], x_min)
+        y_min = min(aabb[1], aabb[3], y_min)
+        x_max = max(aabb[0], aabb[2], x_max)
+        y_max = max(aabb[1], aabb[3], y_max)
+    a = (x_max - x_min) * (y_max - y_min)
+    if a in (0, inf, -inf):
+        return None
+    q = Quadtree((x_min, y_min, x_max, y_max), max_level)
+    for aabb, obj in quad_tree_pairs:
+        q.add(obj, aabb)
+    return q

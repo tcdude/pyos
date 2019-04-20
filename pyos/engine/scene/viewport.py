@@ -24,6 +24,7 @@ from typing import Tuple
 from typing import Union
 
 from engine.scene.nodepath import NodePath
+from engine.tools.spriteloader import SpriteLoader
 from engine.tools.vector import Point
 
 __author__ = 'Tiziano Bettio'
@@ -37,16 +38,40 @@ class ViewPort(object):
     2D ViewPort to render 0..1 and 0..>=1 in world space (translated to given
     `screen_size`, where 1 unit equals the smaller part of `screen_size`).
     """
-    def __init__(self, screen_size, pixel_ratio, root_node):
-        # type: (Tuple[int, int], Union[float, int], NodePath) -> None
+    def __init__(
+            self,
+            screen_size,        # type: Tuple[int, int]
+            asset_pixel_ratio,  # type: int
+            root_node,          # type: NodePath
+            sprite_loader       # type: SpriteLoader
+    ):
+        # type: (...) -> None
         """
         :param screen_size: available screen size for rendering
-        :param pixel_ratio: pixels per world space unit
+        :param asset_pixel_ratio: pixels per world space unit for scaling
         :param root_node: a Node object that gets rendered by the ViewPort
+        :param sprite_loader: SpriteLoader instance to use
         """
+        if not isinstance(screen_size, tuple):
+            raise TypeError('expected Tuple for screen_size')
+        if len(screen_size) != 2 or not isinstance(screen_size[0], int) or \
+                not isinstance(screen_size[1], int) or screen_size[0] < 1 or \
+                screen_size[1] < 1:
+            raise ValueError('expected Tuple[int, int] with only positive '
+                             'values')
+        if not isinstance(asset_pixel_ratio, int):
+            raise TypeError('expected int for asset_pixel_ratio')
+        if asset_pixel_ratio < 1:
+            raise ValueError('expected asset_pixel_ratio > 0')
+        if not isinstance(root_node, NodePath):
+            TypeError('expected type NodePath for root_node')
+        if not isinstance(sprite_loader, SpriteLoader):
+            TypeError('expected type SpriteLoader for sprite_loader')
         self.__scr_size__ = screen_size
-        self.__pixel_ratio__ = pixel_ratio
         self.__root_node__ = root_node
+        self.__root_node__.asset_pixel_ratio = asset_pixel_ratio
+        self.__root_node__.scale = asset_pixel_ratio / min(screen_size)
+        self.__root_node__.sprite_loader = sprite_loader
         self.__position__ = Point(0.0, 0.0)
 
     @property
@@ -75,17 +100,14 @@ class ViewPort(object):
             raise TypeError('expected Tuple/List of length 2')
 
     @property
-    def pixel_ratio(self):
+    def asset_pixel_ratio(self):
         # type: () -> float
-        return self.__pixel_ratio__
+        return self.root_node.asset_pixel_ratio
 
-    @pixel_ratio.setter
-    def pixel_ratio(self, value):
-        # type: (float) -> None
-        if isinstance(value, (int, float)):
-            self.__pixel_ratio__ = float(value)
-        else:
-            raise TypeError('expected type float or int')
+    @asset_pixel_ratio.setter
+    def asset_pixel_ratio(self, value):
+        # type: (int) -> None
+        self.root_node.asset_pixel_ratio = value
 
     @property
     def root_node(self):
@@ -122,7 +144,7 @@ class ViewPort(object):
 
     def __repr__(self):
         return f'{type(self).__name__}({str(self.screen_size)}, ' \
-               f'{self.pixel_ratio})'
+               f'{self.asset_pixel_ratio})'
 
     def __str__(self):
         return self.__repr__()

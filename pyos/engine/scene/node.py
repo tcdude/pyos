@@ -24,8 +24,9 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 
+from PIL import Image
 from sdl2.ext import Entity
-from sdl2.ext import Sprite
+from sdl2.ext import TextureSprite
 from sdl2.ext import World
 
 from engine.scene.nodepath import NodePath
@@ -36,23 +37,11 @@ __license__ = 'MIT'
 __version__ = '0.2'
 
 
-class PlaceHolderEntity(Entity):
-    def __init__(
-            self,
-            world,      # type: World
-            sprite,     # type: Sprite
-            x=0,        # type: Optional[int]
-            y=0,        # type: Optional[int]
-            d=0         # type: Optional[int]
-    ):
-        # type: (...) -> None
-        self.__world__ = world
-        self.sprite = sprite
-        self.sprite.position = x, y
-        self.sprite.depth = d
-
-
 class Node(object):
+    """
+    Base class from which all Node Type classes should be subclassed.
+    A Node object must at least provide size and name properties.
+    """
     def __init__(self, node_path, name=None):
         # type: (NodePath, Optional[str]) -> None
         if not isinstance(node_path, NodePath):
@@ -62,6 +51,7 @@ class Node(object):
 
     @property
     def size(self):
+        # type: () -> Tuple[int, int]
         return 0, 0
 
     @property
@@ -80,11 +70,16 @@ class Node(object):
 
 
 class ImageNode(Node):
+    """
+    A Node subclass, that holds one or more images, of which one can be
+    rendered at a time. The ImageNode class
+    """
     def __init__(self, node_path, name=None, image=None):
         super(ImageNode, self).__init__(node_path, name)
         self.__images__ = []            # type: List[str]
         self.__current_index__ = -1
-        self.__entity__ = None
+        self.__asset_size__ = 0, 0
+        self.__sprite__ = None
         if image is not None:
             self.add_image(image)
 
@@ -94,38 +89,66 @@ class ImageNode(Node):
     @property
     def size(self):
         # type: () -> Tuple[int, int]
-        if self.__entity__ is None:
+        if self.__sprite__ is None:
             return 0, 0
-        return self.__entity__.sprite.size
+        return self.sprite.area
 
     @property
-    def entity(self):
-        # type: () -> PlaceHolderEntity
-        return self.__entity__
+    def sprite(self):
+        # type: () -> TextureSprite
+        if self.__sprite__ is None:
+            raise ValueError('No sprite loaded')
+        return self.__sprite__
 
-    @entity.setter
-    def entity(self, value):
-        # type: (PlaceHolderEntity) -> None
-        if isinstance(value, PlaceHolderEntity):
-            self.__entity__ = value
+    @sprite.setter
+    def sprite(self, value):
+        # type: (TextureSprite) -> None
+        if isinstance(value, TextureSprite):
+            self.__sprite__ = value
         else:
-            raise ValueError('expected PlaceHolderEntity')
+            raise TypeError('expected type sdl2.ext.Sprite')
+
+    def show(self, item=None):
+        # type: (Optional[int]) -> None
+        """
+        Loads the first image or optionally at the image with index `item`
+        """
+        item = item or 0
+        if not (-1 < item < len(self.__images__)):
+            raise IndexError('invalid index')
+        if not self.__images__:
+            raise ValueError('ImageNode contains no image(s)')
+        if item != self.__current_index__:
+            self.__current_index__ = item or 0
+            self.update_sprite()
+
+    def update_sprite(self):
+        """
+        Updates the sprite using relative position, angle and scale retrieved
+        from the connected NodePath
+        """
+        if not self.__images__:
+            raise ValueError('cannot update, no images added')
+        self.sprite = self.node_path.sprite_loader.load_image(
+            self.__images__[self.__current_index__],
+            self.node_path.relative_scale
+        )
+        if self.node_path.relative_angle:
+            self.sprite.angle = self.node_path.relative_angle
+        pos = (
+                self.node_path.relative_position
+                * self.node_path.asset_pixel_ratio
+        )
+        self.sprite.position = tuple(pos)
 
     def add_image(self, image):
         # type: (str) -> None
         if os.path.isfile(image):
+            img_size = Image.open(image).size
+            if self.__images__ and img_size != self.__asset_size__:
+                raise ValueError('All images in a ImageNode must be of the '
+                                 'same exact size')
+            self.__asset_size__ = img_size
             self.__images__.append(image)
         else:
             raise FileNotFoundError(f'unable to locate "{image}"')
-
-    def pop(self, index):
-        # type: (int) -> str
-        if -1 < index < len(self.__images__):
-            return self.__images__.pop(index)
-        else:
-            raise IndexError
-
-    def __getitem__(self, item):
-        if -1 < item < len(self.__images__):
-            return self.__images__[item]
-        raise IndexError

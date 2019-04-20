@@ -155,3 +155,28 @@ the card below*
 
 #### Distance Function
 
+The distance function used is simplified as follows:
+`distance = sum(Foundation) + (24 - sum(Stack)) + 
+(24 - sum(Waste + Stack) + (28 - sum(Tableau)) + 
+(21 - sum(Tableau[flipped]))`
+
+The initial distance is thus:
+* 52 cards on Foundation
+* 24 cards not on Stack
+* 24 cards not on Waste or Stack
+* 28 + 21 cards not on Tableau
+
+= 149
+
+The first (naive) implementation failed to achieve high 
+information entropy and resulted in usually easy to play/finish
+games. Furthermore it occasionally deals impossible games, where
+needed cards are unreachable.
+
+For the time being, this will be left in its current state, though
+an improved version is being planned out and will be implemented
+later. One approach would be to start with 4 complete stacks
+on the Tableau, that way, the cards can be shuffled to a certain
+degree, that hopefully result in more complicated games  
+
+
