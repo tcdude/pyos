@@ -85,6 +85,7 @@ class NodePath(object):
         self.__asset_pixel_ratio__ = 1
         self.__children__ = []
         self.__node__ = Node(self)
+        self.__tags__ = {}
         self.__dirty__ = True
         if parent is None:
             self.__is_root__ = True
@@ -343,7 +344,7 @@ class NodePath(object):
         # type: (NodePath) -> bool
         if isinstance(new_parent, NodePath):
             if self.__parent__ is not None:
-                self.__parent__.remove(self)
+                self.__parent__.remove_node_path(self)
             self.__parent__ = new_parent
             self.__parent__.children.append(self)
             self.quadtree = new_parent.quadtree
@@ -378,9 +379,21 @@ class NodePath(object):
     def query(self, aabb, overlap=True):
         return self.quadtree.get_items(aabb, overlap)
 
-    def remove(self, np):
+    def remove_node_path(self, np):
         if np in self.children:
             self.children.pop(self.children.index(np))
+
+    def __getitem__(self, item):
+        return self.__tags__[item]
+
+    def __setitem__(self, key, value):
+        self.__tags__[key] = value
+
+    def __len__(self):
+        return len(self.__tags__)
+
+    def __contains__(self, item):
+        return self.__tags__.__contains__(item)
 
     def __repr__(self):
         return f'{type(self).__name__}({str(self.__np_name__)} / ' \

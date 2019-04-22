@@ -25,9 +25,7 @@ from typing import Optional
 from typing import Tuple
 
 from PIL import Image
-from sdl2.ext import Entity
 from sdl2.ext import TextureSprite
-from sdl2.ext import World
 
 from engine.scene.nodepath import NodePath
 
