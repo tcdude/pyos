@@ -1,5 +1,23 @@
 """
-Copyright (c) 2019 Tiziano Bettio
+Provides the SpriteLoader class, that handles loading and caching of assets.
+"""
+import glob
+import hashlib
+import os
+from typing import Optional
+from typing import Tuple
+from typing import Union
+
+from PIL import Image
+from sdl2.ext import SpriteFactory
+from sdl2.ext import TextureSprite
+
+from engine.tools import vector
+
+__author__ = 'Tiziano Bettio'
+__license__ = 'MIT'
+__version__ = '0.2'
+__copyright__ = """Copyright (c) 2019 Tiziano Bettio
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -17,39 +35,21 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-"""
-import glob
-import hashlib
-import os
-from typing import Optional
-from typing import Tuple
-from typing import Union
-
-from PIL import Image
-from sdl2.ext import SpriteFactory
-from sdl2.ext import TextureSprite
-
-from engine.tools import Point
-
-__author__ = 'Tiziano Bettio'
-__copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
-__license__ = 'MIT'
-__version__ = '0.2'
+SOFTWARE."""
 
 SCALE = Union[float, Tuple[float, float]]
 
 
 class SpriteLoader(object):
     """
-    Provides `load_*` methods that return Sprite objects of (cached) images
+    Provides ``load_*`` methods that return Sprite objects of (cached) images
     and a method to compose/flatten multiple images into a single one.
     Automatically caches scaled and/or composed images on first load to reduce
     subsequent load time.
 
     Requires a SpriteFactory, a valid path to the asset directory and optionally
     the cache directory can be specified, otherwise a 'cache' directory,
-    relative to `os.getcwd()` will be used. The cache_dir will be created if
+    relative to ``os.getcwd()`` will be used. The cache_dir will be created if
     absent on init.
     """
     def __init__(
@@ -70,7 +70,7 @@ class SpriteLoader(object):
         if not os.path.isdir(self.cache_dir):
             os.makedirs(self.cache_dir)
         self.resize_type = resize_type
-        self.__assets__ = {}
+        self.__assets = {}
         self.refresh_assets()
 
     def refresh_assets(self):
@@ -80,19 +80,22 @@ class SpriteLoader(object):
         ]
         if paths and paths[0].startswith('/'):
             paths = [s[1:] for s in paths]
-        self.__assets__ = {}
+        self.__assets = {}
         for k in paths:
-            self.__assets__[k] = Asset(k, self)
+            self.__assets[k] = Asset(k, self)
 
     def load_image(self, asset_path, scale=1.0):
         # type: (str, Optional[SCALE]) -> TextureSprite
-        return self.factory.from_image(self.__assets__[asset_path][scale])
+        if asset_path in self.__assets:
+            return self.factory.from_image(self.__assets[asset_path][scale])
+        raise ValueError(f'asset_path must be a valid path relative to '
+                         f'"{self.asset_dir}" without leading "/"')
 
     def load_composed_image(self, images):
         pass
 
     def empty_cache(self):
-        for asset in self.__assets__.values():
+        for asset in self.__assets.values():
             asset.empty_cache()
 
 
@@ -105,22 +108,22 @@ class Asset(object):
         self.cache_prefix = cache_name[2:]
         self.cache_suffix = '.' + relative_path.split('.')[-1]
         self.abs_path = os.path.join(parent.asset_dir, relative_path)
-        self.__img_size__ = Point(Image.open(self.abs_path).size)
-        self.__cached_items__ = {}
+        self.__img_size = vector.Point(Image.open(self.abs_path).size)
+        self.__cached_items = {}
         self.parent = parent
         self.refresh_cached()
 
     def refresh_cached(self):
-        self.__cached_items__ = {}
+        self.__cached_items = {}
         files = glob.glob(self.cache_sub_dir + f'/{self.cache_prefix}*')
         for file in files:
             res = file.split('.')[-2][-10:]
             res = int(res[:5]), int(res[5:])
-            self.__cached_items__[res] = file
+            self.__cached_items[res] = file
 
     @property
     def size(self):
-        return self.__img_size__
+        return self.__img_size
 
     def __getitem__(self, item):
         # type: (SCALE) -> str
@@ -129,13 +132,13 @@ class Asset(object):
         elif isinstance(item, tuple) and len(item) == 2 and \
                 isinstance(item[0], float) and isinstance(item[1], float):
             k = tuple(
-                Point(self.size.x * item[0], self.size.y * item[1]).asint(True)
+                vector.Point(self.size.x * item[0], self.size.y * item[1]).asint(True)
             )
         else:
             raise TypeError('expected type Union[float, Tuple[float, float]]')
-        if k not in self.__cached_items__:
+        if k not in self.__cached_items:
             self.cache(k)
-        return self.__cached_items__[k]
+        return self.__cached_items[k]
 
     def cache(self, k):
         if not os.path.isdir(self.cache_sub_dir):
@@ -143,14 +146,14 @@ class Asset(object):
         fname = f'{self.cache_prefix}{k[0]:05d}{k[1]:05d}{self.cache_suffix}'
         p = os.path.join(self.cache_sub_dir, fname)
         Image.open(self.abs_path).resize(k, self.parent.resize_type).save(p)
-        self.__cached_items__[k] = p
+        self.__cached_items[k] = p
 
     def empty_cache(self):
-        for f in self.__cached_items__.values():
+        for f in self.__cached_items.values():
             os.remove(f)
         try:
             os.rmdir(self.cache_sub_dir)
         except OSError as err:
             if err.errno != 39:
                 raise err
-        self.__cached_items__ = {}
+        self.__cached_items = {}

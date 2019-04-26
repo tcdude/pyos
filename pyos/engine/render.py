@@ -1,5 +1,13 @@
 """
-Copyright (c) 2019 Tiziano Bettio
+SDL2 TextureSpriteRenderSystem
+"""
+
+import sdl2.ext
+
+__author__ = 'Tiziano Bettio'
+__license__ = 'MIT'
+__version__ = '0.2'
+__copyright__ = """Copyright (c) 2019 Tiziano Bettio
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -17,15 +25,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-"""
-
-import sdl2.ext
-
-__author__ = 'Tiziano Bettio'
-__copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
-__license__ = 'MIT'
-__version__ = '0.2'
+SOFTWARE."""
 
 
 class HWRenderer(sdl2.ext.TextureSpriteRenderSystem):

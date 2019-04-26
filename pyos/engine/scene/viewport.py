@@ -1,5 +1,18 @@
 """
-Copyright (c) 2019 Tiziano Bettio
+Provides the ViewPort to render a Scene Graph.
+"""
+from typing import List
+from typing import Tuple
+from typing import Union
+
+from . import nodepath
+from ..tools import spriteloader
+from ..tools import vector
+
+__author__ = 'Tiziano Bettio'
+__license__ = 'MIT'
+__version__ = '0.2'
+__copyright__ = """Copyright (c) 2019 Tiziano Bettio
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -17,41 +30,27 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-"""
-from typing import List
-from typing import Tuple
-from typing import Union
-
-from engine.scene.nodepath import NodePath
-from engine.tools.spriteloader import SpriteLoader
-from engine.tools.vector import Point
-
-__author__ = 'Tiziano Bettio'
-__copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
-__license__ = 'MIT'
-__version__ = '0.2'
+SOFTWARE."""
 
 
 class ViewPort(object):
     """
     2D ViewPort to render 0..1 and 0..>=1 in world space (translated to given
-    `screen_size`, where 1 unit equals the smaller part of `screen_size`).
+    ``screen_size``, where 1 unit equals the smaller part of ``screen_size``).
+
+    :param screen_size: available screen size for rendering
+    :param asset_pixel_ratio: pixels per world space unit for scaling
+    :param root_node: a Node object that gets rendered by the ViewPort
+    :param sprite_loader: spriteloader.SpriteLoader instance to use
     """
     def __init__(
             self,
             screen_size,        # type: Tuple[int, int]
             asset_pixel_ratio,  # type: int
-            root_node,          # type: NodePath
-            sprite_loader       # type: SpriteLoader
+            root_node,          # type: nodepath.NodePath
+            sprite_loader       # type: spriteloader.SpriteLoader
     ):
         # type: (...) -> None
-        """
-        :param screen_size: available screen size for rendering
-        :param asset_pixel_ratio: pixels per world space unit for scaling
-        :param root_node: a Node object that gets rendered by the ViewPort
-        :param sprite_loader: SpriteLoader instance to use
-        """
         if not isinstance(screen_size, tuple):
             raise TypeError('expected Tuple for screen_size')
         if len(screen_size) != 2 or not isinstance(screen_size[0], int) or \
@@ -63,16 +62,17 @@ class ViewPort(object):
             raise TypeError('expected int for asset_pixel_ratio')
         if asset_pixel_ratio < 1:
             raise ValueError('expected asset_pixel_ratio > 0')
-        if not isinstance(root_node, NodePath):
-            TypeError('expected type NodePath for root_node')
-        if not isinstance(sprite_loader, SpriteLoader):
-            TypeError('expected type SpriteLoader for sprite_loader')
+        if not isinstance(root_node, nodepath.NodePath):
+            TypeError('expected type nodepath.NodePath for root_node')
+        if not isinstance(sprite_loader, spriteloader.SpriteLoader):
+            TypeError('expected type spriteloader.SpriteLoader for '
+                      'sprite_loader')
         self.__scr_size__ = screen_size
         self.__root_node__ = root_node
         self.__root_node__.asset_pixel_ratio = asset_pixel_ratio
         self.__root_node__.scale = asset_pixel_ratio / min(screen_size)
         self.__root_node__.sprite_loader = sprite_loader
-        self.__position__ = Point(0.0, 0.0)
+        self.__position__ = vector.Point(0.0, 0.0)
 
     @property
     def position(self):
@@ -80,11 +80,11 @@ class ViewPort(object):
 
     @position.setter
     def position(self, pos):
-        # type: (Point) -> None
-        if isinstance(pos, Point):
+        # type: (vector.Point) -> None
+        if isinstance(pos, vector.Point):
             self.__position__ = pos
         else:
-            raise TypeError('expected type Point')
+            raise TypeError('expected type vector.Point')
 
     @property
     def screen_size(self):
@@ -111,13 +111,13 @@ class ViewPort(object):
 
     @property
     def root_node(self):
-        # type: () -> NodePath
-        return self.__root_node__  # type: NodePath
+        # type: () -> nodepath.NodePath
+        return self.__root_node__  # type: nodepath.NodePath
 
     @root_node.setter
     def root_node(self, value):
-        # type: (NodePath) -> None
-        if isinstance(value, NodePath):
+        # type: (nodepath.NodePath) -> None
+        if isinstance(value, nodepath.NodePath):
             self.__root_node__ = value
         else:
             raise TypeError('expected type Node')

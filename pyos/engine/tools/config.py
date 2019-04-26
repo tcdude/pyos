@@ -1,5 +1,13 @@
 """
-Copyright (c) 2019 Tiziano Bettio
+Provides the Config class to handle engine and user specific configuration.
+"""
+
+import configparser
+
+__author__ = 'Tiziano Bettio'
+__license__ = 'MIT'
+__version__ = '0.2'
+__copyright__ = """Copyright (c) 2019 Tiziano Bettio
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -17,10 +25,12 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-"""
+SOFTWARE."""
 
-__author__ = 'Tiziano Bettio'
-__copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
-__license__ = 'MIT'
-__version__ = '0.2'
+
+class Config(object):
+    def __init__(self):
+        pass
+
+    def find_config_file(self):
+        pass

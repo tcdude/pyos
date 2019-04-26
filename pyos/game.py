@@ -711,7 +711,7 @@ class Game(App):
             FONT_NORMAL,
             'normal',
             self.__font_size_large__,
-            bg_color=sdl2.ext.Color(85, 85, 85, 0)
+            bgcolor=sdl2.ext.Color(85, 85, 85, 0)
         )
         self.add_font(
             FONT_BOLD,

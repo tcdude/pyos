@@ -35,7 +35,7 @@ options = {'apk': {'debug': None,
                                    'pysdl2,Pillow,plyer',
                    'package': 'com.tizilogic.pyos',
                    'android-api': 28,
-                   'arch': 'arm64-v8a',  # -> waiting for fix...
+                   'arch': 'arm64-v8a',  # switch for builds
                    'dist-name': 'pyos-beta',
                    'icon': 'pyos/assets/app-images/icon192.png',
                    'presplash': 'pyos/assets/app-images/splash.png',
@@ -52,7 +52,7 @@ setup(
     options=options,
     package_data={'pyos': [
         '*.py',
-        'gui/*.py',
+        'ui/*.py',
         'engine/*.py',
         'assets/images/*.png',
         'assets/fonts/*.ttf'

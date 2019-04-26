@@ -1,5 +1,13 @@
 """
-Copyright (c) 2019 Tiziano Bettio
+Provides a simplistic EventHandler class to handle SDL2 Events.
+"""
+
+import sdl2.ext
+
+__author__ = 'Tiziano Bettio'
+__license__ = 'MIT'
+__version__ = '0.2'
+__copyright__ = """Copyright (c) 2019 Tiziano Bettio
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -17,15 +25,7 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-"""
-
-import sdl2.ext
-
-__author__ = 'Tiziano Bettio'
-__copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
-__license__ = 'MIT'
-__version__ = '0.2'
+SOFTWARE."""
 
 
 class EventHandler(object):
@@ -40,14 +40,15 @@ class EventHandler(object):
         """
         Adds a callback to be executed at every call of the EventHandler.
 
-        :str name: Unique name of the event
-        :int sdl_event: SDL event type tested against `sdl2.ext.get_events()`
-        :callable callback: Method to execute. Must provide `event` as named
-                            argument.
-        :int priority: Call priority, higher numbers get executed first
-                       (default=0).
-        :tuple args: optional positional arguments to pass to `callback`
-        :dict kwargs: optional keyword arguments to pass to `callback`
+        :param name: Unique name of the event
+        :param sdl_event: SDL event type tested against
+            ``sdl2.ext.get_events()``
+        :param callback: Method to execute. Must provide ``event`` as named
+            argument.
+        :param priority: Call priority, higher numbers get executed first
+            (default=0).
+        :param args: optional positional arguments to pass to ``callback``.
+        :param kwargs: optional keyword arguments to pass to ``callback``.
         """
         if name in self.__unique__:
             raise ValueError('An event with this name already exists.')
@@ -56,7 +57,7 @@ class EventHandler(object):
         self.__unique__[name] = (callback, args, kwargs)
 
     def forget(self, name):
-        """Removes event `name` from the EventHandler"""
+        """Removes event ``name`` from the EventHandler"""
         for e in self.__events__:
             if name in self.__events__[e]:
                 self.__events__[e].pop(name)
