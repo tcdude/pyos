@@ -67,35 +67,35 @@ class ViewPort(object):
         if not isinstance(sprite_loader, spriteloader.SpriteLoader):
             TypeError('expected type spriteloader.SpriteLoader for '
                       'sprite_loader')
-        self.__scr_size__ = screen_size
-        self.__root_node__ = root_node
-        self.__root_node__.asset_pixel_ratio = asset_pixel_ratio
-        self.__root_node__.scale = asset_pixel_ratio / min(screen_size)
-        self.__root_node__.sprite_loader = sprite_loader
-        self.__position__ = vector.Point(0.0, 0.0)
+        self._scr_size = screen_size
+        self._root_node = root_node
+        self._root_node.asset_pixel_ratio = asset_pixel_ratio
+        self._root_node.scale = asset_pixel_ratio / min(screen_size)
+        self._root_node.sprite_loader = sprite_loader
+        self._position = vector.Point(0.0, 0.0)
 
     @property
     def position(self):
-        return self.__position__
+        return self._position
 
     @position.setter
     def position(self, pos):
         # type: (vector.Point) -> None
         if isinstance(pos, vector.Point):
-            self.__position__ = pos
+            self._position = pos
         else:
             raise TypeError('expected type vector.Point')
 
     @property
     def screen_size(self):
         # type: () -> Tuple
-        return self.__scr_size__
+        return self._scr_size
 
     @screen_size.setter
     def screen_size(self, value):
         # type: (Union[Tuple, List]) -> None
         if isinstance(value, (tuple, list)) and len(value) == 2:
-            self.__scr_size__ = tuple(value)
+            self._scr_size = tuple(value)
         else:
             raise TypeError('expected Tuple/List of length 2')
 
@@ -112,13 +112,13 @@ class ViewPort(object):
     @property
     def root_node(self):
         # type: () -> nodepath.NodePath
-        return self.__root_node__  # type: nodepath.NodePath
+        return self._root_node  # type: nodepath.NodePath
 
     @root_node.setter
     def root_node(self, value):
         # type: (nodepath.NodePath) -> None
         if isinstance(value, nodepath.NodePath):
-            self.__root_node__ = value
+            self._root_node = value
         else:
             raise TypeError('expected type Node')
 
@@ -137,9 +137,10 @@ class ViewPort(object):
         to the ViewPort. Only Nodes that are either inside of or overlap with
         the ViewPort are processed, leaving off screen Nodes untouched until
         they enter the ViewPort.
+
         :return: True if the view has changed, otherwise False.
         """
-        self.root_node.traverse()
+        result = self.root_node.traverse()
         return False
 
     def __repr__(self):

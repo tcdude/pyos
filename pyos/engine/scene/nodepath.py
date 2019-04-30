@@ -55,7 +55,7 @@ class NodePath(object):
 
     :param name: Optional name
     :param center: Specifies where the origin lies (CENTER=0, TOP_LEFT=1,
-        BOTTOM_RIGHT=2) as int (default=CENTER)
+        BOTTOM_RIGHT=2) as int (default=TOP_LEFT)
     :param visible: Whether the NodePath is visible (default=True)
     :param position: Optional Point -> position offset relative to its parent.
     :param angle: Optional float -> angle of rotation in degrees relative to its
@@ -69,7 +69,7 @@ class NodePath(object):
     def __init__(
             self,
             name=None,                      # type: Optional[str]
-            center=CENTER,                  # type: Optional[int]
+            center=TOP_LEFT,                # type: Optional[int]
             visible=True,                   # type: Optional[bool]
             position=tools.Point(0, 0),     # type: Optional[tools.Point]
             angle=0.0,                      # type: Optional[float]
@@ -79,130 +79,170 @@ class NodePath(object):
             max_level=8                     # type: Optional[int]
     ):
         # type: (...) -> None
-        self.__np_id = uuid.uuid4().hex
-        self.__np_name = name or 'Unnamed NodePath'
-        self.__center = center
-        self.__visible = visible
-        self.__position = position
-        self.__angle = angle
-        self.__scale = scale
-        self.__depth = depth
-        self.__rotation_center = None
-        self.__rel_position = tools.Point()
-        self.__rel_angle = 0.0
-        self.__rel_scale = 1.0
-        self.__rel_depth = 0
-        self.__asset_pixel_ratio = 1
-        self.__children = []
-        self.__node = node.Node(self)
-        self.__tags = {}
-        self.__dirty = True
-        self.__max_level = max_level
+        self._np_id = uuid.uuid4().hex
+        self._np_name = name or 'Unnamed NodePath'
+        self._center = center
+        self._visible = visible
+        self._position = position
+        self._angle = angle
+        self._scale = scale
+        self._depth = depth
+        self._rotation_center = None
+        self._rel_position = tools.Point()
+        self._rel_angle = 0.0
+        self._rel_scale = 1.0
+        self._rel_depth = 0
+        self._asset_pixel_ratio = 1
+        self._dummy_size = None
+        self._children = []
+        self._node = node.Node(self)
+        self._root_nodepath = None
+        self._tags = {}
+        self._dirty = True
+        self._max_level = max_level
         if parent is None:
-            self.__is_root = True
-            self.__quadtree = None      # Only relevant after first traverse
-            self.__parent = None
-            self.__sprite_loader = None
+            self._is_root = True
+            self._quadtree = None      # Only relevant after first traverse
+            self._parent = None
+            self._sprite_loader = None
+            self._root_nodepath = self
         else:
-            self.__is_root = False
-            self.__quadtree = parent.__quadtree
-            self.__parent = parent
-            self.__sprite_loader = parent.__sprite_loader
+            self._is_root = False
+            self._quadtree = parent._quadtree
+            self._parent = parent
+            self._root_nodepath = parent.root_nodepath
+            self._sprite_loader = parent._sprite_loader
+            if not self._parent.dirty:
+                self._parent.dirty = True
         self.update_relative()
+
+    @property
+    def root_nodepath(self):
+        return self._root_nodepath
+
+    @root_nodepath.setter
+    def root_nodepath(self, value):
+        if isinstance(value, NodePath):
+            self._root_nodepath = value
+        else:
+            raise TypeError('expected type NodePath for root_node')
 
     @property
     def visible(self):
         # type: () -> bool
-        return self.__visible
+        """``bool``"""
+        return self._visible
 
     @visible.setter
     def visible(self, value):
         # type: (bool) -> None
         if isinstance(value, bool):
-            self.visible = value
+            if value != self._visible:
+                self._visible = value
+                self.dirty = True
         else:
             raise TypeError('visible must be of type bool')
 
     @property
     def relative_position(self):
         # type: () -> tools.Point
-        return self.__rel_position
+        """``engine.tools.vector.Point``"""
+
+        return self._rel_position
 
     @property
     def relative_angle(self):
         # type: () -> float
-        return self.__rel_angle
+        """``float``"""
+        return self._rel_angle
 
     @property
     def relative_scale(self):
         # type: () -> float
-        return self.__rel_scale
+        """``float``"""
+        return self._rel_scale
 
     @property
     def relative_depth(self):
         # type: () -> int
-        return self.__rel_depth
+        """``int``"""
+        return self._rel_depth
 
     @property
     def position(self):
         # type: () -> tools.Point
-        return self.__position
+        """``engine.tools.vector.Point``"""
+        return self._position
 
     @position.setter
     def position(self, value):
-        # type: (Union[tools.Point, tools.Vector]) -> None
+        # type: (Union[tools.Point, tools.Vector, tuple]) -> None
         if isinstance(value, (tools.Point, tools.Vector)):
-            self.__position = value
+            self._position = value
+        elif isinstance(value, tuple) and len(value) == 2 and \
+                isinstance(value[0], float) and isinstance(value[1], float):
+            self._position = tools.Point(value)
         else:
-            raise TypeError('position must be of type Point or Vector')
+            raise TypeError('position must be of type Point, Vector or '
+                            'Tuple[float, float]')
+        self.dirty = True
 
     @property
     def angle(self):
         # type: () -> float
-        return self.__angle
+        """``float``"""
+        return self._angle
 
     @angle.setter
     def angle(self, value):
         # type: (Union[int, float]) -> None
         if isinstance(value, (int, float)):
-            self.__angle = float(value)
+            self._angle = float(value)
+            self.dirty = True
         else:
             raise TypeError('rotation must be of type float or int')
 
     @property
     def scale(self):
         # type: () -> float
-        return self.__scale
+        """``float``"""
+        return self._scale
 
     @scale.setter
     def scale(self, value):
         # type: (Union[int, float]) -> None
         if isinstance(value, (int, float)):
-            self.__scale = float(value)
+            self._scale = float(value)
+            self.dirty = True
         else:
             raise TypeError('scale must be of type float or int')
 
     @property
     def depth(self):
         # type: () -> int
-        return self.__depth
+        """``int``"""
+        return self._depth
 
     @depth.setter
     def depth(self, value):
         # type: (int) -> None
         if isinstance(value, int):
-            self.__depth = value
+            self._depth = value
+            self.dirty = True
         else:
             raise TypeError('depth must be of type int')
 
     @property
     def center(self):
-        return self.__center
+        # type: () -> int
+        """``int`` in ``engine.tools.CENTER/.TOP_LEFT/.BOTTOM_RIGHT``"""
+        return self._center
 
     @center.setter
     def center(self, value):
         if value in (CENTER, TOP_LEFT, BOTTOM_RIGHT):
-            self.__center = value
+            self._center = value
+            self.dirty = True
         else:
             raise ValueError(f'expected value to be in (CENTER={CENTER}, '
                              f'TOP_LEFT={TOP_LEFT}, BOTTOM_RIGHT='
@@ -210,130 +250,188 @@ class NodePath(object):
 
     @property
     def rotation_center(self):
-        return self.__rotation_center
+        # type: () -> Union[None, Tuple[int, int]]
+        """``Union[None, Tuple[int, int]]``"""
+        return self._rotation_center
 
     @rotation_center.setter
     def rotation_center(self, value):
+        # type: (Union[None, Tuple[int, int]]) -> None
         if isinstance(value, tuple) and len(value) == 2 and \
-           isinstance(value[0], int) and isinstance(value[1], int):
-            self.__rotation_center = value
+                isinstance(value[0], int) and isinstance(value[1], int):
+            self._rotation_center = value
         elif value is None:
-            self.__rotation_center = None
+            self._rotation_center = None
         else:
             raise TypeError('expected Tuple[int, int] or None')
+        self.dirty = True
 
     @property
     def asset_pixel_ratio(self):
         # type: () -> int
-        return self.__asset_pixel_ratio
+        """``int``"""
+        if self._is_root:
+            return self._asset_pixel_ratio
+        if self.root_nodepath is None:
+            raise ValueError('unable to retrieve asset_pixel_ratio, '
+                             'root_nodepath property is None')
+        return self.root_nodepath.asset_pixel_ratio
 
     @asset_pixel_ratio.setter
     def asset_pixel_ratio(self, value):
         # type: (int) -> None
-        if isinstance(value, int):
-            if value > 0:
-                self.asset_pixel_ratio = value
-                for child in self.children:     # type: NodePath
-                    child.asset_pixel_ratio = value
+        if self._is_root:
+            if isinstance(value, int) and value > 0:
+                if value > 0:
+                    self._asset_pixel_ratio = value
+                    self.dirty = True
+                else:
+                    raise ValueError('expected int > 0')
             else:
-                raise ValueError('expected int > 0')
+                raise TypeError('expected type int')
         else:
-            raise TypeError('expected type int')
+            raise ValueError('asset_pixel_ratio property can only be set on a '
+                             'NodePath marked as root')
 
     @property
     def sprite_loader(self):
         # type: () -> spriteloader.SpriteLoader
-        if self.__sprite_loader is None:
-            raise ValueError('sprite_loader not set')
-        return self.__sprite_loader
+        """``engine.tools.spriteloader.SpriteLoader``"""
+        if self._is_root:
+            return self._sprite_loader
+        if self.root_nodepath is None:
+            raise ValueError('unable to retrieve sprite_loader, root_nodepath '
+                             'property is None')
+        return self.root_nodepath.sprite_loader
 
     @sprite_loader.setter
     def sprite_loader(self, value):
         # type: (spriteloader.SpriteLoader) -> None
-        if isinstance(value, spriteloader.SpriteLoader):
-            self.__sprite_loader = value
-            for child in self.children:     # type: NodePath
-                child.sprite_loader = value
+        if self._is_root:
+            if isinstance(value, spriteloader.SpriteLoader):
+                self._sprite_loader = value
+                self.dirty = True
+            else:
+                raise TypeError('expected type SpriteLoader')
         else:
-            raise TypeError('expected type SpriteLoader')
+            raise ValueError('sprite_loader property can only be set on a '
+                             'NodePath marked as root')
 
     @property
     def size(self):
         # type: () -> Tuple[float, float]
-        ns = tools.Vector(*self.node.size) / self.asset_pixel_ratio
+        """``Tuple[float, float]``"""
+        if self.node.size is None:
+            if self._dummy_size is None:
+                return 0.0, 0.0
+            return self._dummy_size
+        ns = tools.Vector(self.node.size) / self.asset_pixel_ratio
         return ns.x * self.relative_scale, ns.y * self.relative_scale
 
     @property
     def children(self):
         # type: () -> List[NodePath]
-        return self.__children
+        """``List[NodePath]``"""
+        return self._children
 
     @property
     def node(self):
         # type: () -> node.Node
-        return self.__node
+        """``Node``"""
+        return self._node
 
     @node.setter
     def node(self, value):
         # type: (node.Node) -> None
         if isinstance(value, node.Node):
-            self.__node = value
+            self._node = value
+            self.dirty = True
         else:
             raise TypeError(f'expected type Node, got {type(value).__name__}')
 
     @property
     def quadtree(self):
         # type: () -> quadtree.Quadtree
-        return self.__quadtree
+        """``engine.tools.quadtree.Quadtree``"""
+        if self._is_root:
+            return self._quadtree
+        if self.root_nodepath is None:
+            raise ValueError('unable to retrieve quadtree, root_nodepath '
+                             'property is None')
+        return self.root_nodepath.quadtree
 
     @quadtree.setter
     def quadtree(self, value):
         # type: (quadtree.Quadtree) -> None
-        if isinstance(value, quadtree.Quadtree):
-            if self.__is_root:
-                self.__quadtree = value
+        if self._is_root:
+            if isinstance(value, quadtree.Quadtree):
+                self._quadtree = value
+                self.dirty = True
             else:
-                self.__parent.quadtree = value
+                raise TypeError('expected type Quadtree')
         else:
-            raise TypeError('expected type Quadtree')
+            raise ValueError('quadtree property can only be set on a NodePath '
+                             'that is marked as root')
 
     @property
     def dirty(self):
         # type: () -> bool
-        return self.__dirty
+        """``bool``"""
+        return self._dirty
 
     @dirty.setter
     def dirty(self, value):
         # type: (bool) -> None
         if not isinstance(value, bool):
             raise TypeError('expected bool')
-        if value and not self.__is_root:   # propagate dirty to root
-            self.__parent.dirty = value
-        self.__dirty = value
+        if self.root_nodepath is None:
+            raise ValueError('unable to retrieve sprite_loader, root_nodepath '
+                             'property is None')
+        self._dirty = value
+        if value and not self._is_root:   # set dirty at root
+            self.root_nodepath.dirty = value
 
     def set_dummy_size(self, size):
         # type: (Union[tools.Vector, tools.Point, Tuple[float, float]]) -> None
-        if isinstance(size, tuple):
-            size = tools.Vector(*size)
-        ns = size * self.asset_pixel_ratio
-        ns /= self.relative_scale
-        self.node.set_dummy_size(tuple(ns))
+        """
+        Sets a dummy size for the NodePath.
+
+        :param size: ``Union[Vector, Point, Tuple[int, int]]``
+        """
+        if not isinstance(size, tuple):
+            size = tuple(size)
+        self._dummy_size = size
+        self.dirty = True
 
     def update_relative(self):
-        if self.__is_root:
-            self.__rel_position = self.position
-            self.__rel_angle = self.angle
-            self.__rel_scale = self.scale
-            self.__rel_depth = self.depth
+        """Update the relative attributes in respect to ``parent``."""
+        if self.center == CENTER:
+            offset = tools.Point(self.size) / -2
+        elif self.center == TOP_LEFT:
+            offset = tools.Point()
+        elif self.center == BOTTOM_RIGHT:
+            offset = tools.Point() - tools.Point(self.size)
         else:
-            if self.__parent.angle:
-                rel_pos = self.position.rotate(self.__parent.angle).aspoint()
+            raise ValueError('invalid value in property NodePath.center')
+
+        if self._is_root:
+            self._rel_position = self.position + offset
+            self._rel_angle = self.angle
+            self._rel_scale = self.scale
+            self._rel_depth = self.depth
+        else:
+            if self._parent.relative_angle:
+                rel_pos = self.position.rotate(
+                    self._parent.relative_angle
+                ).aspoint()
             else:
                 rel_pos = self.position
-            self.__rel_position = self.__parent.relative_position + rel_pos
-            self.__rel_angle = self.__parent.relative_angle + self.angle
-            self.__rel_scale = self.__parent.relative_scale * self.scale
-            self.__rel_depth = self.__parent.relative_depth + self.depth
+            self._rel_position = (
+                    self._parent.relative_position + rel_pos + offset
+            )
+            self._rel_angle = self._parent.relative_angle + self.angle
+            self._rel_scale = self._parent.relative_scale * self.scale
+            self._rel_depth = self._parent.relative_depth + self.depth
 
     def traverse(self):
         # type: () -> Union[List[Tuple[aabb.AABB, Any]], bool]
@@ -341,7 +439,7 @@ class NodePath(object):
         Traverse the scene graph to update relative properties and update the
         quadtree of the root NodePath
         """
-        if self.__is_root and not self.dirty:
+        if self._is_root and not self.dirty:
             return False
         self.update_relative()
         self.dirty = False
@@ -351,8 +449,8 @@ class NodePath(object):
         if self.visible:
             for child in self.children:     # type: NodePath
                 quadtree_pairs += child.traverse()
-        if self.__is_root:
-            qt = quadtree.quadtree_from_pairs(quadtree_pairs, self.__max_level)
+        if self._is_root:
+            qt = quadtree.quadtree_from_pairs(quadtree_pairs, self._max_level)
             if qt is not None:
                 self.quadtree = qt
                 return True
@@ -361,20 +459,28 @@ class NodePath(object):
 
     def reparent_to(self, new_parent):
         # type: (NodePath) -> bool
+        """
+        Reparent this instance to another parent NodePath.
+
+        :param new_parent: ``NodePath`` -> The new parent.
+        :return: ``bool`` -> success.
+        """
         if isinstance(new_parent, NodePath):
-            if self.__parent is not None:
-                self.__parent.remove_node_path(self)
-            self.__parent = new_parent
-            self.__parent.children.append(self)
+            if self._parent is not None:
+                self._parent.remove_node_path(self)
+            self._parent = new_parent
+            self._parent.children.append(self)
             self.quadtree = new_parent.quadtree
-            self.__is_root = False
+            self._is_root = False
+            self.dirty = True
+            self.root_nodepath = self._parent.root_nodepath
             return True
         return False
 
     def attach_new_node_path(
             self,
             name=None,                      # type: Optional[str]
-            center=CENTER,                  # type: Optional[int]
+            center=None,                    # type: Optional[Union[None, int]]
             visible=True,                   # type: Optional[bool]
             position=tools.Point(0, 0),     # type: Optional[tools.Point]
             angle=0.0,                      # type: Optional[float]
@@ -382,9 +488,21 @@ class NodePath(object):
             depth=0,                        # type: Optional[int]
     ):
         # type: (...) -> NodePath
+        """
+        Attach and return a new child ``NodePath`` to this instance.
+
+        :param name: Optional ``str`` -> name of the new ``NodePath``
+        :param center: Optional ``int`` -> origin of the new ``NodePath``
+        :param visible: Optional ``bool``
+        :param position: Optional ``engine.tools.vector.Point``
+        :param angle: Optional ``float``
+        :param scale: Optional ``float``
+        :param depth: Optional ``int``
+        :return: ``engine.scene.nodepath.NodePath``
+        """
         np = NodePath(
             name=name,
-            center=center,
+            center=center or self.center,
             visible=visible,
             position=position,
             angle=angle,
@@ -393,30 +511,60 @@ class NodePath(object):
             parent=self
         )
         self.children.append(np)
+        self.dirty = True
         return np
 
     def query(self, q_aabb, overlap=True):
-        return self.quadtree.get_items(q_aabb, overlap)
+        # type: (aabb.AABB, Optional[bool]) -> List[NodePath]
+        """
+        Return a list of ``NodePath`` instances that lie within or overlap with
+        the given ``AABB``.
+
+        :param q_aabb: ``engine.tools.aabb.AABB`` -> bounding box to query.
+        :param overlap: Optional ``bool`` -> whether to include or exclude
+            overlapping ``NodePath`` instances.
+        :return: ``List[NodePath]``
+        """
+        if self._is_root:
+            if self.dirty:
+                self.traverse()
+            if self.quadtree is not None:
+                return self.quadtree.get_items(q_aabb, overlap)
+            raise ValueError('unable to populate a Quadtree.')
+        return self._parent.query(q_aabb, overlap)
 
     def remove_node_path(self, np):
+        # type: (NodePath) -> bool
+        """
+        Removes the passed ``NodePath``. Return ``True`` if ``np`` is a child,
+        otherwise ``False``.
+
+        :param np: ``NodePath``
+        :return: ``bool``
+        """
         if np in self.children:
             self.children.pop(self.children.index(np))
+            self.dirty = True
+            return True
+        return False
+
+    def pop(self, item):
+        return self._tags.pop(item)
 
     def __getitem__(self, item):
-        return self.__tags[item]
+        return self._tags[item]
 
     def __setitem__(self, key, value):
-        self.__tags[key] = value
+        self._tags[key] = value
 
     def __len__(self):
-        return len(self.__tags)
+        return len(self._tags)
 
     def __contains__(self, item):
-        return self.__tags.__contains__(item)
+        return self._tags.__contains__(item)
 
     def __repr__(self):
-        return f'{type(self).__name__}({str(self.__np_name)} / ' \
-               f'{self.__np_id})'
+        return f'{type(self).__name__}({str(self._np_name)})'
 
     def __str__(self):
         return self.__repr__()

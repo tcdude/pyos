@@ -35,8 +35,8 @@ class FSM(object):
     if the code in either enter or exit raises an Error.
     """
     def __init__(self):
-        self.__states__ = {}
-        self.__active_state__ = None
+        self._states = {}
+        self._active_state = None
 
     def add_state(self, obj):
         """
@@ -55,14 +55,14 @@ class FSM(object):
             raise ValueError('Argument obj must contain "enter" and "exit" '
                              'methods.')
         k = type(obj).__name__.lower()
-        self.__states__[k] = obj
+        self._states[k] = obj
 
     def request(self, state_name):
         sn = state_name.lower()
-        if sn not in self.__states__:
+        if sn not in self._states:
             raise ValueError(f'No state with state with name "{state_name}" '
                              f'registered.')
-        if self.__active_state__ is not None:
-            self.__states__[self.__active_state__].exit()
-        self.__states__[state_name].enter()
-        self.__active_state__ = state_name
+        if self._active_state is not None:
+            self._states[self._active_state].exit()
+        self._states[state_name].enter()
+        self._active_state = state_name

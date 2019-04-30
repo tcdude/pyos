@@ -75,27 +75,27 @@ class App(object):
             * Replace PySDL2 Component System with SceneGraph
         """
     def __init__(self, window_title='stupyd engine'):
-        self.__taskmgr__ = taskmanager.TaskManager()
-        self.__event_handler__ = eventhandler.EventHandler()
-        self.__taskmgr__.add_task('___EVENT_HANDLER___', self.__event_handler__)
-        self.__font_manager__ = None  # type: Union[sdl2.ext.FontManager, None]
-        self.__world__ = sdl2.ext.World()
-        self.__root__ = nodepath.NodePath('RootNodePath')
-        self.__renderer__ = None
-        self.__factory__ = None
-        self.__window__ = None
-        self.__window_title__ = window_title
-        self.__screen_size__ = (0, 0)
-        self.__running__ = False
-        self.__mouse_pos__ = vector.Point()
-        self.__taskmgr__.add_task('___MOUSE_WATCHER___', self.__update_mouse__)
-        self.__sequences__ = {}
-        self.__anim_callbacks__ = {}
-        self.__taskmgr__.add_task('___ANIMATION___', self.__animation__)
-        self.__frames__ = 0
-        self.__fps__ = 0.0
-        self.__init_sdl__()
-        self.__clean_exit__ = False
+        self._taskmgr = taskmanager.TaskManager()
+        self._event_handler = eventhandler.EventHandler()
+        self._taskmgr.add_task('___EVENT_HANDLER___', self._event_handler)
+        self._font_manager = None  # type: Union[sdl2.ext.FontManager, None]
+        self._world = sdl2.ext.World()
+        self._root = nodepath.NodePath('RootNodePath')
+        self._renderer = None
+        self._factory = None
+        self._window = None
+        self._window_title = window_title
+        self._screen_size = (0, 0)
+        self._running = False
+        self._mouse_pos = vector.Point()
+        self._taskmgr.add_task('___MOUSE_WATCHER___', self.__update_mouse__)
+        self._sequences = {}
+        self._anim_callbacks = {}
+        self._taskmgr.add_task('___ANIMATION___', self.__animation__)
+        self._frames = 0
+        self._fps = 0.0
+        self._init_sdl()
+        self._clean_exit = False
 
     @property
     def isandroid(self):
@@ -107,13 +107,13 @@ class App(object):
     def world(self):
         # type: () -> sdl2.ext.World
         """``sdl2.ext.World``"""
-        return self.__world__
+        return self._world
 
     @property
     def renderer(self):
         # type: () -> sdl2.ext.TextureSpriteRenderSystem
         """``sdl2.ext.TextureSpriteRenderSystem``"""
-        return self.__renderer__
+        return self._renderer
 
     # noinspection PyUnusedLocal
     @property
@@ -126,25 +126,25 @@ class App(object):
     def task_manager(self):
         # type: () -> taskmanager.TaskManager
         """``TaskManager``"""
-        return self.__taskmgr__
+        return self._taskmgr
 
     @property
     def window(self):
         # type: () -> sdl2.ext.Window
         """``sdl2.ext.Window``"""
-        return self.__window__
+        return self._window
 
     @property
     def mouse_pos(self):
         # type: () -> vector.Point
         """``Point`` -> current mouse position (=last touch location)"""
-        return self.__mouse_pos__.asint()
+        return self._mouse_pos.asint()
 
     @property
     def screen_size(self):
         # type: () -> Tuple[int, int]
         """``Tuple[int, int]``"""
-        return self.__screen_size__
+        return self._screen_size
 
     def load_sprite(self, fpath):
         # type: (str) -> sdl2.ext.TextureSprite
@@ -153,7 +153,7 @@ class App(object):
         :param fpath: ``str`` -> path of an image file.
         :return: ``sdl2.ext.TextureSprite``
         """
-        return tools.load_sprite(self.__factory__, fpath)
+        return tools.load_sprite(self._factory, fpath)
 
     def entity_in_sequences(self, entity):
         # type: (sdl2.ext.Entity) -> bool
@@ -163,7 +163,7 @@ class App(object):
         :param entity: ``sdl2.ext.Entity``
         :return: ``bool``
         """
-        return True if str(entity) in self.__sequences__ else False
+        return True if str(entity) in self._sequences else False
 
     def toast(self, message):
         # type: (str) -> None
@@ -193,9 +193,9 @@ class App(object):
         :param color: Optional ``sdl2.ext.Color`` -> foreground color
         :param bgcolor: Optional ``sdl2.ext.Color`` -> background color
         """
-        if self.__font_manager__ is not None:
-            self.__font_manager__.close()
-        self.__font_manager__ = sdl2.ext.FontManager(
+        if self._font_manager is not None:
+            self._font_manager.close()
+        self._font_manager = sdl2.ext.FontManager(
             font_path,
             alias,
             size,
@@ -211,10 +211,10 @@ class App(object):
         :param alias: Optional ``str`` -> alias of the font.
         :param size: Optional ``int`` -> font size
         """
-        if self.__font_manager__ is None:
+        if self._font_manager is None:
             raise ValueError('FontManager not initialized. Call '
                              'init_font_manager() method first')
-        self.__font_manager__.add(font_path, alias, size)
+        self._font_manager.add(font_path, alias, size)
 
     def text_sprite(
             self,
@@ -270,10 +270,10 @@ class App(object):
     def __animation__(self, dt, *args, **kwargs):
         # type: (float, ..., ...) -> None
         """Animation Task."""
-        if not self.__running__ or not self.__sequences__:
+        if not self._running or not self._sequences:
             return
-        for k in self.__sequences__:
-            sequence = self.__sequences__[k]
+        for k in self._sequences:
+            sequence = self._sequences[k]
             rt = sequence[0].step(dt)
             if rt > 0:
                 continue
@@ -285,15 +285,15 @@ class App(object):
                     break
         p = []
         e = []
-        for k in self.__sequences__:
-            if not self.__sequences__[k]:
+        for k in self._sequences:
+            if not self._sequences[k]:
                 p.append(k)
-                if k in self.__anim_callbacks__:
+                if k in self._anim_callbacks:
                     e.append(k)
         for k in p:
-            self.__sequences__.pop(k)
+            self._sequences.pop(k)
         for k in e:
-            f, args, kwargs = self.__anim_callbacks__.pop(k)
+            f, args, kwargs = self._anim_callbacks.pop(k)
             f(*args, **kwargs)
 
     def position_sequence(
@@ -338,11 +338,11 @@ class App(object):
 
     def stop_all_position_sequences(self):
         """Stops all position sequences and calls the respective callbacks."""
-        for k in self.__anim_callbacks__:
-            f, args, kwargs = self.__anim_callbacks__[k]
+        for k in self._anim_callbacks:
+            f, args, kwargs = self._anim_callbacks[k]
             f(*args, **kwargs)
-        self.__sequences__ = {}
-        self.__anim_callbacks__ = {}
+        self._sequences = {}
+        self._anim_callbacks = {}
 
     def run(self):
         """
@@ -353,12 +353,12 @@ class App(object):
             override this method!!!
         """
         try:
-            self.__running__ = True
+            self._running = True
             st = time.perf_counter()
-            while self.__running__:
+            while self._running:
                 self.task_manager(st)
                 self.world.process()
-                self.__frames__ += 1
+                self._frames += 1
                 nt = time.perf_counter()
                 time.sleep(max(0.0, FRAME_TIME - (nt - st)))
                 st = nt
@@ -366,7 +366,7 @@ class App(object):
             self.quit(blocking=False)
         finally:
             sdl2.ext.quit()
-            self.__clean_exit__ = True
+            self._clean_exit = True
 
     # noinspection PyUnusedLocal
     def quit(self, blocking=True, event=None):
@@ -383,12 +383,12 @@ class App(object):
             Do not override this method, override ``App.on_quit()`` instead!!!
 
         """
-        if not self.__running__:
+        if not self._running:
             return
         self.on_quit()
-        self.__running__ = False
+        self._running = False
         if blocking:
-            while not self.__clean_exit__:
+            while not self._clean_exit:
                 time.sleep(0.01)
 
     def on_quit(self):
@@ -397,30 +397,30 @@ class App(object):
         """
         pass
 
-    def __init_sdl__(self):
+    def _init_sdl(self):
         """Initializes SDL2."""
         sdl2.ext.init()
         if self.isandroid:
             dm = sdl2.SDL_DisplayMode()
             sdl2.SDL_GetCurrentDisplayMode(0, dm)
-            self.__screen_size__ = (dm.w, dm.h)
+            self._screen_size = (dm.w, dm.h)
             sdl2.ext.Window.DEFAULTFLAGS = sdl2.SDL_WINDOW_FULLSCREEN
         else:
-            self.__screen_size__ = (720, 1280)
-        self.__window__ = sdl2.ext.Window(
-            self.__window_title__,
-            size=self.__screen_size__
+            self._screen_size = (720, 1280)
+        self._window = sdl2.ext.Window(
+            self._window_title,
+            size=self._screen_size
         )
-        self.__window__.show()
+        self._window.show()
         android.remove_presplash()
-        self.__renderer__ = render.HWRenderer(self.window)
-        self.__factory__ = sdl2.ext.SpriteFactory(
+        self._renderer = render.HWRenderer(self.window)
+        self._factory = sdl2.ext.SpriteFactory(
             sdl2.ext.TEXTURE,
-            renderer=self.__renderer__
+            renderer=self._renderer
         )
-        self.world.add_system(self.__renderer__)
+        self.world.add_system(self._renderer)
 
     def __del__(self):
         """Make sure, ``sdl2.ext.quit()`` gets called latest on destruction."""
-        if not self.__clean_exit__:
+        if not self._clean_exit:
             sdl2.ext.quit()

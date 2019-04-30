@@ -70,7 +70,7 @@ class SpriteLoader(object):
         if not os.path.isdir(self.cache_dir):
             os.makedirs(self.cache_dir)
         self.resize_type = resize_type
-        self.__assets = {}
+        self._assets = {}
         self.refresh_assets()
 
     def refresh_assets(self):
@@ -80,14 +80,14 @@ class SpriteLoader(object):
         ]
         if paths and paths[0].startswith('/'):
             paths = [s[1:] for s in paths]
-        self.__assets = {}
+        self._assets = {}
         for k in paths:
-            self.__assets[k] = Asset(k, self)
+            self._assets[k] = Asset(k, self)
 
     def load_image(self, asset_path, scale=1.0):
         # type: (str, Optional[SCALE]) -> TextureSprite
-        if asset_path in self.__assets:
-            return self.factory.from_image(self.__assets[asset_path][scale])
+        if asset_path in self._assets:
+            return self.factory.from_image(self._assets[asset_path][scale])
         raise ValueError(f'asset_path must be a valid path relative to '
                          f'"{self.asset_dir}" without leading "/"')
 
@@ -95,7 +95,7 @@ class SpriteLoader(object):
         pass
 
     def empty_cache(self):
-        for asset in self.__assets.values():
+        for asset in self._assets.values():
             asset.empty_cache()
 
 
@@ -108,22 +108,22 @@ class Asset(object):
         self.cache_prefix = cache_name[2:]
         self.cache_suffix = '.' + relative_path.split('.')[-1]
         self.abs_path = os.path.join(parent.asset_dir, relative_path)
-        self.__img_size = vector.Point(Image.open(self.abs_path).size)
-        self.__cached_items = {}
+        self._img_size = vector.Point(Image.open(self.abs_path).size)
+        self._cached_items = {}
         self.parent = parent
         self.refresh_cached()
 
     def refresh_cached(self):
-        self.__cached_items = {}
+        self._cached_items = {}
         files = glob.glob(self.cache_sub_dir + f'/{self.cache_prefix}*')
         for file in files:
             res = file.split('.')[-2][-10:]
             res = int(res[:5]), int(res[5:])
-            self.__cached_items[res] = file
+            self._cached_items[res] = file
 
     @property
     def size(self):
-        return self.__img_size
+        return self._img_size
 
     def __getitem__(self, item):
         # type: (SCALE) -> str
@@ -136,9 +136,9 @@ class Asset(object):
             )
         else:
             raise TypeError('expected type Union[float, Tuple[float, float]]')
-        if k not in self.__cached_items:
+        if k not in self._cached_items:
             self.cache(k)
-        return self.__cached_items[k]
+        return self._cached_items[k]
 
     def cache(self, k):
         if not os.path.isdir(self.cache_sub_dir):
@@ -146,14 +146,14 @@ class Asset(object):
         fname = f'{self.cache_prefix}{k[0]:05d}{k[1]:05d}{self.cache_suffix}'
         p = os.path.join(self.cache_sub_dir, fname)
         Image.open(self.abs_path).resize(k, self.parent.resize_type).save(p)
-        self.__cached_items[k] = p
+        self._cached_items[k] = p
 
     def empty_cache(self):
-        for f in self.__cached_items.values():
+        for f in self._cached_items.values():
             os.remove(f)
         try:
             os.rmdir(self.cache_sub_dir)
         except OSError as err:
             if err.errno != 39:
                 raise err
-        self.__cached_items = {}
+        self._cached_items = {}

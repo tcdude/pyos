@@ -9,7 +9,7 @@ from typing import Tuple
 from typing import Union
 
 from PIL import Image
-from sdl2.ext import TextureSprite
+import sdl2.ext
 
 from . import nodepath
 from .. import tools
@@ -47,32 +47,24 @@ class Node(object):
         # type: (nodepath.NodePath, Optional[str]) -> None
         if not isinstance(node_path, nodepath.NodePath):
             raise ValueError('invalid argument for node_path')
-        self.__node_path = node_path
-        self.__node_name = name or 'Unnamed Node'
-        self.__dummy_size = 0, 0
+        self._node_path = node_path
+        self._node_name = name or 'Unnamed Node'
 
     @property
     def size(self):
-        # type: () -> Tuple[int, int]
-        return self.__dummy_size
+        # type: () -> Union[Tuple[int, int], None]
+        """``Tuple[int, int]`` or ``None``"""
+        return None
 
     @property
     def node_path(self):
-        return self.__node_path
+        """``NodePath``"""
+        return self._node_path
 
     @property
     def name(self):
-        return self.__node_name
-
-    def set_dummy_size(self, size):
-        # type: (Union[tools.Vector, tools.Point, Tuple[int, int]]) -> None
-        if isinstance(size, tools.Vector):
-            self.__dummy_size = tuple(size.asint())
-        elif isinstance(size, tuple) and len(size) == 2 and \
-                isinstance(size[0], int) and isinstance(size[1], int):
-            self.__dummy_size = size
-        else:
-            TypeError('expected either type Vector, Point or Tuple[int, int]')
+        """``str``"""
+        return self._node_name
 
     def __repr__(self):
         return f'{type(self).__name__}({self.name}, {self.size})'
@@ -88,10 +80,10 @@ class ImageNode(Node):
     """
     def __init__(self, node_path, name=None, image=None):
         super(ImageNode, self).__init__(node_path, name)
-        self.__images = []            # type: List[str]
-        self.__current_index = -1
-        self.__asset_size = 0, 0
-        self.__sprite = None
+        self._images = []            # type: List[str]
+        self._current_index = -1
+        self._asset_size = 0, 0
+        self._sprite = None
         if image is not None:
             self.add_image(image)
 
@@ -101,22 +93,24 @@ class ImageNode(Node):
     @property
     def size(self):
         # type: () -> Tuple[int, int]
-        if self.__sprite is None:
+        """``Tuple[int, int]``"""
+        if self._sprite is None:
             return 0, 0
         return self.sprite.area
 
     @property
     def sprite(self):
-        # type: () -> TextureSprite
-        if self.__sprite is None:
+        # type: () -> sdl2.ext.TextureSprite
+        """``sdl2.ext.TextureSprite``"""
+        if self._sprite is None:
             raise ValueError('No sprite loaded')
-        return self.__sprite
+        return self._sprite
 
     @sprite.setter
     def sprite(self, value):
-        # type: (TextureSprite) -> None
-        if isinstance(value, TextureSprite):
-            self.__sprite = value
+        # type: (sdl2.ext.TextureSprite) -> None
+        if isinstance(value, sdl2.ext.TextureSprite):
+            self._sprite = value
         else:
             raise TypeError('expected type sdl2.ext.Sprite')
 
@@ -126,12 +120,12 @@ class ImageNode(Node):
         Loads the first image or optionally at the image with index ``item``
         """
         item = item or 0
-        if not (-1 < item < len(self.__images)):
+        if not (-1 < item < len(self._images)):
             raise IndexError('invalid index')
-        if not self.__images:
+        if not self._images:
             raise ValueError('ImageNode contains no image(s)')
-        if item != self.__current_index:
-            self.__current_index = item or 0
+        if item != self._current_index:
+            self._current_index = item or 0
             self.update_sprite()
 
     def update_sprite(self):
@@ -139,10 +133,10 @@ class ImageNode(Node):
         Updates the sprite using relative position, angle and scale retrieved
         from the connected NodePath
         """
-        if not self.__images:
+        if not self._images:
             raise ValueError('cannot update, no images added')
         self.sprite = self.node_path.sprite_loader.load_image(
-            self.__images[self.__current_index],
+            self._images[self._current_index],
             self.node_path.relative_scale
         )
         if self.node_path.relative_angle:
@@ -154,13 +148,20 @@ class ImageNode(Node):
         self.sprite.position = tuple(pos)
 
     def add_image(self, image):
-        # type: (str) -> None
+        # type: (str) -> int
+        """
+        Add an image to the ``ImageNode``.
+
+        :param image: ``str`` -> the image path relative to the asset directory.
+        :return: ``int``
+        """
         if os.path.isfile(image):
             img_size = Image.open(image).size
-            if self.__images and img_size != self.__asset_size:
+            if self._images and img_size != self._asset_size:
                 raise ValueError('All images in a ImageNode must be of the '
                                  'same exact size')
-            self.__asset_size = img_size
-            self.__images.append(image)
+            self._asset_size = img_size
+            self._images.append(image)
+            return len(self._images) - 1
         else:
             raise FileNotFoundError(f'unable to locate "{image}"')

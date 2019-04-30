@@ -14,7 +14,6 @@ Welcome to stupyd engine's documentation!
    engine.scene
    engine.tools
    engine.ui
-   modules
 
 
 Indices and tables

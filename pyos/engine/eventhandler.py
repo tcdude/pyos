@@ -33,8 +33,8 @@ class EventHandler(object):
     Basic EventHandler to coordinate SDL2 Events.
     """
     def __init__(self):
-        self.__events__ = {}
-        self.__unique__ = {}
+        self._events = {}
+        self._unique = {}
 
     def listen(self, name, sdl_event, callback, priority=0, *args, **kwargs):
         """
@@ -50,28 +50,28 @@ class EventHandler(object):
         :param args: optional positional arguments to pass to ``callback``.
         :param kwargs: optional keyword arguments to pass to ``callback``.
         """
-        if name in self.__unique__:
+        if name in self._unique:
             raise ValueError('An event with this name already exists.')
-        if sdl_event not in self.__events__:
-            self.__events__[sdl_event] = {name: priority}
-        self.__unique__[name] = (callback, args, kwargs)
+        if sdl_event not in self._events:
+            self._events[sdl_event] = {name: priority}
+        self._unique[name] = (callback, args, kwargs)
 
     def forget(self, name):
         """Removes event ``name`` from the EventHandler"""
-        for e in self.__events__:
-            if name in self.__events__[e]:
-                self.__events__[e].pop(name)
-        if name in self.__unique__:
-            self.__unique__.pop(name)
+        for e in self._events:
+            if name in self._events[e]:
+                self._events[e].pop(name)
+        if name in self._unique:
+            self._unique.pop(name)
 
     def __call__(self, *args, **kwargs):
         for event in sdl2.ext.get_events():
-            if event.type in self.__events__:
+            if event.type in self._events:
                 k = reversed(sorted(
-                    self.__events__[event.type],
-                    key=lambda x: self.__events__[event.type][x]
+                    self._events[event.type],
+                    key=lambda x: self._events[event.type][x]
                 ))
                 for n in k:
-                    c, a, kw = self.__unique__[n]
+                    c, a, kw = self._unique[n]
                     kw['event'] = event
                     c(*a, **kw)

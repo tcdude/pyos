@@ -1,6 +1,9 @@
 """
-stupyd engine. A pseudo game engine that nobody asked for or needed.
+Unittests for engine.taskmanager
 """
+import time
+
+from engine import taskmanager
 
 __author__ = 'Tiziano Bettio'
 __license__ = 'MIT'
@@ -24,3 +27,34 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE."""
+
+
+def test_taskmanager():
+    def callback_no_dt(arg_a, arg_b, _=None, kwarg_a='blah'):
+        assert arg_a == 'a'
+        assert arg_b == 'b'
+        assert kwarg_a == 'kwa'
+
+    def callback_dt(dt):
+        assert dt
+    tm = taskmanager.TaskManager()
+    _ = tm.add_task(
+        'test_task_no_dt', callback_no_dt, 0, False, 'a', 'b', kwarg_a='kwa'
+    )
+    _ = tm.add_task('test_task_dt', callback_dt)
+    tm()
+
+
+def test_timing():
+    def callback(counter):
+        counter.append(1)
+
+    cb_counter = []
+    tm = taskmanager.TaskManager()
+    task = tm.add_task(
+        'counter_task', callback, 0.02, False, cb_counter
+    )
+    start_time = task._last_exec  # time.perf_counter()
+    while time.perf_counter() - start_time < 1:
+        tm()
+    assert sum(cb_counter) == 49

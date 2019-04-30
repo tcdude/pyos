@@ -51,48 +51,48 @@ class Task(object):
             raise ValueError('Argument callback must be of type callable')
         if not isinstance(delay, (int, float)) or delay < 0:
             raise ValueError('Expected positive int/float for Argument delay')
-        self.__task_name = name
-        self.__callback = callback
-        self.__delay = delay
-        self.__with_dt = with_dt
-        self.__args = args
-        self.__kwargs = kwargs
-        self.__last_exec = time.perf_counter()
-        self.__active = True
-        self.__paused = False
+        self._task_name = name
+        self._callback = callback
+        self._delay = delay
+        self._with_dt = with_dt
+        self._args = args
+        self._kwargs = kwargs
+        self._last_exec = time.perf_counter()
+        self._active = True
+        self._paused = False
 
     @property
     def delay(self):
         # type: () -> float
         """``float``"""
-        return self.__delay
+        return self._delay
 
     @delay.setter
     def delay(self, v):
         if isinstance(v, (int, float)):
-            self.__delay = v
+            self._delay = v
 
     @property
     def name(self):
         # type: () -> str
         """``str``"""
-        return self.__task_name
+        return self._task_name
 
     @property
     def ispaused(self):
         # type: () -> bool
         """``bool``"""
-        return self.__paused
+        return self._paused
 
     @property
     def isenabled(self):
         # type: () -> bool
         """``bool``"""
-        return self.__active
+        return self._active
 
     def pause(self):
         """Pauses the ``Task``."""
-        self.__paused = True
+        self._paused = True
 
     def resume(self, instant=True):
         """
@@ -101,10 +101,10 @@ class Task(object):
         :param instant: Optional ``bool`` -> whether to execute the ``Task``
             immediately upon resume or wait for delay (default= ``True`` )
         """
-        self.__last_exec = time.perf_counter()
+        self._last_exec = time.perf_counter()
         if instant:
-            self.__last_exec -= self.delay
-        self.__paused = False
+            self._last_exec -= self.delay
+        self._paused = False
 
     def disable(self):
         """
@@ -112,20 +112,20 @@ class Task(object):
             This should only be called by the TaskManager! Prevents further
             execution of the Task.
         """
-        self.__active = False
+        self._active = False
 
     def __call__(self, clk):
         """Execute if enabled and not paused."""
-        if not self.__active or self.__paused:
+        if not self._active or self._paused:
             return
-        if self.__last_exec + self.delay <= clk:
-            dt = clk - self.__last_exec
-            self.__last_exec = clk
+        if self._last_exec + self.delay <= clk:
+            dt = clk - self._last_exec
+            self._last_exec = clk
             kw = {}
-            kw.update(self.__kwargs)
-            if self.__with_dt:
+            kw.update(self._kwargs)
+            if self._with_dt:
                 kw['dt'] = dt
-            self.__callback(*self.__args, **kw)
+            self._callback(*self._args, **kw)
 
     def __repr__(self):
         return f'Task({self.name}, {self.delay:.4f})'
@@ -144,13 +144,13 @@ class TaskManager(object):
         >>> t = TaskManager()
         >>> task = t.add_task('print_task', print, 0, False, 'hello', 'there')
         >>> t()
-        ... hello there
+        hello there
         >>> t['print_task']
-        ... Task(print_task, 0.0000)
+        Task(print_task, 0.0000)
 
         """
     def __init__(self):
-        self.__tasks = {}
+        self._tasks = {}
 
     def add_task(self, name, callback, delay=0, with_dt=True, *args, **kwargs):
         """
@@ -171,24 +171,24 @@ class TaskManager(object):
             ``callback``.
         :return: ``Task``
         """
-        if name in self.__tasks:
+        if name in self._tasks:
             raise ValueError(f'A Task with the name "{name}" already exists.')
-        self.__tasks[name] = Task(name, callback, delay, with_dt, args, kwargs)
-        return self.__tasks[name]
+        self._tasks[name] = Task(name, callback, delay, with_dt, args, kwargs)
+        return self._tasks[name]
 
     def remove_task(self, name):
         """Remove Task ``name`` from the TaskManager."""
-        if name in self.__tasks:
-            self.__tasks.pop(name).disable()
+        if name in self._tasks:
+            self._tasks.pop(name).disable()
 
     def __call__(self):
         """Calls all registered ``Task`` instances."""
         clk = time.perf_counter()
-        for task in self.__tasks.values():
+        for task in self._tasks.values():
             task(clk)
 
     def __getitem__(self, item):
         # type: (str) -> Task
-        if item in self.__tasks:
-            return self.__tasks[item]
+        if item in self._tasks:
+            return self._tasks[item]
         raise IndexError(f'No task named "{item}"')
