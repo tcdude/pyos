@@ -7,7 +7,6 @@ from typing import Tuple
 from typing import Union
 
 from . import nodepath
-from ..tools import vector
 
 __author__ = 'Tiziano Bettio'
 __license__ = 'MIT'

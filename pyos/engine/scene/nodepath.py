@@ -3,7 +3,9 @@ Provides the NodePath class for the Scene Graph.
 """
 
 import uuid
+import weakref
 from typing import Any
+from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -65,7 +67,10 @@ class NodePath(object):
     :param parent: Optional NodePath -> If specified, the instance will be a
         child of ``parent`` and inherit position, scale, rotation and depth.
     :param max_level: Optional int -> maximum levels of nesting of the quadtree.
+
     """
+    _base = {}   # type: Dict[str, Dict[str, weakref.ReferenceType]]
+
     def __init__(
             self,
             name=None,                      # type: Optional[str]
@@ -76,10 +81,11 @@ class NodePath(object):
             scale=1.0,                      # type: Optional[float]
             depth=1,                        # type: Optional[int]
             parent=None,                    # type: Optional[NodePath]
-            max_level=8                     # type: Optional[int]
+            max_level=1                     # type: Optional[int]
     ):
         # type: (...) -> None
         self._np_id = uuid.uuid4().hex
+        NodePath._base[self._np_id] = {}
         self._np_name = name or 'Unnamed NodePath'
         self._center = center
         self._visible = visible
@@ -94,9 +100,8 @@ class NodePath(object):
         self._rel_depth = 0
         self._asset_pixel_ratio = 1
         self._dummy_size = None
-        self._children = []
         self._node = node.Node(self)
-        self._root_nodepath = None
+        self._children = {}
         self._tags = {}
         self._dirty = True
         self._max_level = max_level
@@ -108,24 +113,39 @@ class NodePath(object):
             self._root_nodepath = self
         else:
             self._is_root = False
+            NodePath._base[parent.id][self._np_id] = weakref.ref(self)
             self._quadtree = parent._quadtree
             self._parent = parent
             self._root_nodepath = parent.root_nodepath
             self._sprite_loader = parent._sprite_loader
-            if not self._parent.dirty:
-                self._parent.dirty = True
+            if not self.parent.dirty:
+                self.parent.dirty = True
         self.update_relative()
 
     @property
-    def root_nodepath(self):
-        return self._root_nodepath
+    def id(self):
+        return self._np_id
 
-    @root_nodepath.setter
-    def root_nodepath(self, value):
-        if isinstance(value, NodePath):
-            self._root_nodepath = value
-        else:
-            raise TypeError('expected type NodePath for root_node')
+    @property
+    def root_nodepath(self):
+        # type: () -> NodePath
+        if self.is_root:
+            return self
+        p = self.parent
+        while not p.is_root:
+            p = p.parent
+        return p
+
+    @property
+    def parent(self):
+        # type: () -> Union[None, NodePath]
+        if self._parent is None:
+            return None
+        return self._parent
+
+    @property
+    def is_root(self):
+        return self._is_root
 
     @property
     def visible(self):
@@ -270,17 +290,14 @@ class NodePath(object):
     def asset_pixel_ratio(self):
         # type: () -> int
         """``int``"""
-        if self._is_root:
+        if self.is_root:
             return self._asset_pixel_ratio
-        if self.root_nodepath is None:
-            raise ValueError('unable to retrieve asset_pixel_ratio, '
-                             'root_nodepath property is None')
         return self.root_nodepath.asset_pixel_ratio
 
     @asset_pixel_ratio.setter
     def asset_pixel_ratio(self, value):
         # type: (int) -> None
-        if self._is_root:
+        if self.is_root:
             if isinstance(value, int) and value > 0:
                 if value > 0:
                     self._asset_pixel_ratio = value
@@ -297,11 +314,8 @@ class NodePath(object):
     def sprite_loader(self):
         # type: () -> spriteloader.SpriteLoader
         """``engine.tools.spriteloader.SpriteLoader``"""
-        if self._is_root:
+        if self.is_root:
             return self._sprite_loader
-        if self.root_nodepath is None:
-            raise ValueError('unable to retrieve sprite_loader, root_nodepath '
-                             'property is None')
         return self.root_nodepath.sprite_loader
 
     @sprite_loader.setter
@@ -330,8 +344,8 @@ class NodePath(object):
 
     @property
     def children(self):
-        # type: () -> List[NodePath]
-        """``List[NodePath]``"""
+        # type: () -> Dict[str, NodePath]
+        """``Dict[str, NodePath]``"""
         return self._children
 
     @property
@@ -353,25 +367,21 @@ class NodePath(object):
     def quadtree(self):
         # type: () -> quadtree.Quadtree
         """``engine.tools.quadtree.Quadtree``"""
-        if self._is_root:
+        if self.is_root:
             return self._quadtree
-        if self.root_nodepath is None:
-            raise ValueError('unable to retrieve quadtree, root_nodepath '
-                             'property is None')
         return self.root_nodepath.quadtree
 
     @quadtree.setter
     def quadtree(self, value):
         # type: (quadtree.Quadtree) -> None
-        if self._is_root:
+        if self.is_root:
             if isinstance(value, quadtree.Quadtree):
                 self._quadtree = value
                 self.dirty = True
             else:
                 raise TypeError('expected type Quadtree')
         else:
-            raise ValueError('quadtree property can only be set on a NodePath '
-                             'that is marked as root')
+            self.root_nodepath.quadtree = value
 
     @property
     def dirty(self):
@@ -384,12 +394,19 @@ class NodePath(object):
         # type: (bool) -> None
         if not isinstance(value, bool):
             raise TypeError('expected bool')
-        if self.root_nodepath is None:
-            raise ValueError('unable to retrieve sprite_loader, root_nodepath '
-                             'property is None')
         self._dirty = value
-        if value and not self._is_root:   # set dirty at root
+        if value is True and not self.is_root:   # set dirty at root
             self.root_nodepath.dirty = value
+
+        children = [self.id]    # propagate to all children
+        while children:
+            new_children = []
+            for k in children:
+                for ck in NodePath._base[k]:
+                    new_children.append(ck)
+                    # noinspection PyProtectedMember
+                    NodePath._base[k][ck]()._dirty = True
+            children = new_children
 
     def set_dummy_size(self, size):
         # type: (Union[tools.Vector, tools.Point, Tuple[float, float]]) -> None
@@ -404,7 +421,13 @@ class NodePath(object):
         self.dirty = True
 
     def update_relative(self):
-        """Update the relative attributes in respect to ``parent``."""
+        # type: () -> Tuple[float, float, float, float]
+        """
+        Update the relative attributes in respect to ``parent``.
+
+        :return: ``4-Tuple[float, float, float, float]`` -> bounding box of the
+            ``NodePath``.
+        """
         if self.center == CENTER:
             offset = tools.Point(self.size) / -2
         elif self.center == TOP_LEFT:
@@ -420,42 +443,65 @@ class NodePath(object):
             self._rel_scale = self.scale
             self._rel_depth = self.depth
         else:
-            if self._parent.relative_angle:
+            if self.parent.relative_angle:
                 rel_pos = self.position.rotate(
-                    self._parent.relative_angle
+                    self.parent.relative_angle
                 ).aspoint()
             else:
                 rel_pos = self.position
             self._rel_position = (
-                    self._parent.relative_position + rel_pos + offset
+                    self.parent.relative_position + rel_pos + offset
             )
-            self._rel_angle = self._parent.relative_angle + self.angle
-            self._rel_scale = self._parent.relative_scale * self.scale
-            self._rel_depth = self._parent.relative_depth + self.depth
+            self._rel_angle = self.parent.relative_angle + self.angle
+            self._rel_scale = self.parent.relative_scale * self.scale
+            self._rel_depth = self.parent.relative_depth + self.depth
+        box = tuple(self.relative_position)
+        box += tuple(self.relative_position + tools.Point(self.size))
+        return box
 
     def traverse(self):
         # type: () -> Union[List[Tuple[aabb.AABB, Any]], bool]
         """
         Traverse the scene graph to update relative properties and update the
-        quadtree of the root NodePath
+        quadtree of the root NodePath.
+
+        .. warning::
+            This will raise a ``ValueError`` if called from a node not marked
+            as ``NodePath.is_root``.
         """
-        if self._is_root and not self.dirty:
+        if not self.is_root:
+            raise ValueError('NodePath.traverse() can only be called from a '
+                             'NodePath marked as NodePath.is_root')
+        if not self.dirty:
             return False
-        self.update_relative()
+        box = self.update_relative()
+        if box[2] - box[0] + box[3] - box[1]:
+            quadtree_pairs = [(aabb.AABB(box), self)]
+        else:
+            quadtree_pairs = []
         self.dirty = False
-        box = tuple(self.relative_position)
-        box += tuple(self.relative_position + tools.Point(*self.size))
-        quadtree_pairs = [(aabb.AABB(box), self)]
-        if self.visible:
-            for child in self.children:     # type: NodePath
-                quadtree_pairs += child.traverse()
-        if self._is_root:
-            qt = quadtree.quadtree_from_pairs(quadtree_pairs, self._max_level)
-            if qt is not None:
-                self.quadtree = qt
-                return True
-            return False
-        return quadtree_pairs
+        np_ids = [self.id]
+        while np_ids:
+            new_ids = []
+            for k in np_ids:
+                for ck in NodePath._base[k]:
+                    np = NodePath._base[k][ck]()
+                    if not np.visible:
+                        continue
+                    if np.dirty:
+                        box = np.update_relative()
+                        if box[2] - box[0] + box[3] - box[1]:
+                            quadtree_pairs.append(
+                                (aabb.AABB(box), np)
+                            )
+                        np.dirty = False
+                    new_ids.append(ck)
+            np_ids = new_ids
+        qt = quadtree.quadtree_from_pairs(quadtree_pairs, self._max_level)
+        if qt is not None:
+            self.quadtree = qt
+            return True
+        return False
 
     def reparent_to(self, new_parent):
         # type: (NodePath) -> bool
@@ -466,14 +512,13 @@ class NodePath(object):
         :return: ``bool`` -> success.
         """
         if isinstance(new_parent, NodePath):
-            if self._parent is not None:
-                self._parent.remove_node_path(self)
+            if self.parent is not None:
+                self.parent.remove_node_path(self)
             self._parent = new_parent
-            self._parent.children.append(self)
-            self.quadtree = new_parent.quadtree
+            NodePath._base[self.parent.id][self.id] = weakref.ref(self)
+            self.parent.children[self.id] = self
             self._is_root = False
             self.dirty = True
-            self.root_nodepath = self._parent.root_nodepath
             return True
         return False
 
@@ -510,8 +555,8 @@ class NodePath(object):
             depth=depth,
             parent=self
         )
-        self.children.append(np)
         self.dirty = True
+        self.children[np.id] = np
         return np
 
     def query(self, q_aabb, overlap=True):
@@ -525,13 +570,13 @@ class NodePath(object):
             overlapping ``NodePath`` instances.
         :return: ``List[NodePath]``
         """
-        if self._is_root:
+        if self.is_root:
             if self.dirty:
                 self.traverse()
             if self.quadtree is not None:
                 return self.quadtree.get_items(q_aabb, overlap)
             raise ValueError('unable to populate a Quadtree.')
-        return self._parent.query(q_aabb, overlap)
+        return self.root_nodepath.query(q_aabb, overlap)
 
     def remove_node_path(self, np):
         # type: (NodePath) -> bool
@@ -542,8 +587,11 @@ class NodePath(object):
         :param np: ``NodePath``
         :return: ``bool``
         """
-        if np in self.children:
-            self.children.pop(self.children.index(np))
+        children = NodePath._base[self.id]
+        if np.id in self.children:
+            self.children.pop(np.id)
+        if np.id in children:
+            children.pop(np.id)
             self.dirty = True
             return True
         return False
@@ -568,3 +616,12 @@ class NodePath(object):
 
     def __str__(self):
         return self.__repr__()
+
+    def __del__(self):
+        """Clean up class member Dict NodePath._base"""
+        self._children = {}
+        try:
+            NodePath._base.pop(self.id)
+        except KeyError:
+            pass
+        # print(f'({repr(self)} - {self.id}) removed')

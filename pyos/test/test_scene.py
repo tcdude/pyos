@@ -58,15 +58,15 @@ def test_nodepath_relative_position():
 def test_nodepath_nesting():
     np = create_empty_np()
     child = np
-    for i in range(500):
+    for i in range(1000):
         child = child.attach_new_node_path(f'Child{i:03d}')
         child.position = 0.1, 0.1
         child.set_dummy_size((1.0, 1.0))
     assert np.traverse() is True
-    assert child.relative_position == tools.Point(50.0, 50.0)
+    assert child.relative_position == tools.Point(100.0, 100.0)
     np.angle = 90
     assert np.traverse() is True
-    assert child.relative_position == tools.Point(50.0, -50.0)
+    assert child.relative_position == tools.Point(100.0, -100.0)
 
 
 def test_nodepath_query():
@@ -83,6 +83,16 @@ def test_nodepath_query():
     result = np.query(aabb.AABB((0, 0, 0.2, 0.2)))
     assert len(result) == 1
     assert np in result
+
+
+def test_nodepath_dirty():
+    np = create_empty_np()
+    c = np.attach_new_node_path('Child')
+    c.set_dummy_size((0.25, 0.25))
+    c.position = 0.8, 0.8
+    assert np.traverse() is True
+    np.dirty = True
+    assert c.dirty is True
 
 
 def test_nodepath_dict():

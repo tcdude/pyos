@@ -12,7 +12,6 @@ from PIL import Image
 import sdl2.ext
 
 from . import nodepath
-from .. import tools
 
 __author__ = 'Tiziano Bettio'
 __license__ = 'MIT'

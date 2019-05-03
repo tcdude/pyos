@@ -56,11 +56,12 @@ def test_vector_math():
 
 
 def test_aabb():
-    b_a = aabb.AABB((0, 0, 1, 1))
+    b_a = aabb.AABB((0.0, 0.0, 1.0, 1.0))
     b_b = aabb.AABB((0.1, 0.1, 0.9, 0.9))
     b_c = aabb.AABB((0.1, 0.1, 1.0, 1.0))
     b_d = aabb.AABB((-0.5, -0.5, 0.5, 0.5))
     p_a = tools.Point(1.0, 1.0)
+    p_b = tools.Point(1 - 1e-7, 1 - 1e-7)
     assert (b_a < b_b) is True
     assert (b_a < b_c) is False
     assert (b_a <= b_c) is True
@@ -69,6 +70,7 @@ def test_aabb():
     assert (b_a > b_d) is True
     assert (b_a > p_a) is False
     assert (b_a >= p_a) is True
+    assert (b_a > p_b) is True
 
 
 def test_quadtree():

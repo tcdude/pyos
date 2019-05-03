@@ -3,6 +3,7 @@ Provides the AABB class.
 """
 
 from typing import List
+from typing import Optional
 from typing import Tuple
 from typing import Union
 
@@ -59,18 +60,17 @@ class AABB(object):
         right points of the bounding box.
 
     """
-    def __init__(self, box):
-        # type: (Tuple[NUMERIC, NUMERIC, NUMERIC, NUMERIC]) -> None
+    def __init__(self, box, precision=1e-6):
+        # type: (Tuple[NUMERIC, NUMERIC, NUMERIC, NUMERIC], Optional[float]) -> None
         if isinstance(box, tuple) and len(box) == 4 and \
-                sum(
-                    [1 if isinstance(i, (int, float)) else 0 for i in box]
-                ) == 4:
+                sum([isinstance(i, (int, float)) for i in box]) == 4:
             if box[0] < box[2] and box[1] < box[3]:
                 self.box = box
             else:
-                raise ValueError('invalid bounding box specified')
+                raise ValueError(f'invalid bounding box specified: {str(box)}')
         else:
             raise TypeError('expected 4-Tuple[int/float]')
+        self.precision = precision
 
     def _test(self, other, test_type):
         # type: (Union[POS_TYPE, AABB], int) -> bool
@@ -106,11 +106,15 @@ class AABB(object):
         else:
             raise ValueError('Expected other to be of type AABB, vector.Point or '
                              'List/Tuple of length 2')
+        lx = t[0] - p.x
+        hx = p.x - t[2]
+        ly = t[1] - p.y
+        hy = p.y - t[3]
         if test_type in (0, 3):
-            if t[0] <= p.x <= t[2] and t[1] <= p.y <= t[3]:
+            if lx <= self.precision >= hx and ly <= self.precision >= hy:
                 return True
         else:
-            if t[0] < p.x < t[2] and t[1] < p.y < t[3]:
+            if lx < 0 > hx and ly < 0 > hy:
                 return True
         return False
 
