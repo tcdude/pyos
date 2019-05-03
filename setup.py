@@ -21,13 +21,14 @@ SOFTWARE.
 """
 
 from distutils.core import setup
+from distutils.core import Extension
 from setuptools import find_packages
 from Cython.Build import cythonize
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
 __license__ = 'MIT'
-__version__ = '0.1'
+__version__ = '0.2'
 
 
 options = {'apk': {'debug': None,
@@ -59,5 +60,8 @@ setup(
         'assets/fonts/*.ttf'
     ]},
     install_requires=['plyer', 'Pillow', 'pytest', 'Cython'],
-    # ext_modules=cythonize()
+    ext_modules=cythonize(
+        'pyos/engine/ext/*.pyx',
+        compiler_directives={'language_level': 3}
+    ),
 )

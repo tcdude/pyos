@@ -6,9 +6,12 @@ import math
 
 import pytest
 
-from engine import tools
-from engine.tools import aabb
-from engine.tools import quadtree
+# from engine import tools
+# from engine.tools import aabb
+# from engine.tools import quadtree
+from pyos.engine.ext import vector
+from pyos.engine.ext import aabb
+from pyos.engine.ext import quadtree
 
 __author__ = 'Tiziano Bettio'
 __license__ = 'MIT'
@@ -35,24 +38,24 @@ SOFTWARE."""
 
 
 def test_vector_math():
-    v_a = tools.Vector()
-    v_b = tools.Vector(1.0, 1.0)
-    assert v_a - v_b == tools.Vector(-1, -1)
-    assert v_a + v_b * 2 == tools.Vector(2, 2)
-    assert v_a + v_b / 2 == tools.Vector(0.5, 0.5)
-    assert v_b // 3 == tools.Vector()
-    assert 3 * v_b == tools.Vector(3, 3)
-    assert 1 + v_a == tools.Vector(1, 1)
-    assert 1 - v_b == tools.Vector()
+    v_a = vector.Vector()
+    v_b = vector.Vector(1.0, 1.0)
+    assert v_a - v_b == vector.Vector(-1, -1)
+    assert v_a + v_b * 2 == vector.Vector(2, 2)
+    assert v_a + v_b / 2 == vector.Vector(0.5, 0.5)
+    assert v_b // 3 == vector.Vector()
+    assert 3 * v_b == vector.Vector(3, 3)
+    assert 1 + v_a == vector.Vector(1, 1)
+    assert 1 - v_b == vector.Vector()
     assert v_b.length == math.sqrt(2)
     assert pytest.approx(v_b.normalized().length) == 1
-    assert v_b.rotate(90).almost_equal(tools.Vector(1, -1))
-    assert v_b.rotate(-90).almost_equal(tools.Vector(-1, 1))
+    assert v_b.rotate(90).almost_equal(vector.Vector(1, -1))
+    assert v_b.rotate(-90).almost_equal(vector.Vector(-1, 1))
     with pytest.raises(ValueError) as e_info:
         v_a.normalize()
     assert 'zero length' in e_info.value.args[0]
     assert v_b.dot(v_b) == 2
-    assert isinstance(v_a.aspoint(), tools.Point) is True
+    assert isinstance(v_a.aspoint(), vector.Point) is True
 
 
 def test_aabb():
@@ -60,8 +63,8 @@ def test_aabb():
     b_b = aabb.AABB((0.1, 0.1, 0.9, 0.9))
     b_c = aabb.AABB((0.1, 0.1, 1.0, 1.0))
     b_d = aabb.AABB((-0.5, -0.5, 0.5, 0.5))
-    p_a = tools.Point(1.0, 1.0)
-    p_b = tools.Point(1 - 1e-7, 1 - 1e-7)
+    p_a = vector.Point(1.0, 1.0)
+    p_b = vector.Point(1 - 1e-7, 1 - 1e-7)
     assert (b_a < b_b) is True
     assert (b_a < b_c) is False
     assert (b_a <= b_c) is True
@@ -79,7 +82,7 @@ def test_quadtree():
     pos_b = aabb.AABB((0.1, 0.1, 1.9, 1.9))
     pos_c = aabb.AABB((-1.1, -1.1, 0.0, 0.0))
     pos_d = aabb.AABB((-0.5, -0.5, 0.5, 0.5))
-    pos_e = tools.Point(0.45, 0.45)
+    pos_e = vector.Point(0.45, 0.45)
     obj_a = (0, 0)
     obj_b = (1, 1)
     obj_c = (2, 2)
@@ -91,13 +94,13 @@ def test_quadtree():
     assert qt.add(obj_d, pos_d) is True
     assert qt.add(obj_e, pos_e) is True
     assert qt.item_count == 3
-    result = qt[pos_d]
+    result = qt.get_items(pos_d)
     assert len(result) == 2
     assert obj_e in result
-    result = qt[aabb.AABB((-1.0, -1.0, 0.0, 0.0))]
+    result = qt.get_items(aabb.AABB((-1.0, -1.0, 0.0, 0.0)))
     assert len(result) == 1
     assert obj_d in result
-    result = qt[aabb.AABB((-1.0, -1.0, 0.0, 0.0)), True]
+    result = qt.get_items(aabb.AABB((-1.0, -1.0, 0.0, 0.0)), True)
     assert len(result) == 2
     assert obj_a in result
 
@@ -122,12 +125,12 @@ def test_quadtree_from_pairs():
         ),
     ]
     qt = quadtree.quadtree_from_pairs(pairs, 16)
-    assert qt.add((4, 4), tools.Point(0.45, 0.45)) is True
+    assert qt.add((4, 4), vector.Point(0.45, 0.45)) is True
     assert qt.aabb.box == (-1.1, -1.1, 1.9, 1.9)
     assert qt.item_count == 5
-    result = qt[aabb.AABB((-1.0, -1.0, 0.0, 0.0))]
+    result = qt.get_items(aabb.AABB((-1.0, -1.0, 0.0, 0.0)))
     assert len(result) == 1
     assert (3, 3) in result
-    result = qt[aabb.AABB((-1.0, -1.0, 0.0, 0.0)), True]
+    result = qt.get_items(aabb.AABB((-1.0, -1.0, 0.0, 0.0)), True)
     assert len(result) == 3
     assert (0, 0) in result
