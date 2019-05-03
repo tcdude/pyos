@@ -21,6 +21,7 @@ SOFTWARE.
 """
 
 from distutils.core import setup
+from distutils.core import Extension
 from setuptools import find_packages
 
 __author__ = 'Tiziano Bettio'
