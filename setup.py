@@ -21,9 +21,7 @@ SOFTWARE.
 """
 
 from distutils.core import setup
-from distutils.core import Extension
 from setuptools import find_packages
-from Cython.Build import cythonize
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
@@ -59,9 +57,11 @@ setup(
         'assets/images/*.png',
         'assets/fonts/*.ttf'
     ]},
-    install_requires=['plyer', 'Pillow', 'pytest', 'Cython'],
-    ext_modules=cythonize(
-        'pyos/engine/ext/*.pyx',
-        compiler_directives={'language_level': 3}
-    ),
+    install_requires=[
+        'plyer',
+        'Pillow',
+        'pytest',
+        'Cython',
+        'git+https://github.com/tcdude/foolysh.git'
+    ],
 )

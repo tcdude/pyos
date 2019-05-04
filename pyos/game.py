@@ -49,8 +49,8 @@ from common import text_box
 from common import TOP_BAR
 from component import CardEntity
 from component import PlaceHolderEntity
-from engine.app import App
-from engine.tools.vector import Vector
+from foolysh.app import App
+from foolysh.tools.vector import Vector
 from table import Table
 
 __author__ = 'Tiziano Bettio'
