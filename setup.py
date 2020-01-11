@@ -54,7 +54,8 @@ setup(
     package_data={'pyos': [
         '*.py',
         'assets/images/*.png',
-        'assets/fonts/*.ttf'
+        'assets/fonts/*.ttf',
+        '.foolysh/foolysh.ini'
     ]},
     install_requires=[
         'Pillow',
