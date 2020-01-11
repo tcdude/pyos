@@ -53,8 +53,6 @@ setup(
     options=options,
     package_data={'pyos': [
         '*.py',
-        'ui/*.py',
-        'engine/*.py',
         'assets/images/*.png',
         'assets/fonts/*.ttf'
     ]},
