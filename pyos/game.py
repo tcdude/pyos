@@ -50,7 +50,7 @@ from common import TOP_BAR
 from component import CardEntity
 from component import PlaceHolderEntity
 from foolysh.app import App
-from foolysh.tools.vector import Vector
+from foolysh.tools.vector2 import Vector2
 from table import Table
 
 __author__ = 'Tiziano Bettio'
@@ -104,8 +104,8 @@ class Game(App):
         self.__drag_origin__ = None
         self.__orig_depth__ = 0
         self.__last_click__ = 0.0
-        self.__m_d_pos__ = Vector()
-        self.__last_mouse__ = Vector()
+        self.__m_d_pos__ = Vector2()
+        self.__last_mouse__ = Vector2()
         self.__down__ = False
         self.__last_undo__ = False
         self.__last_auto__ = 0
@@ -240,7 +240,7 @@ class Game(App):
         if self.isandroid:
             self.__update_mouse__()
         if event.type == sdl2.SDL_TouchFingerEvent:
-            self.__m_d_pos__ = Vector(
+            self.__m_d_pos__ = Vector2(
                 int(event.x * (self.screen_size[0] - 1)),
                 int(event.y * (self.screen_size[1] - 1))
             )
@@ -945,7 +945,7 @@ class Game(App):
                 self.__cards__[k].sprite.position = x_prev, self.__w_pos__[1]
                 self.anim_fly_to(
                     self.__cards__[k],
-                    Vector(x, self.__w_pos__[1]),
+                    Vector2(x, self.__w_pos__[1]),
                     6 - i,
                     self.__slow_speed__
                 )
@@ -964,7 +964,7 @@ class Game(App):
             x -= i * self.__cr_sep__
             self.anim_fly_to(
                 self.__cards__[k],
-                Vector(x, self.__w_pos__[1]),
+                Vector2(x, self.__w_pos__[1]),
                 6 - i,
                 self.__slow_speed__
             )
@@ -1093,9 +1093,9 @@ class Game(App):
             if search in t:
                 row = t.index(search)
                 if area == 't':
-                    dest = Vector(*self.get_tableau_pos(i, row))
+                    dest = Vector2(*self.get_tableau_pos(i, row))
                 else:
-                    dest = Vector(*self.__f_pos__[i])
+                    dest = Vector2(*self.__f_pos__[i])
                 target_depth = row + 2
                 break
         if dest is None:
@@ -1115,7 +1115,7 @@ class Game(App):
             speed = self.__standard_speed__
         if not card.card.visible:
             self.update_card(card, visible=True)
-        start = Vector(*card.sprite.position)
+        start = Vector2(*card.sprite.position)
         distance = (dest - start).length
         depth = card.sprite.depth + 40
         self.position_sequence(
@@ -1146,14 +1146,14 @@ class Game(App):
         my = int(self.__cardsize__[1] * delta_y)
         od = card.sprite.depth
         self.position_sequence(card, od, (
-            (d, Vector(x, y), Vector(x + mx, y + my)),
-            (d, Vector(x + mx, y + my), Vector(x, y)),
-            (d, Vector(x, y), Vector(x - mx, y - my)),
-            (d, Vector(x - mx, y - my), Vector(x, y)),
-            (d, Vector(x, y), Vector(x + mx, y + my)),
-            (d, Vector(x + mx, y + my), Vector(x, y)),
-            (d, Vector(x, y), Vector(x - mx, y - my)),
-            (d, Vector(x - mx, y - my), Vector(x, y)),
+            (d, Vector2(x, y), Vector2(x + mx, y + my)),
+            (d, Vector2(x + mx, y + my), Vector2(x, y)),
+            (d, Vector2(x, y), Vector2(x - mx, y - my)),
+            (d, Vector2(x - mx, y - my), Vector2(x, y)),
+            (d, Vector2(x, y), Vector2(x + mx, y + my)),
+            (d, Vector2(x + mx, y + my), Vector2(x, y)),
+            (d, Vector2(x, y), Vector2(x - mx, y - my)),
+            (d, Vector2(x - mx, y - my), Vector2(x, y)),
         ))
 
     def update_card(
