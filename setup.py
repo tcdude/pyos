@@ -57,10 +57,8 @@ setup(
         'assets/fonts/*.ttf'
     ]},
     install_requires=[
-        'plyer',
         'Pillow',
-        'pytest',
-        'Cython',
+        'PySDL2',
         'git+https://github.com/tcdude/foolysh.git'
     ],
 )
