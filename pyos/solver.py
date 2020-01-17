@@ -63,14 +63,14 @@ class ReverseSolve(object):
         self.max_f2w = self.r.randint(4, 16)
         self.f2w_count = 0
         self.step = 0
-        self.__rw__ = 0
-        self.__ws__ = 0
-        self.__fw__ = 0
-        self.__ft__ = 0
-        self.__tf__ = 0
-        self.__tw__ = 0
-        self.__tt__ = 0
-        self.__tts__ = 0
+        self.__rw = 0
+        self.__ws = 0
+        self.__fw = 0
+        self.__ft = 0
+        self.__tf = 0
+        self.__tw = 0
+        self.__tt = 0
+        self.__tts = 0
 
     @property
     def distance(self):
@@ -296,34 +296,34 @@ class ReverseSolve(object):
         # self.print_stats()
 
     def print_stats(self):
-        print(f'{self.__rw__}x reset waste, {self.__ws__}x waste to stack, '
-              f'{self.__fw__}x foundation to waste, {self.__ft__}x foundation '
-              f'to tableau, {self.__tw__}x tableau to waste, {self.__tf__}x '
-              f'tableau to foundation, {self.__tts__}x tableau to tableau '
-              f'stack, {self.__tt__}x tableau to tableau single card.')
+        print(f'{self.__rw}x reset waste, {self.__ws}x waste to stack, '
+              f'{self.__fw}x foundation to waste, {self.__ft}x foundation '
+              f'to tableau, {self.__tw}x tableau to waste, {self.__tf}x '
+              f'tableau to foundation, {self.__tts}x tableau to tableau '
+              f'stack, {self.__tt}x tableau to tableau single card.')
 
     def try_move(self, move):
         s, e, card, cost = move
         if not self.waste.full:
             if self.waste.to_stack():
-                self.__ws__ += 1
+                self.__ws += 1
             if not self.waste.waste:
                 res = self.waste.reset_waste()
                 if res:
-                    self.__rw__ += 1
+                    self.__rw += 1
         if s.startswith('s'):
             res = self.waste.to_stack()
             while res:
-                self.__ws__ += 1
+                self.__ws += 1
                 res = self.waste.to_stack()
             res = self.waste.reset_waste()
             if res:
-                self.__rw__ += 1
+                self.__rw += 1
             return res
         elif s.startswith('w'):
             res = self.waste.to_stack()
             if res:
-                self.__ws__ += 1
+                self.__ws += 1
             return res
         elif s.startswith('f'):
             if e.startswith('w'):
@@ -335,7 +335,7 @@ class ReverseSolve(object):
                     raise ValueError(f'Could not move {str(card)} from '
                                      f'foundation to waste')
                 self.f2w_count += 1
-                self.__fw__ += 1
+                self.__fw += 1
                 return True
             if e.startswith('t'):
                 col = int(e[1])
@@ -356,7 +356,7 @@ class ReverseSolve(object):
                 if not (ar and rr):
                     raise ValueError(f'Could not move {str(card)} from '
                                      f'foundation to tableau rr={rr}, ar={ar}')
-                self.__ft__ += 1
+                self.__ft += 1
                 return True
         elif s.startswith('t'):
             col = int(s[1])
@@ -366,7 +366,7 @@ class ReverseSolve(object):
                 if not (ar and rr):
                     raise ValueError(f'Could not move {str(card)} from '
                                      f'tableau to waste')
-                self.__tw__ += 1
+                self.__tw += 1
                 return True
             if e.startswith('f'):
                 if len(self.tableau[col]) > 1:
@@ -384,7 +384,7 @@ class ReverseSolve(object):
                 if not (ar and rr):
                     raise ValueError(f'Could not move {str(card)} from '
                                      f'tableau to waste')
-                self.__tf__ += 1
+                self.__tf += 1
                 return True
             if e.startswith('t'):
                 row = int(s.split(':')[1])
@@ -403,9 +403,9 @@ class ReverseSolve(object):
                 res = self.tableau.move_stack(col, row, e_col)
                 if res:
                     if pl > 1:
-                        self.__tts__ += 1
+                        self.__tts += 1
                     else:
-                        self.__tt__ += 1
+                        self.__tt += 1
                 return res
         raise ValueError(f'Unable to execute move {move}')
 
@@ -454,7 +454,7 @@ class Tableau(object):
             return 3
         return 0
 
-    def __update_distance__(self, col):
+    def __update_distance(self, col):
         # type: (int) -> None
         t = 2 * col + 1
         p = self.piles[col]
@@ -480,7 +480,7 @@ class Tableau(object):
 
         if move_type > 0:
             pile.append(card)
-            self.__update_distance__(col)
+            self.__update_distance(col)
         return move_type
 
     def move_stack(self, from_col, start_row, to_col):
@@ -507,8 +507,8 @@ class Tableau(object):
             # if not pile[-1].blocked:
             if from_col > 0:
                 pile[-1].face_up = False
-        self.__update_distance__(from_col)
-        self.__update_distance__(to_col)
+        self.__update_distance(from_col)
+        self.__update_distance(to_col)
         return True
 
     def remove_card(self, col):
@@ -520,7 +520,7 @@ class Tableau(object):
             # if pl == 1 or (1 < pl < col + 1 and not pile[-2].face_up):
             #     if not pile[-1].blocked:
             #         pile[-1].face_up = False
-            self.__update_distance__(col)
+            self.__update_distance(col)
             return True
         return False
 

@@ -49,7 +49,7 @@ class Card(object):
 class CardEntity(Entity):
     def __init__(
             self, world, sprite, value, suit, visible=False, x=0, y=0, d=0):
-        self.__world__ = world
+        self.__world = world
         self.sprite = sprite
         self.sprite.position = x, y
         self.sprite.depth = d
@@ -58,7 +58,7 @@ class CardEntity(Entity):
 
 class PlaceHolderEntity(Entity):
     def __init__(self, world, sprite, x=0, y=0, d=0):
-        self.__world__ = world
+        self.__world = world
         self.sprite = sprite
         self.sprite.position = x, y
         self.sprite.depth = d
