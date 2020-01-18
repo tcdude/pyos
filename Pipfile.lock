@@ -1,12 +1,10 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "3807a7fa52c236329577f8379d192a8326b3a7ac092e00b521e68d8ee16696a0"
+            "sha256": "94cb1fc128d27b20f02ae9f5d8bb8efe9aa81fc88a88695b64b5a2048c3aaa4d"
         },
         "pipfile-spec": 6,
-        "requires": {
-            "python_version": "3.8"
-        },
+        "requires": {},
         "sources": [
             {
                 "name": "pypi",
@@ -18,7 +16,7 @@
     "default": {
         "foolysh": {
             "git": "https://github.com/tcdude/foolysh.git",
-            "ref": "b189f9307c51d8c631035df9fa7326be3032b65f"
+            "ref": "9a2da4515f18368510552de8257a8813cc2e0db6"
         },
         "pillow": {
             "hashes": [
@@ -50,7 +48,8 @@
         },
         "pysdl2": {
             "hashes": [
-                "sha256:b52acab5493a77b08c2afee1f385769fc2005f17cfeaf1886eff22dc78da2123"
+                "sha256:b52acab5493a77b08c2afee1f385769fc2005f17cfeaf1886eff22dc78da2123",
+                "sha256:d8972ba33b7e20582744e8c52683115bdfe8d20672fe9059679777b707b06b61"
             ],
             "index": "pypi",
             "version": "==0.9.6"
