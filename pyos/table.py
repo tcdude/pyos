@@ -128,7 +128,7 @@ class Table(object):
         if not self.win_condition:
             raise ValueError('only available when win_condition is True')
         if self.__result is None:
-            t = self.__last_move - self.start_time
+            t = self.__last_move - self.__start_time
             b = bonus(t)
             self.__result = t, self.points, b, self.moves
         return self.__result
