@@ -16,7 +16,7 @@
     "default": {
         "foolysh": {
             "git": "https://github.com/tcdude/foolysh.git",
-            "ref": "ed7863707bb309f3a7912ca608385d290d07bf91"
+            "ref": "89a88093cccb12bf1bb0d97bb44c81beb5955c0c"
         },
         "pillow": {
             "hashes": [
