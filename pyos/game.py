@@ -247,8 +247,6 @@ class Game(App):
         if self.__table.win_condition:
             self.__refresh_next_frame = 2
             self.__table.pause()
-            self.log.debug(self.__table_layout.get_card((3, 9)).pos)
-            self.log.debug(self.__table_layout._cards[(3, 9)])
         elif auto_solve and self.__table.solved:
             self._auto_solve()
 
@@ -445,7 +443,7 @@ class Game(App):
 
     def _mouse_up(self, event):
         """
-        Global mouse up event. TODO: Handle all different types of clicks here
+        Global mouse up event.
         """
         # pylint: disable=unused-argument
         if self.__valid_drop:  # Event is handled by dragdrop.
