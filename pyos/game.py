@@ -497,16 +497,15 @@ class Game(App):
         elif table_click[0] == common.TableArea.FOUNDATION:
             self.__table.foundation_to_tableau(table_click[1][0])
         else:  # TABLEAU
-            from_pile = table_click[1][0]
-            num_cards = len(self.__table.table.tableau[from_pile])
-            num_cards -= table_click[1][1]
-            if self.__table.flip(from_pile):
+            from_pile = self.__table.table.tableau[table_click[1][0]]
+            num_cards = len(from_pile) - table_click[1][1]
+            if num_cards == 1 and self.__table.flip(table_click[1][0]):
                 return
-            elif num_cards == 1 and self.__table.tableau_to_foundation(
-                    from_pile):
+            if num_cards == 1 and self.__table.tableau_to_foundation(
+                    table_click[1][0]):
                 return
-            elif self.__table.tableau_to_tableau(
-                    from_pile=from_pile, num_cards=num_cards):
+            if self.__table.tableau_to_tableau(
+                    from_pile=table_click[1][0], num_cards=num_cards):
                 return
 
     # Game State
