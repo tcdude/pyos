@@ -788,6 +788,21 @@ class Table:
             w_card = self._foundation.top_card(move.to_pile_id)
             self._waste.append(w_card)
             self._foundation.remove(move.to_pile_id)
+        elif move.to_area == common.TableArea.STACK:
+            self._waste = list(reversed(self._stack))
+            self._stack = []
+            w_len = len(self._waste)
+            for i, w_card in enumerate(self._waste):
+                pile_id = min(3, w_len - i - 1)
+                self._callback(
+                    w_card,
+                    common.TableLocation(
+                        area=common.TableArea.WASTE,
+                        visible=False,
+                        pile_id=pile_id,
+                        card_id=i
+                    )
+                )
         else:
             return False
         self._reset_waste()
