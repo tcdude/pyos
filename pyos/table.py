@@ -435,7 +435,8 @@ class Table:
                 common.TableLocation(
                     area=common.TableArea.TABLEAU,
                     visible=True,
-                    pile_id=pile
+                    pile_id=pile,
+                    card_id=len(self._tableau.piles[pile]) - 1
                 )
             )
         return res
@@ -470,15 +471,7 @@ class Table:
         )
         self._waste.pop()
         self._state.points += 5
-        self._callback(
-            self._tableau.top_card(dest_pile),
-            common.TableLocation(
-                area=common.TableArea.TABLEAU,
-                visible=True,
-                pile_id=dest_pile,
-                card_id=len(self._tableau.piles[dest_pile]) - 1
-            )
-        )
+        self._update_tableau_pile(dest_pile)
         self._reset_waste()
         return True
 
@@ -569,6 +562,7 @@ class Table:
                         card_id=len(self._foundation.piles[dest_pile]) - 1
                     )
                 )
+                self._update_tableau_pile(from_pile)
                 return True
         self.log.debug('no valid move found')
         return False
@@ -605,17 +599,8 @@ class Table:
                         to_pile_id=dest_pile
                     )
                 )
-                p_len = len(self._tableau.piles[dest_pile])
-                for i in range(p_len - num_cards, p_len):
-                    self._callback(
-                        self._tableau.piles[dest_pile][i],
-                        common.TableLocation(
-                            area=common.TableArea.TABLEAU,
-                            visible=True,
-                            pile_id=dest_pile,
-                            card_id=i
-                        )
-                    )
+                self._update_tableau_pile(dest_pile)
+                self._update_tableau_pile(pile)
                 return True
         return False
 
@@ -651,15 +636,7 @@ class Table:
             self._foundation.remove(foundation_pile)
             self.log.debug('valid move found')
             self._state.points = max(0, self._state.points - 15)
-            self._callback(
-                self._tableau.top_card(dest_pile),
-                common.TableLocation(
-                    area=common.TableArea.TABLEAU,
-                    visible=True,
-                    pile_id=dest_pile,
-                    card_id=len(self._tableau.piles[dest_pile]) - 1
-                )
-            )
+            self._update_tableau_pile(dest_pile)
             return True
         self.log.debug('no valid move found')
         return False
@@ -784,6 +761,7 @@ class Table:
             w_card = self._tableau.top_card(move.to_pile_id)
             self._waste.append(w_card)
             self._tableau.remove(move.to_pile_id)
+            self._update_tableau_pile(move.to_pile_id)
         elif move.to_area == common.TableArea.FOUNDATION:
             w_card = self._foundation.top_card(move.to_pile_id)
             self._waste.append(w_card)
@@ -825,17 +803,8 @@ class Table:
                 move.pile_count,
                 move.from_pile_id
             )
-            p_len = len(self._tableau.piles[move.from_pile_id])
-            for i in range(p_len - move.pile_count, p_len):
-                self._callback(
-                    self._tableau.piles[move.from_pile_id][i],
-                    common.TableLocation(
-                        area=common.TableArea.TABLEAU,
-                        visible=True,
-                        pile_id=move.from_pile_id,
-                        card_id=i
-                    )
-                )
+            self._update_tableau_pile(move.to_pile_id)
+            self._update_tableau_pile(move.from_pile_id)
         elif move.to_area == common.TableArea.TABLEAU and \
                 move.from_pile_id == move.to_pile_id:
             self._tableau.top_card(move.from_pile_id).visible = False
@@ -852,15 +821,7 @@ class Table:
             t_card = self._foundation.top_card(move.to_pile_id)
             self._tableau.add_card_force(t_card, move.from_pile_id)
             self._foundation.remove(move.to_pile_id)
-            self._callback(
-                self._tableau.top_card(move.from_pile_id),
-                common.TableLocation(
-                    area=common.TableArea.TABLEAU,
-                    visible=True,
-                    pile_id=move.from_pile_id,
-                    card_id=len(self._tableau.piles[move.from_pile_id]) - 1
-                )
-            )
+            self._update_tableau_pile(move.from_pile_id)
         else:
             return False
         return True
@@ -887,6 +848,7 @@ class Table:
                 card_id=len(self._foundation.piles[move.from_pile_id]) - 1
             )
         )
+        self._update_tableau_pile(move.to_pile_id)
         return True
 
     def _reset_waste(self) -> None:
@@ -901,5 +863,18 @@ class Table:
                     visible=True,
                     pile_id=min(i, 3),
                     card_id=card_id
+                )
+            )
+
+    def _update_tableau_pile(self, pile_id: int) -> None:
+        """Make sure all cards in a tableau pile get updated."""
+        for i, t_card in enumerate(self._tableau.piles[pile_id]):
+            self._callback(
+                t_card,
+                common.TableLocation(
+                    area=common.TableArea.TABLEAU,
+                    visible=t_card.visible,
+                    pile_id=pile_id,
+                    card_id=i
                 )
             )
