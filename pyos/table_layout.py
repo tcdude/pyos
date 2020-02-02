@@ -88,6 +88,7 @@ class RelativePositions:
 @dataclass
 class CardNode:
     """Typed representation of a card."""
+    k: Tuple[int, int]
     node: node.ImageNode
     location: common.TableLocation
 
@@ -114,7 +115,7 @@ class DepthQueue:
 
     def __init__(self):
         self._time: float = 0.0
-        self._queue: Optional[List[DepthQueueItem]] = []
+        self._queue: Optional[Dict[Tuple[int, int], DepthQueueItem]] = {}
 
     @property
     def time(self) -> float:
@@ -131,9 +132,10 @@ class DepthQueue:
         """
         pop_list = []
         res = []
-        for i, item in enumerate(self._queue):
+        for k in self._queue:
+            item = self._queue[k]
             if item.expiration <= self._time:
-                pop_list.insert(0, i)
+                pop_list.append(k)
                 res.append(item)
         if pop_list:
             for i in pop_list:
@@ -143,7 +145,7 @@ class DepthQueue:
 
     def append(self, item: DepthQueueItem) -> None:
         """Insert a new item to the queue."""
-        self._queue.append(item)
+        self._queue[item.card.k] = item
 
 
 class TableLayout:
@@ -226,9 +228,10 @@ class TableLayout:
 
         # Cards
         card_dummy = self._nodes.root.attach_node('Card Layer')
-        card_dummy.depth = 10
+        card_dummy.depth = 99
         self._cards: Dict[Tuple[int, int], CardNode] = {
             (suit, value): CardNode(
+                k=(suit, value),
                 node=card_dummy.attach_image_node(
                     f'{suit},{value}',
                     f'images/{common.COLORS[suit]}'
@@ -319,7 +322,7 @@ class TableLayout:
         queue = self._depth_queue.pop_items()
         if queue is not None:
             for item in queue:
-                item.card.node.depth = item.card.location.card_id  # item.depth
+                item.card.node.depth = item.depth
         self._drag_task()
 
     def _drag_task(self) -> None:
@@ -355,7 +358,14 @@ class TableLayout:
         """
         Called when a drop occurs.
         """
-        self._drag_info.active = False
+        d_i = self._drag_info
+        if d_i.active:
+            d_i.active = False
+            card_nodes = [d_i.drag_card]
+            if d_i.child_cards:
+                card_nodes += d_i.child_cards
+            for card_node in card_nodes:
+                card_node.node.depth = card_node.location.card_id
 
     def click_area(
             self,
@@ -599,6 +609,15 @@ class TableLayout:
             queue = self._callback_foundation(c_loc, loc, card_node)
         elif loc.area == common.TableArea.TABLEAU:
             queue = self._callback_tableau(c_loc, loc, card_node)
+        elif card_node.node.depth != loc.card_id:
+            queue = True
+
+        if loc.visible:  # To force foolysh to render the next frame!
+            card_node.node.index = 1
+            card_node.node.index = 0
+        else:
+            card_node.node.index = 0
+            card_node.node.index = 1
 
         card_node.location = loc
         if queue:
@@ -617,12 +636,13 @@ class TableLayout:
             card_node: CardNode
         ) -> bool:
         """Place card on Stack."""
+        t_pos = self._relative_positions.stack
         if c_loc.area != loc.area or c_loc.pile_id != loc.pile_id or \
-                c_loc.card_id != loc.card_id:
+                c_loc.card_id != loc.card_id or card_node.node.pos != t_pos:
             PosInterval(
                 card_node.node,
                 0.2,
-                self._relative_positions.stack,
+                t_pos,
                 blend=BlendType.EASE_OUT
             ).play()
             card_node.node.index = 1
@@ -637,12 +657,13 @@ class TableLayout:
             card_node: CardNode
         ) -> bool:
         """Place card on Waste."""
+        t_pos = self._relative_positions.waste[loc.pile_id]
         if c_loc.area != loc.area or c_loc.pile_id != loc.pile_id or \
-                c_loc.card_id != loc.card_id:
+              c_loc.card_id != loc.card_id or card_node.node.pos != t_pos:
             PosInterval(
                 card_node.node,
                 0.2,
-                self._relative_positions.waste[loc.pile_id],
+                t_pos,
                 blend=BlendType.EASE_OUT
             ).play()
             card_node.node.index = 0
@@ -657,12 +678,13 @@ class TableLayout:
             card_node: CardNode
         ) -> bool:
         """Place card on Foundation."""
+        t_pos = self._relative_positions.foundation[loc.pile_id]
         if c_loc.area != loc.area or c_loc.pile_id != loc.pile_id or \
-              c_loc.card_id != loc.card_id:
+              c_loc.card_id != loc.card_id or card_node.node.pos != t_pos:
             PosInterval(
                 card_node.node,
                 0.2,
-                self._relative_positions.foundation[loc.pile_id],
+                t_pos,
                 blend=BlendType.EASE_OUT
             ).play()
             card_node.node.index = 0
@@ -677,7 +699,8 @@ class TableLayout:
             card_node: CardNode,
         ) -> bool:
         """Place card on Tableau."""
-        if c_loc.visible is False and loc.visible is True:
+        if c_loc.visible is False and loc.visible is True and \
+              c_loc.pile_id == loc.pile_id and c_loc.card_id == loc.card_id:
             card_node.node.rotation_center = (
                 card_node.node.size[0] / 2,
                 card_node.node.size[1] / 2
@@ -689,19 +712,21 @@ class TableLayout:
                 blend=BlendType.EASE_IN_OUT
             ).play()
             card_node.node.index = 0
-        else:
-            pile_size = len(self._table.table.tableau[loc.pile_id])
-            offset = vector2.Vector2(
-                0,
-                self.v_offset(pile_size) * loc.card_id
-            )
+            return True
+
+        pile_size = len(self._table.table.tableau[loc.pile_id])
+        offset = vector2.Vector2(0, self.v_offset(pile_size) * loc.card_id)
+        t_pos = self._relative_positions.tableau[loc.pile_id] + offset
+        if c_loc.area != loc.area or c_loc.pile_id != loc.pile_id or \
+              c_loc.card_id != loc.card_id or card_node.node.pos != t_pos:
             PosInterval(
                 card_node.node,
                 0.2,
-                self._relative_positions.tableau[loc.pile_id] + offset,
+                t_pos,
                 blend=BlendType.EASE_OUT
             ).play()
             card_node.node.index = 0 if loc.visible else 1
             card_node.node.depth = 200 + loc.card_id
             return True
+        card_node.node.index = 0 if loc.visible else 1
         return False
