@@ -370,6 +370,7 @@ class Game(App):
                 self._drop_tableau(k)
         elif self.__drag_info.start_area == common.TableArea.FOUNDATION:
             self._drop_tableau(k)
+        self.__refresh_next_frame = 1
         self.__valid_drop = True
 
     # Drop helper methods
@@ -449,6 +450,7 @@ class Game(App):
         if self.__valid_drop:  # Event is handled by dragdrop.
             self.__valid_drop = False
             return
+        self.__table_layout.on_drop()
         self.__last_undo = False
         # Check click threshold
         up_down_length = (self.__mouse_down_pos - self.mouse_pos).length
@@ -525,6 +527,7 @@ class Game(App):
         if os.path.isfile(path):
             with open(path, 'rb') as f_handler:
                 self.__table.set_state(f_handler.read())
+            self.__refresh_next_frame = 2
 
     def _show_score(self):
         """Show the result screen."""
