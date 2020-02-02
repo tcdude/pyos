@@ -96,7 +96,7 @@ class Card:
         Args:
             other: :class:`Card` -> the card to be checked against.
         """
-        if not self._visible:
+        if not self._visible or not other.visible:
             return False
         if self._suit % 2 != other.suit % 2 and other.value == self._value - 1:
             return True
