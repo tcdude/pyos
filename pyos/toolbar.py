@@ -6,7 +6,7 @@ from typing import Tuple
 from typing import Type
 
 from foolysh.scene import node
-from foolysh.tools import vector2
+from foolysh.tools import vec2
 
 import common
 
@@ -102,7 +102,7 @@ class ToolBar:
         """Tuple of the "undo" icon and text nodes."""
         return self._undo_icon, self._undo_text
 
-    def click_area(self, mouse_pos: vector2.Vector2) -> str:
+    def click_area(self, mouse_pos: vec2.Vec2) -> str:
         """
         Returns the clicked area ('new', 'reset', 'undo') or an empty string.
         """

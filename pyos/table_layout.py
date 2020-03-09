@@ -15,7 +15,7 @@ from foolysh.animation import PosInterval
 from foolysh.animation import RotationInterval
 from foolysh.scene import node
 from foolysh.tools import aabb
-from foolysh.tools import vector2
+from foolysh.tools import vec2
 
 import card
 import common
@@ -79,10 +79,10 @@ class ChildNodes:
 @dataclass
 class RelativePositions:
     """Relative positions of anchor nodes."""
-    stack: vector2.Vector2
-    waste: List[vector2.Vector2]
-    foundation: List[vector2.Vector2]
-    tableau: List[vector2.Vector2]
+    stack: vec2.Vec2
+    waste: List[vec2.Vec2]
+    foundation: List[vec2.Vec2]
+    tableau: List[vec2.Vec2]
 
 
 @dataclass
@@ -250,10 +250,10 @@ class TableLayout:
         self._drag_info: DragInfo = DragInfo()
         self._depth_queue = DepthQueue()
         self._relative_positions = RelativePositions(
-            stack=vector2.Vector2(),
-            waste=[vector2.Vector2() for _ in range(4)],
-            foundation=[vector2.Vector2() for _ in range(4)],
-            tableau=[vector2.Vector2() for _ in range(7)]
+            stack=vec2.Vec2(),
+            waste=[vec2.Vec2() for _ in range(4)],
+            foundation=[vec2.Vec2() for _ in range(4)],
+            tableau=[vec2.Vec2() for _ in range(7)]
         )
         self._table: Optional[Table] = None
 
@@ -330,7 +330,7 @@ class TableLayout:
         if not self._drag_info.active or not self._drag_info.child_cards:
             return
         drag_pos = self._drag_info.drag_card.node.pos
-        offset = vector2.Vector2(0, self._drag_info.v_offset)
+        offset = vec2.Vec2(0, self._drag_info.v_offset)
         for i, card_node in enumerate(self._drag_info.child_cards):
             card_node.node.pos = drag_pos + ((i + 1) * offset)
 
@@ -369,14 +369,14 @@ class TableLayout:
 
     def click_area(
             self,
-            mouse_pos: vector2.Vector2()
+            mouse_pos: vec2.Vec2()
         ) -> Optional[Tuple[common.TableArea, Tuple[int, int]]]:
         """
         Find the area and if applicable the index of the specified mouse
         position.
 
         Args:
-            mouse_pos: Vector2 -> the mouse pointer position.
+            mouse_pos: Vec2 -> the mouse pointer position.
             tableau_piles: List[int] -> the number of cards on each tableau
                 pile.
 
@@ -701,10 +701,6 @@ class TableLayout:
         """Place card on Tableau."""
         if c_loc.visible is False and loc.visible is True and \
               c_loc.pile_id == loc.pile_id and c_loc.card_id == loc.card_id:
-            card_node.node.rotation_center = (
-                card_node.node.size[0] / 2,
-                card_node.node.size[1] / 2
-            )
             RotationInterval(
                 card_node.node,
                 0.2,
@@ -715,7 +711,7 @@ class TableLayout:
             return True
 
         pile_size = len(self._table.table.tableau[loc.pile_id])
-        offset = vector2.Vector2(0, self.v_offset(pile_size) * loc.card_id)
+        offset = vec2.Vec2(0, self.v_offset(pile_size) * loc.card_id)
         t_pos = self._relative_positions.tableau[loc.pile_id] + offset
         if c_loc.area != loc.area or c_loc.pile_id != loc.pile_id or \
               c_loc.card_id != loc.card_id or card_node.node.pos != t_pos:

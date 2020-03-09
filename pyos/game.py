@@ -9,7 +9,7 @@ from typing import Union
 
 import sdl2
 from foolysh.app import App
-from foolysh.tools.vector2 import Vector2
+from foolysh.tools.vec2 import Vec2
 
 import common
 from hud import HUD
@@ -74,7 +74,7 @@ class Game(App):
         self.__refresh_next_frame = 0
         self.__last_auto = 0.0
         self.__last_undo = False
-        self.__mouse_down_pos = Vector2()
+        self.__mouse_down_pos = Vec2()
         self.__drag_info: DragInfo = DragInfo(-1, -1, common.TableArea.STACK)
 
         # Events / Tasks
@@ -100,7 +100,6 @@ class Game(App):
             'quit',
             sdl2.SDL_QUIT,
             self.quit,
-            0,
             blocking=False
         )
         self.event_handler.listen(
@@ -113,13 +112,13 @@ class Game(App):
                 'finger_down',
                 sdl2.SDL_FINGERDOWN,
                 self._mouse_down,
-                -5  # make sure it runs after drag_drop.
+                priority=-5  # make sure it runs after drag_drop.
             )
             self.event_handler.listen(
                 'finger_up',
                 sdl2.SDL_FINGERUP,
                 self._mouse_up,
-                -5
+                priority=-5
             )
             self.event_handler.listen(
                 'APP_TERMINATING',
@@ -148,13 +147,13 @@ class Game(App):
                 'mouse_down',
                 sdl2.SDL_MOUSEBUTTONDOWN,
                 self._mouse_down,
-                -5  # make sure it runs after drag_drop.
+                priority=-5  # make sure it runs after drag_drop.
             )
             self.event_handler.listen(
                 'mouse_up',
                 sdl2.SDL_MOUSEBUTTONUP,
                 self._mouse_up,
-                -5  # make sure it runs after drag_drop.
+                priority=-5  # make sure it runs after drag_drop.
             )
         self.task_manager.add_task('HUD_Update', self._update_hud, 0.05)
         self.task_manager.add_task('auto_save', self._auto_save_task, 5, False)

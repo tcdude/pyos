@@ -16,7 +16,7 @@
     "default": {
         "foolysh": {
             "git": "https://github.com/tcdude/foolysh.git",
-            "ref": "89a88093cccb12bf1bb0d97bb44c81beb5955c0c"
+            "ref": "747943cf76dc4a9728115ba3ccad5025f216cfae"
         },
         "pillow": {
             "hashes": [
@@ -48,10 +48,11 @@
         },
         "pysdl2": {
             "hashes": [
-                "sha256:b52acab5493a77b08c2afee1f385769fc2005f17cfeaf1886eff22dc78da2123"
+                "sha256:35646eabee980ccc49f675e3de0aed9bf001045f46ecb6699a3c9ec074870141",
+                "sha256:e4fcc8aa1108e4917cb56794575ee08c2a3d9c2c52620474e3ecc8538dadf209"
             ],
             "index": "pypi",
-            "version": "==0.9.6"
+            "version": "==0.9.7"
         }
     },
     "develop": {
