@@ -278,8 +278,8 @@ class Table:
             return
         new_start = time.perf_counter() - self._state.elapsed_time
         logger.info(f'Resuming game old time = {self._state.start_time}, '
-                      f'new start time = {new_start}, elapsed time = '
-                      f'{self._state.elapsed_time}')
+                    f'new start time = {new_start}, elapsed time = '
+                    f'{self._state.elapsed_time}')
         self._state.start_time = new_start
         self._state.paused = False
 
