@@ -92,6 +92,8 @@ class Game(app.AppBase):
         """Tasks to be performed when this state is activated."""
         logger.debug('Enter state game')
         self.__setup()
+        if self.need_new_game:
+            self.__new_deal()
 
     def exit_game(self):
         """Tasks to be performed when this state is left."""
@@ -241,6 +243,11 @@ class Game(app.AppBase):
             moves, elapsed_time, points = self.__systems.game_table.stats
             self.__systems.hud.update(points, int(elapsed_time + 0.5), moves)
         else:
+            self.__systems.layout.setup(self.__state.last_window_size,
+                                        self.config.getboolean('pyos',
+                                                               'left_handed'))
+            self.__systems.layout.process(self.clock.get_dt())
+            self.__systems.game_table.refresh_table()
             self.__state.refresh_next_frame = 2
             self.__systems.game_table.pause()
             self.__show_score()
@@ -493,10 +500,16 @@ class Game(app.AppBase):
 
     def __new_deal(self):
         """On New Deal click: Deal new game."""
-        if not self.__systems.windlg.hidden:
-            self.__systems.windlg.hide()
+        dlg = self.__systems.windlg
+        if dlg is not None and not dlg.hidden:
+            dlg.hide()
             self.__setup()
-        self.__systems.game_table.deal()
+        if self.config.getboolean('pyos', 'draw_one'):
+            self.__systems.game_table.draw_count = 1
+        else:
+            self.__systems.game_table.draw_count = 3
+        win_deal = self.config.getboolean('pyos', 'winner_deal')
+        self.__systems.game_table.deal(win_deal=win_deal)
         self.__state.refresh_next_frame = 2
 
     def __menu(self):

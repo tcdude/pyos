@@ -169,11 +169,13 @@ class SettingsMenu(app.AppBase):
             self.__buttons.draw_one.enabled = False
             self.__buttons.draw_three.enabled = True
             self.layout_refresh = True
+            self.need_new_game = True
         elif task == 'draw_three':
             self.config.set('pyos', 'draw_one', 'False')
             self.__buttons.draw_one.enabled = True
             self.__buttons.draw_three.enabled = False
             self.layout_refresh = True
+            self.need_new_game = True
         elif task == 'tap_move':
             self.__toggle(task, self.__buttons.tap_move)
         elif task == 'foundation':

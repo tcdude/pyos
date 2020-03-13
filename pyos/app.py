@@ -45,6 +45,7 @@ class AppBase(app.App):
         super().__init__(config_file=config_file)
         self.__setup_events_tasks()
         self.layout_refresh = False
+        self.need_new_game = False
 
     def __setup_events_tasks(self):
         """Setup Events and Tasks."""
