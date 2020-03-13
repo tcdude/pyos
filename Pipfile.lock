@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "c4fb0f06a374d0bfb4ec1f59e9112f2320a4c47b19f0d8ddded513d60638d936"
+            "sha256": "6259a5883f61e5703e4c32a86b9078a0aac38f4e397297e86fec3d67cd7a461d"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -16,7 +16,15 @@
     "default": {
         "foolysh": {
             "git": "https://github.com/tcdude/foolysh.git",
-            "ref": "747943cf76dc4a9728115ba3ccad5025f216cfae"
+            "ref": "879c0d964411306af1940ccf6eb853c025f72438"
+        },
+        "loguru": {
+            "hashes": [
+                "sha256:074b3caa6748452c1e4f2b302093c94b65d5a4c5a4d7743636b4121e06437b0e",
+                "sha256:a6101fd435ac89ba5205a105a26a6ede9e4ddbb4408a6e167852efca47806d11"
+            ],
+            "index": "pypi",
+            "version": "==0.4.1"
         },
         "pillow": {
             "hashes": [
@@ -110,6 +118,15 @@
             ],
             "index": "pypi",
             "version": "==2.4.4"
+        },
+        "rope": {
+            "hashes": [
+                "sha256:52423a7eebb5306a6d63bdc91a7c657db51ac9babfb8341c9a1440831ecf3203",
+                "sha256:ae1fa2fd56f64f4cc9be46493ce54bed0dd12dee03980c61a4393d89d84029ad",
+                "sha256:d2830142c2e046f5fc26a022fe680675b6f48f81c7fc1f03a950706e746e9dfe"
+            ],
+            "index": "pypi",
+            "version": "==0.16.0"
         },
         "six": {
             "hashes": [

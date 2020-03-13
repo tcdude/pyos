@@ -1,4 +1,14 @@
 """
+Entry point of the app.
+"""
+
+from loguru import logger
+
+import menu
+import game
+
+__author__ = 'Tiziano Bettio'
+__copyright__ = """
 Copyright (c) 2020 Tiziano Bettio
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -20,13 +30,25 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-__author__ = 'Tiziano Bettio'
-__copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
 __license__ = 'MIT'
 __version__ = '0.2'
 
 
+class PyOS(menu.MainMenu, menu.SettingsMenu, game.Game):
+    """
+    All states collected using multiple inheritance.
+    """
+
+
+def main():
+    """Launches the app."""
+    logger.info('pyos starting')
+    pyos = PyOS(config_file='.foolysh/foolysh.ini')
+    logger.debug('Request state main_menu')
+    pyos.request('main_menu')
+    logger.debug('Start main loop')
+    pyos.run()
+
+
 if __name__ == '__main__':
-    # Do eventual setup / tear down work here
-    from game import Game
-    Game().run()
+    main()

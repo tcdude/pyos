@@ -3,7 +3,6 @@ Provides the Table class that handles game state.
 """
 
 from dataclasses import dataclass
-import logging
 import pickle
 import time
 from typing import Callable
@@ -11,6 +10,8 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import Union
+
+from loguru import logger
 
 import card
 import common
@@ -149,11 +150,6 @@ class Table:
         return self._wrapped['f2t']
 
     @property
-    def log(self):
-        """The logger."""
-        return logging
-
-    @property
     def draw_count(self) -> int:
         """Draw count (1 or 3)."""
         return self._state.draw_count
@@ -262,7 +258,7 @@ class Table:
     def _start(self) -> None:
         """To be called when a game starts."""
         if self._state.fresh_deal:
-            self.log.info('First move of the game')
+            logger.info('First move of the game')
             self._state.start_time = time.perf_counter()
             self._state.moves = 0
             self._state.paused = False
@@ -272,7 +268,7 @@ class Table:
         """Pause the game."""
         if self._state.paused:
             return
-        self.log.info('Pausing game')
+        logger.info('Pausing game')
         self._state.elapsed_time = self.stats[1]
         self._state.paused = True
 
@@ -281,7 +277,7 @@ class Table:
         if not self._state.paused:
             return
         new_start = time.perf_counter() - self._state.elapsed_time
-        self.log.info(f'Resuming game old time = {self._state.start_time}, '
+        logger.info(f'Resuming game old time = {self._state.start_time}, '
                       f'new start time = {new_start}, elapsed time = '
                       f'{self._state.elapsed_time}')
         self._state.start_time = new_start
@@ -289,7 +285,7 @@ class Table:
 
     def reset(self) -> None:
         """Reset the game to its start position."""
-        self.log.info('Reset table')
+        logger.info('Reset table')
         self.deal(self._state.seed)
 
     def _increment_moves(self) -> None:
@@ -308,7 +304,7 @@ class Table:
         Returns:
             bytes -> output of pickle.dumps
         """
-        self.log.debug('Retrieving state')
+        logger.debug('Retrieving state')
         if pause:
             self.pause()
         return pickle.dumps(
@@ -329,7 +325,7 @@ class Table:
         Args:
             state: bytes -> an output from pickle.dumps
         """
-        self.log.info('State set')
+        logger.info('State set')
         (
             self._stack,
             self._waste,
@@ -404,7 +400,7 @@ class Table:
                     self._start()
                 elif self._state.paused:
                     self._resume()
-                self.log.info(f'{meth.__name__} returned valid move. Moves +1')
+                logger.info(f'{meth.__name__} returned valid move. Moves +1')
                 self._increment_moves()
             return res
         return wrapper
@@ -453,13 +449,13 @@ class Table:
         """
         w_card = self.waste_card
         if w_card is None:
-            self.log.debug('no waste card')
+            logger.debug('no waste card')
             return False
         dest_pile = self._tableau.add_card(w_card, pile)
         if dest_pile < 0:
-            self.log.debug('no valid move found')
+            logger.debug('no valid move found')
             return False
-        self.log.debug('valid move found')
+        logger.debug('valid move found')
         self._history.append(
             Move(
                 from_area=common.TableArea.WASTE,
@@ -487,13 +483,13 @@ class Table:
         """
         w_card = self.waste_card
         if w_card is None:
-            self.log.debug('no waste card')
+            logger.debug('no waste card')
             return False
         dest_pile = self._foundation.add_card(w_card, pile)
         if dest_pile < 0:
-            self.log.debug('no valid move found')
+            logger.debug('no valid move found')
             return False
-        self.log.debug('valid move found')
+        logger.debug('valid move found')
         self._history.append(
             Move(
                 from_area=common.TableArea.WASTE,
@@ -551,7 +547,7 @@ class Table:
                     )
                 )
                 self._tableau.remove(from_pile)
-                self.log.debug('valid move found')
+                logger.debug('valid move found')
                 self._state.points += 10
                 self._callback(
                     self._foundation.top_card(dest_pile),
@@ -564,7 +560,7 @@ class Table:
                 )
                 self._update_tableau_pile(from_pile)
                 return True
-        self.log.debug('no valid move found')
+        logger.debug('no valid move found')
         return False
 
     def __tableau_to_tableau(
@@ -634,11 +630,11 @@ class Table:
                 )
             )
             self._foundation.remove(foundation_pile)
-            self.log.debug('valid move found')
+            logger.debug('valid move found')
             self._state.points = max(0, self._state.points - 15)
             self._update_tableau_pile(dest_pile)
             return True
-        self.log.debug('no valid move found')
+        logger.debug('no valid move found')
         return False
 
     def __draw(self) -> Union[bool, int]:
@@ -650,7 +646,7 @@ class Table:
         """
         if not self._stack:
             if not self._waste:
-                self.log.debug('no more cards')
+                logger.debug('no more cards')
                 return False
             self._stack = list(reversed(self._waste))
             self._waste = []
@@ -666,7 +662,7 @@ class Table:
                 )
             self._state.points -= 100 if self._state.draw_count == 1 else 0
             self._state.points = max(self._state.points, 0)
-            self.log.info('reset stack')
+            logger.info('reset stack')
             self._history.append(
                 Move(
                     from_area=common.TableArea.WASTE,
@@ -691,7 +687,7 @@ class Table:
             )
         )
         self._reset_waste()
-        self.log.info('draw successful')
+        logger.info('draw successful')
         return 1
 
     def __undo(self) -> bool:
@@ -702,7 +698,7 @@ class Table:
             bool -> True if successful otherwise False.
         """
         if not self._history:
-            self.log.warning('history is empty')
+            logger.warning('history is empty')
             return False
         move = self._history.pop()
 

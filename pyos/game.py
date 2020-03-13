@@ -3,14 +3,14 @@ Ad free simple Solitaire implementation.
 """
 
 from dataclasses import dataclass
-import logging
 import os
-from typing import Union
+from typing import Tuple, Union
 
+from loguru import logger
 import sdl2
-from foolysh.app import App
 from foolysh.tools.vec2 import Vec2
 
+import app
 import common
 from hud import HUD
 from table import Table
@@ -52,499 +52,387 @@ class DragInfo:
     start_area: common.TableArea
 
 
-class Game(App):
+@dataclass
+class GameSystems:
+    """Holds all the various systems."""
+    game_table: Table
+    layout: TableLayout
+    hud: HUD
+    toolbar: ToolBar
+
+
+@dataclass
+class GameState:
+    """Holds various state attributes."""
+    valid_drop: bool = False
+    last_window_size: Tuple[int, int] = (0, 0)
+    refresh_next_frame: int = 0
+    last_auto: float = 0.0
+    last_undo: bool = False
+    mouse_down_pos: Vec2 = Vec2()
+    drag_info: DragInfo = DragInfo(-1, -1, common.TableArea.STACK)
+
+
+class Game(app.AppBase):
     """
     Entry point of the App.
     """
-    # pylint: disable=too-many-instance-attributes
-    def __init__(self):
-        super().__init__(config_file='.foolysh/foolysh.ini')
+    def __init__(self, config_file):
+        super().__init__(config_file=config_file)
+        self.__systems: Union[None, GameSystems] = None
+        self.__state: GameState = GameState()
+        self.__need_setup: bool = True
+        logger.info('Game initialized.')
 
-        # Layout / Cards
-        self.__table_layout: Union[None, TableLayout] = None
-        self.__hud: Union[None, HUD] = None
-        self.__tool_bar: Union[None, ToolBar] = None
-        self._setup_layout()
-
-        # State
-        self.__table = Table(self.__table_layout.callback)
-        self.__table_layout.set_table(self.__table)
-        self.__valid_drop = False
-        self.__last_window_size = 0, 0
-        self.__refresh_next_frame = 0
-        self.__last_auto = 0.0
-        self.__last_undo = False
-        self.__mouse_down_pos = Vec2()
-        self.__drag_info: DragInfo = DragInfo(-1, -1, common.TableArea.STACK)
-
-        # Events / Tasks
-        self._setup_events_tasks()
-
-        # Logging
-        common.setup_dict_config(self.config['pyos']['log_level'])
-        self.log.info('pyos started')
-        self._load()
-
-    # Properties
-
-    @property
-    def log(self):
-        """The logger."""
-        return logging
-
-    # Setup
-
-    def _setup_events_tasks(self):
-        """Setup Events and Tasks."""
-        self.event_handler.listen(
-            'quit',
-            sdl2.SDL_QUIT,
-            self.quit,
-            blocking=False
-        )
-        self.event_handler.listen(
-            'android_back',
-            sdl2.SDL_KEYUP,
-            self._back
-        )
-        if self.isandroid:
-            self.event_handler.listen(
-                'finger_down',
-                sdl2.SDL_FINGERDOWN,
-                self._mouse_down,
-                priority=-5  # make sure it runs after drag_drop.
-            )
-            self.event_handler.listen(
-                'finger_up',
-                sdl2.SDL_FINGERUP,
-                self._mouse_up,
-                priority=-5
-            )
-            self.event_handler.listen(
-                'APP_TERMINATING',
-                sdl2.SDL_APP_TERMINATING,
-                self.quit,
-                0,
-                blocking=False
-            )
-            self.event_handler.listen(
-                'APP_WILLENTERBACKGROUND',
-                sdl2.SDL_APP_WILLENTERBACKGROUND,
-                self._event_will_enter_bg
-            )
-            self.event_handler.listen(
-                'APP_DIDENTERBACKGROUND',
-                sdl2.SDL_APP_DIDENTERBACKGROUND,
-                self._event_pause
-            )
-            self.event_handler.listen(
-                'APP_LOWMEMORY',
-                sdl2.SDL_APP_LOWMEMORY,
-                self._event_low_memory
-            )
-        else:
-            self.event_handler.listen(
-                'mouse_down',
-                sdl2.SDL_MOUSEBUTTONDOWN,
-                self._mouse_down,
-                priority=-5  # make sure it runs after drag_drop.
-            )
-            self.event_handler.listen(
-                'mouse_up',
-                sdl2.SDL_MOUSEBUTTONUP,
-                self._mouse_up,
-                priority=-5  # make sure it runs after drag_drop.
-            )
-        self.task_manager.add_task('HUD_Update', self._update_hud, 0.05)
-        self.task_manager.add_task('auto_save', self._auto_save_task, 5, False)
-        self.task_manager.add_task(
-            'auto_complete',
-            self._auto_foundation,
-            0.05
-        )
-        self.task_manager.add_task(
-            'layout_process',
-            self.__table_layout.process,
-            0
-        )
-
-    def _setup_layout(self):
-        """One time setup of the scene."""
-        self.__table_layout = TableLayout(
-            float(self.config['pyos']['card_ratio']),
-            float(self.config['pyos']['padding']),
-            tuple(
-                [
-                    float(i)
-                    for i in self.config['pyos']['status_size'].split(',')
-                ]
-            ),
-            tuple(
-                [
-                    float(i)
-                    for i in self.config['pyos']['toolbar_size'].split(',')
-                ]
-            )
-        )
-        self.__table_layout.root.reparent_to(self.root)
-
-        self.__hud = HUD(
-            self.__table_layout.status,
-            tuple(
-                [
-                    float(i)
-                    for i in self.config['pyos']['status_size'].split(',')
-                ]
-            ),
-            self.config['font']['normal'],
-            self.config['font']['bold']
-        )
-
-        self.__tool_bar = ToolBar(
-            self.__table_layout.toolbar,
-            tuple(
-                [
-                    float(i)
-                    for i in self.config['pyos']['toolbar_size'].split(',')
-                ]
-            ),
-            self.config['font']['normal']
-        )
-
+    # State
+    def enter_game(self):
+        """Tasks to be performed when this state is activated."""
+        logger.debug('Enter state game')
+        self.__setup_layout()
         for suit in range(4):
             for value in range(13):
                 k = suit, value
-                self.drag_drop.enable(
-                    self.__table_layout.get_card(k),
-                    self._drag_cb,
-                    (k, ),
-                    self._drop_cb,
-                    (k, )
-                )
+                self.drag_drop.enable(self.__systems.layout.get_card(k),
+                                      self.__drag_cb, (k, ), self.__drop_cb,
+                                      (k, ))
+        self.__setup_events_tasks()
+        self.__systems.layout.root.show()
+        self.__load()
+        self.__systems.game_table.pause()
+
+    def exit_game(self):
+        """Tasks to be performed when this state is left."""
+        logger.debug('Exit state game')
+        self.__disable_all()
+        self.__systems.layout.root.hide()
+        self.__systems.game_table.pause()
+        self.__save()
+
+    # Setup / Tear down
+
+    def __disable_all(self):
+        self.event_handler.forget('mouse_down')
+        self.event_handler.forget('mouse_up')
+        self.task_manager.remove_task('HUD_Update')
+        self.task_manager.remove_task('auto_save')
+        self.task_manager.remove_task('auto_complete')
+        self.task_manager.remove_task('layout_process')
+        for suit in range(4):
+            for value in range(13):
+                k = suit, value
+                self.drag_drop.disable(self.__systems.layout.get_card(k))
+
+    def __setup_events_tasks(self):
+        """Setup Events and Tasks."""
+        if self.isandroid:
+            down = sdl2.SDL_FINGERDOWN
+            upe = sdl2.SDL_FINGERUP
+        else:
+            down = sdl2.SDL_MOUSEBUTTONDOWN
+            upe = sdl2.SDL_MOUSEBUTTONUP
+
+        # make sure mouse events run after drag_drop
+        self.event_handler.listen('mouse_down', down, self.__mouse_down,
+                                  priority=-5)
+        self.event_handler.listen('mouse_up', upe, self.__mouse_up, priority=-5)
+
+        self.task_manager.add_task('HUD_Update', self.__update_hud, 0.05)
+        self.task_manager.add_task('auto_save', self.__auto_save_task, 5, False)
+        self.task_manager.add_task('auto_complete', self.__auto_foundation,
+                                   0.05)
+        self.task_manager.add_task('layout_process',
+                                   self.__systems.layout.process, 0)
+
+    def __setup_layout(self):
+        """One time setup of the scene."""
+        if not self.__need_setup:
+            return
+        stat_size = self.config['pyos']['status_size'].split(',')
+        tool_size = self.config['pyos']['toolbar_size'].split(',')
+        layout = TableLayout(self.config.getfloat('pyos', 'card_ratio'),
+                             self.config.getfloat('pyos', 'padding'),
+                             tuple([float(i) for i in stat_size]),
+                             tuple([float(i) for i in tool_size]))
+        layout.root.reparent_to(self.root)
+
+        hud = HUD(layout.status, tuple([float(i) for i in stat_size]),
+                  self.config['font']['normal'], self.config['font']['bold'])
+
+        toolbar = ToolBar(layout.toolbar, tuple([float(i) for i in tool_size]),
+                          self.config['font']['bold'],
+                          (self.__new_deal, self.__reset_deal, self.__undo_move,
+                           self.__menu))
+        game_table = Table(layout.callback)
+        layout.set_table(game_table)
+        self.__systems = GameSystems(game_table, layout, hud, toolbar)
+        self.__need_setup = False
 
     # Tasks / Events
 
-    def _auto_save_task(self):
+    def __auto_save_task(self):
         """Auto save task."""
-        if not self.__table.is_paused:
-            self.log.debug('Auto Save')
-            self._save()
+        if not self.__systems.game_table.is_paused:
+            logger.debug('Auto Save')
+            self.__save()
 
-    def _auto_foundation(self, dt):
+    def __auto_foundation(self, dt):
         """Task to auto solve a game."""
         # pylint: disable=invalid-name, unused-argument
-        if self.__table.is_paused or self.__last_undo:
+        if self.__systems.game_table.is_paused or self.__state.last_undo:
             return
         if self.config.getboolean('pyos', 'auto_flip', fallback=False):
             for i in range(7):
-                self.__table.flip(i)
-        auto_solve = self.config.getboolean(
-            'pyos',
-            'auto_solve',
-            fallback=False
-        )
-        if self.__table.win_condition:
-            self.__refresh_next_frame = 2
-            self.__table.pause()
-        elif auto_solve and self.__table.solved:
-            self._auto_solve()
+                self.__systems.game_table.flip(i)
+        auto_solve = self.config.getboolean('pyos', 'auto_solve',
+                                            fallback=False)
+        if self.__systems.game_table.win_condition:
+            self.__state.refresh_next_frame = 2
+            self.__systems.game_table.pause()
+        elif auto_solve and self.__systems.game_table.solved:
+            self.__auto_solve()
 
-    def _auto_solve(self):
+    def __auto_solve(self):
         """When solved, determines and executes the next move."""
         call_time = self.clock.get_time()
-        if call_time - self.__last_auto < self.config.getfloat(
-                'pyos', 'auto_solve_delay', fallback=0.3):
+        delay = self.config.getfloat('pyos', 'auto_solve_delay', fallback=0.3)
+        if call_time - self.__state.last_auto < delay:
             return
-        if self.config.getboolean(
-                'pyos',
-                'waste_to_foundation',
-                fallback=False):
-            meths = (
-                self.__table.tableau_to_foundation,
-                self.__table.waste_to_foundation,
-                self.__table.waste_to_tableau,
-                self.__table.draw
-            )
+        tbl = self.__systems.game_table
+        if self.config.getboolean('pyos', 'waste_to_foundation',
+                                  fallback=False):
+            meths = (tbl.tableau_to_foundation, tbl.waste_to_foundation,
+                     tbl.waste_to_tableau, tbl.draw)
         else:
-            meths = (
-                self.__table.tableau_to_foundation,
-                self.__table.waste_to_tableau,
-                self.__table.waste_to_foundation,
-                self.__table.draw
-            )
+            meths = (tbl.tableau_to_foundation, tbl.waste_to_tableau,
+                     tbl.waste_to_foundation, tbl.draw)
         for meth in meths:
             if meth():
-                self.__last_auto = call_time
+                self.__state.last_auto = call_time
                 return
         raise RuntimeError('Unhandled exception.')
 
-    def _update_hud(self, dt):
+    def __update_hud(self, dt):
         """Update HUD."""
         # pylint: disable=invalid-name,unused-argument
-        if self.window.size != self.__last_window_size:
-            self.__last_window_size = self.window.size
-            self.__table_layout.setup(
-                self.__last_window_size,
-                self.config.getboolean('pyos', 'left_handed')
-            )
-            self.__refresh_next_frame = 2
-        elif self.__refresh_next_frame > 0:
-            self.__refresh_next_frame -= 1
-            self.__table.refresh_table()
-            # self.__table_layout.refresh_all()
-            self.log.debug('refresh_table')
-        moves, elapsed_time, points = self.__table.stats
-        self.__hud.update(points, int(round(elapsed_time, 0)), moves)
-        self.__tool_bar.update()
+        if self.window.size != self.__state.last_window_size \
+              or self.layout_refresh:
+            self.__state.last_window_size = self.window.size
+            self.__systems.layout.setup(self.__state.last_window_size,
+                                        self.config.getboolean('pyos',
+                                                               'left_handed'))
+            self.__state.refresh_next_frame = 2
+            self.layout_refresh = False
+        elif self.__state.refresh_next_frame > 0:
+            self.__state.refresh_next_frame -= 1
+            self.__systems.game_table.refresh_table()
+            logger.debug('refresh_table')
+        moves, elapsed_time, points = self.__systems.game_table.stats
+        self.__systems.hud.update(points, int(round(elapsed_time, 0)), moves)
 
-    def _event_pause(self, event=None):
-        """Called when the app enters background."""
-        # pylint: disable=unused-argument
-        self.log.info('Paused game')
-        self.__table.pause()
-
-    def _event_will_enter_bg(self, event=None):
-        """Called when the os announces that the app will enter background."""
-        # pylint: disable=unused-argument
-        self.log.warning('Unhandled event APP_WILLENTERBACKGROUND!!!')
-
-    def _event_low_memory(self, event=None):
-        """Called when the os announces low memory."""
-        # pylint: disable=unused-argument
-        self.log.warning('Unhandled event APP_LOWMEMORY!!!')
-
-    def _back(self, event):
-        """Handles Android Back, Escape and Backspace Events"""
-        if event.key.keysym.sym in (
-                sdl2.SDLK_AC_BACK, 27, sdl2.SDLK_BACKSPACE):
-            self.quit(blocking=False)
-
-    def on_quit(self):
-        """Overridden on_quit event to make sure the state is saved."""
-        self.log.info('Saving state and quitting pyos')
-        self._save()
-
-    def _drag_cb(self, k) -> bool:
+    def __drag_cb(self, k) -> bool:
         """Callback on start drag of a card."""
-        table_click = self.__table_layout.click_area(self.mouse_pos)
+        table_click = self.__systems.layout.click_area(self.mouse_pos)
         if table_click is None or table_click[0] == common.TableArea.STACK or \
-              self.__table_layout.get_card(k).index == 1:
+              self.__systems.layout.get_card(k).index == 1:
             return False
-        self.__drag_info.start_area = table_click[0]
+        dragi = self.__state.drag_info
+        tbl = self.__systems.game_table.table
+        dragi.start_area = table_click[0]
         if table_click[0] == common.TableArea.TABLEAU:
             pile_id = table_click[1][0]
             card_id = table_click[1][1]
-            if len(self.__table.table.tableau[pile_id]) < card_id + 1:
+            pile = tbl.tableau[pile_id]
+            if len(pile) < card_id + 1:
                 return False
-            self.__table_layout.on_drag(
-                self.__table.table.tableau[pile_id][card_id].index[0],
-                [
-                    i.index[0]
-                    for i in self.__table.table.tableau[pile_id][card_id + 1:]
-                ]
-            )
-            self.__drag_info.pile_id = pile_id
-            num_cards = len(self.__table.table.tableau[pile_id]) - card_id
-            self.__drag_info.num_cards = num_cards
+            self.__systems.layout \
+                .on_drag(pile[card_id].index[0],
+                         [i.index[0] for i in pile[card_id + 1:]])
+            dragi.pile_id = pile_id
+            num_cards = len(pile) - card_id
+            dragi.num_cards = num_cards
         elif table_click[0] == common.TableArea.FOUNDATION:
-            self.__drag_info.pile_id = table_click[1][0]
-            self.__drag_info.num_cards = 1
-            self.__table_layout.on_drag(
-                self.__table.table.foundation[table_click[1][0]][-1].index[0]
-            )
+            dragi.pile_id = table_click[1][0]
+            dragi.num_cards = 1
+            self.__systems.layout \
+                .on_drag(tbl.foundation[table_click[1][0]][-1].index[0])
         else:  # WASTE
-            self.__drag_info.pile_id = -1
-            self.__drag_info.num_cards = 1
-            self.__table_layout.on_drag(
-                self.__table.table.waste[-1].index[0]
-            )
+            dragi.pile_id = -1
+            dragi.num_cards = 1
+            self.__systems.layout.on_drag(tbl.waste[-1].index[0])
         return True
 
-    def _drop_cb(self, k):
+    def __drop_cb(self, k):
         """Callback on drop of a card."""
-        self.__table_layout.on_drop()
+        self.__systems.layout.on_drop()
         waste_tableau = common.TableArea.WASTE, common.TableArea.TABLEAU
-        if self.__drag_info.start_area in waste_tableau:
-            if not self._drop_foundation(k):
-                self._drop_tableau(k)
-        elif self.__drag_info.start_area == common.TableArea.FOUNDATION:
-            self._drop_tableau(k)
-        self.__refresh_next_frame = 1
-        self.__valid_drop = True
+        if self.__state.drag_info.start_area in waste_tableau:
+            if not self.__drop_foundation(k):
+                self.__drop_tableau(k)
+        elif self.__state.drag_info.start_area == common.TableArea.FOUNDATION:
+            self.__drop_tableau(k)
+        self.__state.refresh_next_frame = 1
+        self.__state.valid_drop = True
 
     # Drop helper methods
 
-    def _drop_foundation(self, k):
+    def __drop_foundation(self, k):
         """Evaluates a drop on foundation"""
-        for i, t_node in enumerate(self.__table_layout.foundation):
-            if t_node.aabb.overlap(self.__table_layout.get_card(k).aabb):
-                if self.__drag_info.start_area == common.TableArea.WASTE:
-                    if self.__table.waste_to_foundation(i):
+        for i, t_node in enumerate(self.__systems.layout.foundation):
+            if t_node.aabb.overlap(self.__systems.layout.get_card(k).aabb):
+                if self.__state.drag_info.start_area == common.TableArea.WASTE:
+                    if self.__systems.game_table.waste_to_foundation(i):
                         return True
-                elif self.__drag_info.start_area == common.TableArea.TABLEAU:
-                    if self.__table.tableau_to_foundation(
-                            self.__drag_info.pile_id, i):
+                elif self.__state.drag_info.start_area == common.TableArea \
+                      .TABLEAU:
+                    if self.__systems.game_table.tableau_to_foundation(
+                            self.__state.drag_info.pile_id, i):
                         return True
         return False
 
-    def _drop_tableau(self, k):
+    def __drop_tableau(self, k):
         """Evaluates a drop on tableau"""
-        tableau = self.__table.table.tableau
-        t2t_move = self.__drag_info.start_area == common.TableArea.TABLEAU
-        w2t_move = self.__drag_info.start_area == common.TableArea.WASTE
-        f2t_move = self.__drag_info.start_area == common.TableArea.FOUNDATION
+        tbl = self.__systems.game_table
+        tableau = tbl.table.tableau
+        dragi = self.__state.drag_info
+        t2t_move = dragi.start_area == common.TableArea.TABLEAU
+        w2t_move = dragi.start_area == common.TableArea.WASTE
+        f2t_move = dragi.start_area == common.TableArea \
+            .FOUNDATION
         res = False
-        for i, t_node in enumerate(self.__table_layout.tableau):
+        for i, t_node in enumerate(self.__systems.layout.tableau):
+            pile_id = dragi.pile_id
             if not tableau[i]:
                 if k[1] == 12:  # King special case
-                    check_aabb = self.__table_layout.get_card(k).aabb
+                    check_aabb = self.__systems.layout.get_card(k).aabb
                     if t_node.aabb.overlap(check_aabb):
-                        if t2t_move and self.__table.tableau_to_tableau(
-                                self.__drag_info.pile_id,
-                                i,
-                                self.__drag_info.num_cards):
+                        res = tbl.tableau_to_tableau(pile_id, i,dragi.num_cards)
+                        if t2t_move and res:
                             res = True
                             break
-                        if w2t_move and self.__table.waste_to_tableau(i):
+                        res = tbl.waste_to_tableau(i)
+                        if w2t_move and res:
                             res = True
                             break
-                        if f2t_move and self.__table.foundation_to_tableau(
-                                self.__drag_info.pile_id,
-                                i):
+                        res = tbl \
+                            .foundation_to_tableau(pile_id, i)
+                        if f2t_move and res:
                             res = True
                             break
                 continue
-            check_aabb = self.__table_layout.get_card(
-                tableau[i][-1].index[0]
-            ).aabb
-            if check_aabb.overlap(self.__table_layout.get_card(k).aabb):
-                if t2t_move and self.__table.tableau_to_tableau(
-                        self.__drag_info.pile_id,
-                        i,
-                        self.__drag_info.num_cards):
+            check_aabb = self.__systems.layout.get_card(tableau[i][-1].index[0])
+            check_aabb = check_aabb.aabb
+            if check_aabb.overlap(self.__systems.layout.get_card(k).aabb):
+                if t2t_move and tbl.tableau_to_tableau(pile_id, i,
+                                                       dragi.num_cards):
                     res = True
                     break
-                if w2t_move and self.__table.waste_to_tableau(i):
+                if w2t_move and tbl.waste_to_tableau(i):
                     res = True
                     break
-                if f2t_move and self.__table.foundation_to_tableau(
-                        self.__drag_info.pile_id,
-                        i):
+                if f2t_move and tbl.foundation_to_tableau(pile_id, i):
                     res = True
                     break
         return res
 
-    def _mouse_down(self, event):
+    def __mouse_down(self, event):
         """
         Global mouse down event to register mouse position when a click starts.
         """
         # pylint: disable=unused-argument
-        self.__mouse_down_pos = self.mouse_pos
+        self.__state.mouse_down_pos = self.mouse_pos
 
-    def _mouse_up(self, event):
+    def __mouse_up(self, event):
         """
         Global mouse up event.
         """
         # pylint: disable=unused-argument
-        if self.__valid_drop:  # Event is handled by dragdrop.
-            self.__valid_drop = False
+        if self.__state.valid_drop:  # Event is handled by dragdrop.
+            self.__state.valid_drop = False
             return
-        self.__table_layout.on_drop()
-        self.__last_undo = False
+        self.__systems.layout.on_drop()
+        self.__state.last_undo = False
         # Check click threshold
-        up_down_length = (self.__mouse_down_pos - self.mouse_pos).length
-        click_threshold = self.config.getfloat(
-            'pyos',
-            'click_threshold',
-            fallback=0.05
-        )
+        up_down_length = (self.__state.mouse_down_pos - self.mouse_pos).length
+        click_threshold = self.config.getfloat('pyos', 'click_threshold',
+                                               fallback=0.05)
         if up_down_length > click_threshold:
-            self.log.debug('click_threshold reached.')
+            logger.debug('click_threshold reached.')
             return
 
-        table_click = self.__table_layout.click_area(self.mouse_pos)
-        if table_click is not None:
-            self.log.info(f'Table: {repr(table_click)}')
-            self._table_click(table_click)
-            return
-
-        tool_bar_click = self.__tool_bar.click_area(self.mouse_pos)
-        if tool_bar_click != '':
-            self.log.info(f'Toolbar: {tool_bar_click}')
-            if tool_bar_click == 'new':
-                self._new_deal()
-            elif tool_bar_click == 'reset':
-                self._reset_deal()
-            elif tool_bar_click == 'undo':
-                self._undo_move()
-                self.__last_undo = True
+        if self.config.getboolean('pyos', 'tap_move'):
+            table_click = self.__systems.layout.click_area(self.mouse_pos)
+            if table_click is not None:
+                logger.info(f'Table: {repr(table_click)}')
+                self.__table_click(table_click)
+                return
 
     # Click helper methods
 
-    def _table_click(self, table_click):
+    def __table_click(self, table_click):
         """Evaluates possible moves for table clicks."""
         if table_click[0] == common.TableArea.STACK:
-            self.__table.draw()
+            self.__systems.game_table.draw()
         elif table_click[0] == common.TableArea.WASTE:
             if self.config.getboolean(
                     'pyos', 'waste_to_foundation', fallback=False):
-                if not self.__table.waste_to_foundation():
-                    self.__table.waste_to_tableau()
+                if not self.__systems.game_table.waste_to_foundation():
+                    self.__systems.game_table.waste_to_tableau()
             else:
-                if not self.__table.waste_to_tableau():
-                    self.__table.waste_to_foundation()
+                if not self.__systems.game_table.waste_to_tableau():
+                    self.__systems.game_table.waste_to_foundation()
         elif table_click[0] == common.TableArea.FOUNDATION:
-            self.__table.foundation_to_tableau(table_click[1][0])
+            self.__systems.game_table.foundation_to_tableau(table_click[1][0])
         else:  # TABLEAU
-            from_pile = self.__table.table.tableau[table_click[1][0]]
+            from_pile = self.__systems.game_table.table \
+                .tableau[table_click[1][0]]
             num_cards = len(from_pile) - table_click[1][1]
-            if num_cards == 1 and self.__table.flip(table_click[1][0]):
+            if num_cards == 1 and self.__systems.game_table \
+                  .flip(table_click[1][0]):
                 return
-            if num_cards == 1 and self.__table.tableau_to_foundation(
-                    table_click[1][0]):
+            if num_cards == 1 and self.__systems.game_table \
+                  .tableau_to_foundation(table_click[1][0]):
                 return
-            if self.__table.tableau_to_tableau(
-                    from_pile=table_click[1][0], num_cards=num_cards):
+            if self.__systems.game_table \
+                  .tableau_to_tableau(from_pile=table_click[1][0],
+                                      num_cards=num_cards):
                 return
 
     # Game State
 
-    def _save(self):
-        path = os.path.join(
-            self.config['base']['cache_dir'],
-            self.config['pyos']['state_file']
-        )
+    def __save(self):
+        path = os.path.join(self.config['base']['cache_dir'],
+                            self.config['pyos']['state_file'])
         with open(path, 'wb') as f_handler:
-            f_handler.write(self.__table.get_state(pause=False))
+            f_handler.write(self.__systems.game_table.get_state(pause=False))
 
-    def _load(self):
-        path = os.path.join(
-            self.config['base']['cache_dir'],
-            self.config['pyos']['state_file']
-        )
+    def __load(self):
+        path = os.path.join(self.config['base']['cache_dir'],
+                            self.config['pyos']['state_file'])
         if os.path.isfile(path):
             with open(path, 'rb') as f_handler:
-                self.__table.set_state(f_handler.read())
-            self.__refresh_next_frame = 2
+                self.__systems.game_table.set_state(f_handler.read())
+            self.__state.refresh_next_frame = 2
 
-    def _show_score(self):
+    def __show_score(self):
         """Show the result screen."""
 
     # Interaction
 
-    def _flip_cards(self):
-        """Flip closed cards if so configured."""
-
-    def _undo_move(self):
+    def __undo_move(self):
         """On Undo click: Undo the last move."""
-        self.__table.undo()
+        self.__systems.game_table.undo()
+        self.__state.last_undo = True
 
-    def _reset_deal(self):
+    def __reset_deal(self):
         """On Reset click: Reset the current game to start."""
-        self.__table.reset()
-        self.__refresh_next_frame = 2
+        self.__systems.game_table.reset()
+        self.__state.refresh_next_frame = 2
 
-    def _new_deal(self):
+    def __new_deal(self):
         """On New Deal click: Deal new game."""
-        self.__table.deal()
-        self.__refresh_next_frame = 2
+        self.__systems.game_table.deal()
+        self.__state.refresh_next_frame = 2
+
+    def __menu(self):
+        """On Menu click."""
+        self.request('main_menu')

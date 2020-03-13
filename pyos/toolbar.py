@@ -2,11 +2,12 @@
 Provide the ToolBar class.
 """
 
-from typing import Tuple
-from typing import Type
+from dataclasses import dataclass
+from typing import Callable, Tuple, Type
 
 from foolysh.scene import node
 from foolysh.tools import vec2
+from foolysh.ui import frame, button
 
 import common
 
@@ -37,110 +38,72 @@ __license__ = 'MIT'
 __version__ = '0.2'
 
 
+@dataclass
+class ToolBarButtons:
+    """The buttons in the toolbar."""
+    new: button.Button
+    reset: button.Button
+    undo: button.Button
+    menu: button.Button
+
+
 class ToolBar:
     """Class for holding the ToolBar."""
-    # pylint: disable=too-many-instance-attributes
+    def __init__(self, parent: Type[node.Node], size: Tuple[float, float],
+                 font: str, callbacks: Tuple[Callable, ...]) -> None:
+        border = size[1] / 20
+        radius = size[1] / 3
+        self._frame = frame.Frame(name='toolbar background', size=size,
+                                  frame_color=(160, 160, 160),
+                                  border_thickness=border,
+                                  border_color=(255, 255, 255),
+                                  corner_radius=radius, multi_sampling=2,
+                                  alpha=180)
+        self._frame.reparent_to(parent)
+        self._setup_buttons(size, border, radius, font, callbacks)
 
-    def __init__(
-            self,
-            parent: Type[node.Node],
-            size: Tuple[float, float],
-            font: str
-        ) -> None:
-        self._size = size
-        self._background = parent.attach_image_node(image=common.BOTTOM_BAR_IMG)
-        self._background.depth = 500
-        self._new_icon = self._background.attach_text_node(
-            'New Icon',
-            chr(0xf893),
-            font,
-            size[1] * 0.9
-        )
-        self._new_text = self._background.attach_text_node(
-            'New Text',
-            'Deal',
-            font,
-            size[1] * 0.5
-        )
-        self._reset_icon = self._background.attach_text_node(
-            'Reset Icon',
-            chr(0xf021),
-            font,
-            size[1] * 0.9
-        )
-        self._reset_text = self._background.attach_text_node(
-            'Reset Text',
-            'Reset',
-            font,
-            size[1] * 0.5
-        )
-        self._undo_icon = self._background.attach_text_node(
-            'Undo Icon',
-            chr(0xfa4b),
-            font,
-            size[1] * 0.9
-        )
-        self._undo_text = self._background.attach_text_node(
-            'Undo Text',
-            'Undo',
-            font,
-            size[1] * 0.5
-        )
+    def _setup_buttons(self, size, border, radius, font, callbacks):
+        # pylint: disable=too-many-arguments
 
-    @property
-    def new_deal(self) -> Tuple[node.TextNode, node.TextNode]:
-        """Tuple of the "new deal" icon and text nodes."""
-        return self._new_icon, self._new_text
+        offset = max(border, radius)
+        unit_width = (size[0] - 2 * offset) / 11.5
+        height = size[1] - border * 4
+        font_size = (height - border * 2) * 0.7
+        kwargs = {'font': font, 'font_size': font_size,
+                  'text_color': (0, 0, 0, 255),
+                  'down_text_color': (255, 255, 255, 255),
+                  'frame_color': (180, 180, 180),
+                  'border_thickness': height / 20,
+                  'down_border_thickness': border * 1.1,
+                  'border_color': (0, 0, 0),
+                  'down_border_color': (255, 255, 255),
+                  'corner_radius': height / 2, 'multi_sampling': 2,
+                  'align': 'center', 'alpha': 230}
+        newb = button.Button(name='new but', size=(unit_width * 3, height),
+                             text='  ' + chr(0xf893) + ' Deal', **kwargs)
+        newb.reparent_to(self._frame)
+        newb.onclick(callbacks[0])
+        newb.pos = offset, (size[1] - height) / 2
+        offset += unit_width * 3.5
 
-    @property
-    def reset(self) -> Tuple[node.TextNode, node.TextNode]:
-        """Tuple of the "reset" icon and text nodes."""
-        return self._reset_icon, self._reset_text
+        reset = button.Button(name='reset but', size=(unit_width * 3, height),
+                              text=' ' + chr(0xf021) + ' Reset', **kwargs)
+        reset.reparent_to(self._frame)
+        reset.onclick(callbacks[1])
+        reset.pos = offset, (size[1] - height) / 2
+        offset += unit_width * 3.5
 
-    @property
-    def undo(self) -> Tuple[node.TextNode, node.TextNode]:
-        """Tuple of the "undo" icon and text nodes."""
-        return self._undo_icon, self._undo_text
+        undo = button.Button(name='undo but', size=(unit_width * 3, height),
+                             text='  ' + chr(0xfa4b) + ' Undo', **kwargs)
+        undo.reparent_to(self._frame)
+        undo.onclick(callbacks[2])
+        undo.pos = offset, (size[1] - height) / 2
+        offset += unit_width * 3.5
 
-    def click_area(self, mouse_pos: vec2.Vec2) -> str:
-        """
-        Returns the clicked area ('new', 'reset', 'undo') or an empty string.
-        """
-        m_x, m_y = mouse_pos.x, mouse_pos.y
-        if not self._background.aabb.inside_tup(m_x, m_y):
-            return ''
-        if self._new_icon.aabb.inside_tup(m_x, m_y) or \
-              self._new_text.aabb.inside_tup(m_x, m_y):
-            return 'new'
-        if self._reset_icon.aabb.inside_tup(m_x, m_y) or \
-              self._reset_text.aabb.inside_tup(m_x, m_y):
-            return 'reset'
-        if self._undo_icon.aabb.inside_tup(m_x, m_y) or \
-              self._undo_text.aabb.inside_tup(m_x, m_y):
-            return 'undo'
-        return ''
-
-    def update(self) -> None:
-        """
-        Update the TaskBar placement.
-        """
-        i_w, i_h = self._new_icon.size
-        i_y = -i_h * .175
-        _, t_h = self._new_text.size
-        t_y = (self._size[1] - t_h) * 0.25
-        self._new_icon.pos = i_w * 0.2, i_y
-        self._new_text.pos = i_w * 1.3, t_y
-
-        i_w, _ = self._reset_icon.size
-        t_w, _ = self._reset_text.size
-        width = i_w * 1.2 + t_w
-        i_x = self._size[0] / 2 - width / 2
-        self._reset_icon.pos = i_x, i_y
-        self._reset_text.pos = i_x + i_w * 1.2, t_y
-
-        i_w, _ = self._undo_icon.size
-        t_w, _ = self._undo_text.size
-        width = i_w * 1.4 + t_w
-        i_x = self._size[0] - width
-        self._undo_icon.pos = i_x, i_y
-        self._undo_text.pos = i_x + i_w * 1.2, t_y
+        kwargs['font_size'] *= 1.15
+        kwargs['border_thickness'] = 0
+        menu = button.Button(name='menu but', size=(unit_width, height),
+                             text=' ' + chr(0xf85b), **kwargs)
+        menu.reparent_to(self._frame)
+        menu.onclick(callbacks[3])
+        menu.pos = offset, (size[1] - height) / 2
