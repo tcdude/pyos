@@ -12,6 +12,7 @@ from foolysh.tools.vec2 import Vec2
 
 import app
 import common
+from dialogue import Dialogue, DialogueButton
 from hud import HUD
 from table import Table
 from table_layout import TableLayout
@@ -59,6 +60,7 @@ class GameSystems:
     layout: TableLayout
     hud: HUD
     toolbar: ToolBar
+    windlg: Union[None, Dialogue] = None
 
 
 @dataclass
@@ -82,23 +84,14 @@ class Game(app.AppBase):
         self.__systems: Union[None, GameSystems] = None
         self.__state: GameState = GameState()
         self.__need_setup: bool = True
+        self.__active: bool = False
         logger.info('Game initialized.')
 
     # State
     def enter_game(self):
         """Tasks to be performed when this state is activated."""
         logger.debug('Enter state game')
-        self.__setup_layout()
-        for suit in range(4):
-            for value in range(13):
-                k = suit, value
-                self.drag_drop.enable(self.__systems.layout.get_card(k),
-                                      self.__drag_cb, (k, ), self.__drop_cb,
-                                      (k, ))
-        self.__setup_events_tasks()
-        self.__systems.layout.root.show()
-        self.__load()
-        self.__systems.game_table.pause()
+        self.__setup()
 
     def exit_game(self):
         """Tasks to be performed when this state is left."""
@@ -111,6 +104,8 @@ class Game(app.AppBase):
     # Setup / Tear down
 
     def __disable_all(self):
+        if not self.__active:
+            return
         self.event_handler.forget('mouse_down')
         self.event_handler.forget('mouse_up')
         self.task_manager.remove_task('HUD_Update')
@@ -121,6 +116,23 @@ class Game(app.AppBase):
             for value in range(13):
                 k = suit, value
                 self.drag_drop.disable(self.__systems.layout.get_card(k))
+        self.__active = False
+
+    def __setup(self):
+        if self.__active:
+            return
+        self.__setup_layout()
+        for suit in range(4):
+            for value in range(13):
+                k = suit, value
+                self.drag_drop.enable(self.__systems.layout.get_card(k),
+                                      self.__drag_cb, (k, ), self.__drop_cb,
+                                      (k, ))
+        self.__setup_events_tasks()
+        self.__systems.layout.root.show()
+        self.__load()
+        self.__systems.game_table.pause()
+        self.__active = True
 
     def __setup_events_tasks(self):
         """Setup Events and Tasks."""
@@ -178,6 +190,8 @@ class Game(app.AppBase):
     def __auto_foundation(self, dt):
         """Task to auto solve a game."""
         # pylint: disable=invalid-name, unused-argument
+        if not self.__active:
+            return
         if self.__systems.game_table.is_paused or self.__state.last_undo:
             return
         if self.config.getboolean('pyos', 'auto_flip', fallback=False):
@@ -185,10 +199,7 @@ class Game(app.AppBase):
                 self.__systems.game_table.flip(i)
         auto_solve = self.config.getboolean('pyos', 'auto_solve',
                                             fallback=False)
-        if self.__systems.game_table.win_condition:
-            self.__state.refresh_next_frame = 2
-            self.__systems.game_table.pause()
-        elif auto_solve and self.__systems.game_table.solved:
+        if auto_solve and self.__systems.game_table.solved:
             self.__auto_solve()
 
     def __auto_solve(self):
@@ -226,8 +237,13 @@ class Game(app.AppBase):
             self.__state.refresh_next_frame -= 1
             self.__systems.game_table.refresh_table()
             logger.debug('refresh_table')
-        moves, elapsed_time, points = self.__systems.game_table.stats
-        self.__systems.hud.update(points, int(round(elapsed_time, 0)), moves)
+        if not self.__systems.game_table.win_condition:
+            moves, elapsed_time, points = self.__systems.game_table.stats
+            self.__systems.hud.update(points, int(elapsed_time + 0.5), moves)
+        else:
+            self.__state.refresh_next_frame = 2
+            self.__systems.game_table.pause()
+            self.__show_score()
 
     def __drag_cb(self, k) -> bool:
         """Callback on start drag of a card."""
@@ -415,21 +431,71 @@ class Game(app.AppBase):
 
     def __show_score(self):
         """Show the result screen."""
+        secs, pts, bonus, moves = self.__systems.game_table.result
+        mins = int(secs / 60)
+        secs -= mins * 60
+        txt = f'You WON!\n\n'
+        scr = f'{pts + bonus}'
+        mvs = f'{moves}'
+        tim = f'{mins}:{secs:05.2f}'
+        mlen = max(len(scr), len(mvs), len(tim))
+        txt += f'Score: {" " * (mlen - len(scr))}{scr}\n'
+        txt += f'Moves: {" " * (mlen - len(mvs))}{mvs}\n'
+        txt += f'Time:  {" " * (mlen - len(tim))}{tim}\n\n\n\n'
+        self.__gen_dlg(txt)
+        self.__disable_all()
+
+    def __gen_dlg(self, txt: str):
+        if self.__systems.windlg is None:
+            fnt = self.config.get('font', 'bold')
+            buttons = [DialogueButton(text='New Game',
+                                      fmtkwargs={'size': (0.35, 0.1),
+                                                 'font': fnt,
+                                                 'text_color': (0, 50, 0, 255),
+                                                 'down_text_color': (255, 255,
+                                                                     255, 255),
+                                                 'border_thickness': 0.005,
+                                                 'down_border_thickness': 0.008,
+                                                 'border_color': (0, 50, 0),
+                                                 'down_border_color': (255, 255,
+                                                                       255),
+                                                 'corner_radius': 0.05,
+                                                 'multi_sampling': 2,
+                                                 'align': 'center'},
+                                      callback=self.__new_deal)]
+            dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
+                           size=(0.7, 0.7), font=fnt, align='center',
+                           frame_color=(40, 120, 20), border_thickness=0.01,
+                           corner_radius=0.05, multi_sampling=2)
+            dlg.pos = -0.35, -0.35
+            dlg.reparent_to(self.ui.center)
+            self.__systems.windlg = dlg
+        else:
+            self.__systems.windlg.text = txt
+            self.__systems.windlg.show()
 
     # Interaction
 
     def __undo_move(self):
         """On Undo click: Undo the last move."""
+        if self.__systems.game_table.win_condition:
+            return
         self.__systems.game_table.undo()
         self.__state.last_undo = True
 
     def __reset_deal(self):
         """On Reset click: Reset the current game to start."""
+        if not self.__systems.windlg.hidden:
+            self.__systems.windlg.hide()
+            self.__setup()
         self.__systems.game_table.reset()
         self.__state.refresh_next_frame = 2
 
     def __new_deal(self):
         """On New Deal click: Deal new game."""
+        if not self.__systems.windlg.hidden:
+            self.__systems.windlg.hide()
+            self.__setup()
         self.__systems.game_table.deal()
         self.__state.refresh_next_frame = 2
 
