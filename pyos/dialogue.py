@@ -72,7 +72,7 @@ class Dialogue(label.Label):
         width *= 1.1
         pos_x = max(self.border_thickness, self.corner_radius)
         pos_y = self.size[1] - pos_x * 1.1 - self.__buttons[0].size[1]
-        pos_x += (self.size[0] - width) / 2 - pos_x
+        pos_x += (self.size[0] - width) / 2 - pos_x / 2
         for but in self.__buttons:
             but.pos = pos_x, pos_y
             pos_x += but.size[0] + margin
