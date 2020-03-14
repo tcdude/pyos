@@ -12,3 +12,4 @@ pillow = "*"
 pysdl2 = "*"
 foolysh = {git = "https://github.com/tcdude/foolysh.git"}
 loguru = "*"
+pyksolve = "*"

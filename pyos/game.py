@@ -87,6 +87,13 @@ class Game(app.AppBase):
         self.__active: bool = False
         logger.info('Game initialized.')
 
+    @property
+    def shuffler(self):
+        """Returns the shuffler from Table."""
+        if self.__systems is not None:
+            return self.__systems.game_table.shuffler
+        return None
+
     # State
     def enter_game(self):
         """Tasks to be performed when this state is activated."""
@@ -99,6 +106,9 @@ class Game(app.AppBase):
         """Tasks to be performed when this state is left."""
         logger.debug('Exit state game')
         self.__disable_all()
+        dlg = self.__systems.windlg
+        if dlg is not None and not dlg.hidden:
+            dlg.hide()
         self.__systems.layout.root.hide()
         self.__systems.game_table.pause()
         self.__save()
@@ -492,8 +502,9 @@ class Game(app.AppBase):
 
     def __reset_deal(self):
         """On Reset click: Reset the current game to start."""
-        if not self.__systems.windlg.hidden:
-            self.__systems.windlg.hide()
+        dlg = self.__systems.windlg
+        if dlg is not None and not dlg.hidden:
+            dlg.hide()
             self.__setup()
         self.__systems.game_table.reset()
         self.__state.refresh_next_frame = 2

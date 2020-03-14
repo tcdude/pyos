@@ -98,6 +98,7 @@ class Table:
         self._history: List[Move] = []
         self._state = State()
         self._callback = callback
+        self._shuffler = rules.Shuffler()
         self._wrapped = {
             'draw': self.__wrap_method(self.__draw),
             'flip': self.__wrap_method(self.__flip),
@@ -221,6 +222,11 @@ class Table:
             foundation=self._foundation.piles
         )
 
+    @property
+    def shuffler(self) -> rules.Shuffler:
+        """The shuffler."""
+        return self._shuffler
+
     def deal(
             self,
             random_seed: Optional[int] = None,
@@ -230,14 +236,15 @@ class Table:
         New deal.
 
         Args:
-            random_seed: Optional[int] unsigned in range 2^64.
+            random_seed: Optional[int] unsigned in range 2^31.
             win_deal: Optional[bool] whether winner deal is enabled.
         """
         if win_deal:
-            res = rules.winner_deal(random_seed, self.draw_count)
+            res = self._shuffler.winner_deal(random_seed, self.draw_count)
         else:
-            res = rules.deal(random_seed)
+            res = self._shuffler.deal(random_seed)
         self._state.seed = res[0]
+        logger.debug(f'Random Seed: {self._state.seed}')
         self._tableau.reset()
         for pile_pos, pile in enumerate(res[1]):
             for (suit, value), visible in pile:
@@ -325,15 +332,18 @@ class Table:
         Args:
             state: bytes -> an output from pickle.dumps
         """
-        logger.info('State set')
-        (
-            self._stack,
-            self._waste,
-            self._foundation,
-            self._tableau,
-            self._state,
-            self._history
-        ) = pickle.loads(state)
+        try:
+            (
+                self._stack,
+                self._waste,
+                self._foundation,
+                self._tableau,
+                self._state,
+                self._history
+            ) = pickle.loads(state)
+            logger.info('State set')
+        except pickle.UnpicklingError:
+            logger.warning('Invalid state')
         self._state.paused = True
 
     def refresh_table(self):
@@ -768,11 +778,12 @@ class Table:
             w_len = len(self._waste)
             for i, w_card in enumerate(self._waste):
                 pile_id = min(3, w_len - i - 1)
+                w_card.visible = True
                 self._callback(
                     w_card,
                     common.TableLocation(
                         area=common.TableArea.WASTE,
-                        visible=False,
+                        visible=True,
                         pile_id=pile_id,
                         card_id=i
                     )

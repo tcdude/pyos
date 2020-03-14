@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "6259a5883f61e5703e4c32a86b9078a0aac38f4e397297e86fec3d67cd7a461d"
+            "sha256": "ddcd4e0c1f57d4fbbe31cce3d22536d8f15250555d009c8b6d238fbb716e718a"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -16,7 +16,7 @@
     "default": {
         "foolysh": {
             "git": "https://github.com/tcdude/foolysh.git",
-            "ref": "879c0d964411306af1940ccf6eb853c025f72438"
+            "ref": "f0f3358f4810c0f01d3a19fd8aa5bfcf76be48dd"
         },
         "loguru": {
             "hashes": [
@@ -53,6 +53,26 @@
             ],
             "index": "pypi",
             "version": "==7.0.0"
+        },
+        "pyksolve": {
+            "hashes": [
+                "sha256:127a8a02b9c7661e34c87b1c28916b7913c6e75092e3139bc8b17a7114dc3463",
+                "sha256:170f74a5bda452f8588480fba1d01acf7170facddd124d84c08fa6f55361a110",
+                "sha256:197a6e78db73e7da0b0e04fd44e937618ca343e83c6c21bfaff1e8d6021729f4",
+                "sha256:1cd0e55cd8bcf35ff6c53a64ac7efbfbd9e3fd503dc7a24930d12b244b274b6f",
+                "sha256:20277f0741ca6b3d0449167b5de52ad32e5fccb4317aaff431d33c2cdd20556d",
+                "sha256:2f96f6f0d38e7a9dfcc6124daab553b0b1215dda26b18a5d1913c1710bddf5a3",
+                "sha256:432860f0bcb854bc82068ed02df0d1bdac30527936d434079c137cae5c9671e4",
+                "sha256:464094a3e2d58a64df779c0bb2abc1e5e43cc8e8280e4c5b8ca67241a634a00f",
+                "sha256:605b05e3203e613f41d407aee9d3b25c76fc0abb9be7dafc2346d8f83ea5970d",
+                "sha256:635098992064975516dcd3af3e1887dbe3b8c852c847bf100c5aba4bdde0427a",
+                "sha256:6b7804e8d678dc3981f9b4219b8c9f95a5d1d408359d66cc7203c6b4b89368d0",
+                "sha256:7b97c4f982b5c0ce0e3e796ef396feba52609c4847474a9b2d3fe3acd6560427",
+                "sha256:a2c6db57f43d46aac4d20cdcd616cde08ad135b5a9c5919412bc8155f104ff43",
+                "sha256:dea667b7e6519848f494905e1e20a47a27070af62fccf05c28746db08e6684f5"
+            ],
+            "index": "pypi",
+            "version": "==0.0.7"
         },
         "pysdl2": {
             "hashes": [

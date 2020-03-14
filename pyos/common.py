@@ -2,9 +2,9 @@
 Common constants and functions.
 """
 
+from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum
-from logging.config import dictConfig
 from typing import Optional
 
 __author__ = 'Tiziano Bettio'
@@ -45,34 +45,30 @@ STACK = 'images/s_empty.png'
 TABLEAU = 'images/t_empty.png'
 WASTE = 'images/w_empty.png'
 
-# Logging
-def setup_dict_config(log_level: str) -> None:
-    """Logging dictConfig."""
-    dictConfig({
-        'version': 1,
-        'disable_existing_loggers': True,
-        'formatters': {
-            'standard': {
-                'format': '%(levelname)s %(filename)s:%(funcName)s:'
-                          '%(lineno)d => %(message)s'
-            },
-        },
-        'handlers': {
-            'default': {
-                'level': log_level,
-                'class': 'logging.StreamHandler',
-                'formatter': 'standard'
-            },
-        },
-        'loggers': {
-            '': {
-                'handlers': ['default'],
-                'level': log_level,
-                'propagate': True
-            }
-        }
-    })
-
+# Config
+DEFAULTCONFIG = {
+    'base': OrderedDict([('window_title', 'Adfree Simple Solitaire'),
+                         ('asset_pixel_ratio', '4712'),
+                         ('window_size', '480x800'),
+                         ('asset_dir', 'assets/'),
+                         ('cache_dir', 'cache/'),
+                         ('drag_threshold', '0.025')]),
+    'pyos': OrderedDict([('winner_deal', 'True'), ('draw_one', 'True'),
+                         ('tap_move', 'True'), ('auto_foundation', 'False'),
+                         ('waste_to_foundation', 'False'),
+                         ('auto_solve', 'True'), ('auto_flip', 'True'),
+                         ('left_handed', 'False'), ('state_file', 'state.bin'),
+                         ('card_ratio', '1.3968253968253967'),
+                         ('padding', '0.06'), ('status_size', '0.96, 0.08'),
+                         ('toolbar_size', '0.96, 0.08'),
+                         ('click_threshold', '0.03'),
+                         ('log_level', 'DEBUG'),
+                         ('auto_solve_delay', '0.3')]),
+    'font': OrderedDict([('normal', 'fonts/SpaceMono.ttf'),
+                         ('bold', 'fonts/SpaceMonoBold.ttf'),
+                         ('italic', 'fonts/SpaceMonoItalic.ttf'),
+                         ('bold_italic', 'fonts/SpaceMonoBoldItalic.ttf')])
+}
 
 # Timing
 AUTO_SLOW = 0.5

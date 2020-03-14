@@ -2,8 +2,13 @@
 Entry point of the app.
 """
 
+import configparser
+import os
+import sys
+
 from loguru import logger
 
+import common
 import menu
 import game
 
@@ -38,16 +43,28 @@ class PyOS(menu.MainMenu, menu.SettingsMenu, game.Game):
     """
     All states collected using multiple inheritance.
     """
+    def on_quit(self):
+        shf = self.shuffler
+        if shf is not None:
+            shf.stop()
+        super().on_quit()
 
 
 def main():
     """Launches the app."""
     logger.info('pyos starting')
-    pyos = PyOS(config_file='.foolysh/foolysh.ini')
+    cfg_file = '.foolysh/foolysh.ini'
+    if not os.path.isfile(cfg_file):
+        os.makedirs(os.path.split(cfg_file)[0])
+        cfg = configparser.ConfigParser()
+        cfg.read_dict(common.DEFAULTCONFIG)
+        cfg.write(open(cfg_file, 'w'))
+    pyos = PyOS(config_file=cfg_file)
     logger.debug('Request state main_menu')
     pyos.request('main_menu')
     logger.debug('Start main loop')
     pyos.run()
+    sys.exit(0)
 
 
 if __name__ == '__main__':

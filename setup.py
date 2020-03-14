@@ -33,7 +33,7 @@ __version__ = '0.2'
 options = {'apk': {'debug': None,
                    'bootstrap': 'sdl2',
                    'requirements': 'libffi,sdl2,sdl2_image,sdl2_ttf,python3,'
-                                   'pysdl2,Pillow,plyer',
+                                   'pysdl2,Pillow,plyer,pyksolve,loguru',
                    'package': 'com.tizilogic.pyos',
                    'android-api': 28,
                    'arch': 'arm64-v8a',  # switch for builds
@@ -60,6 +60,7 @@ setup(
     install_requires=[
         'Pillow',
         'PySDL2',
-        'git+https://github.com/tcdude/foolysh.git'
+        'git+https://github.com/tcdude/foolysh.git',
+        'pyksolve'
     ],
 )
