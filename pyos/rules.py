@@ -64,7 +64,8 @@ class Shuffler:
     Serves starting states, optionally guaranteed to be solvable.
     """
     def __init__(self):
-        self._deferred_solver = deferred.DeferredSolver(max_closed=10_000)
+        self._deferred_solver = deferred.DeferredSolver(threads=1, cache_num=2,
+                                                        max_closed=10_000)
         self._solitaire = solver.Solitaire()
 
     def stop(self):

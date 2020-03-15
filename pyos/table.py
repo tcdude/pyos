@@ -445,7 +445,7 @@ class Table:
                     card_id=len(self._tableau.piles[pile]) - 1
                 )
             )
-        return res
+        return False
 
     def __waste_to_tableau(self, pile: Optional[int] = None) -> bool:
         """
@@ -824,6 +824,8 @@ class Table:
                     card_id=len(self._tableau.piles[move.from_pile_id]) - 1
                 )
             )
+            move = self._history.pop()
+            self.__undo_tableau_to(move)
         elif move.to_area == common.TableArea.FOUNDATION:
             t_card = self._foundation.top_card(move.to_pile_id)
             self._tableau.add_card_force(t_card, move.from_pile_id)

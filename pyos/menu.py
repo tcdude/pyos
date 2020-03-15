@@ -137,7 +137,7 @@ class SettingsMenu(app.AppBase):
         tit = self.__frame.attach_text_node(text='Settings',
                                             font_size=0.06, font=fnt,
                                             text_color=(255, 255, 255, 255))
-        tit.pos = -0.15, -0.45
+        tit.pos = -0.15, -0.42
         self.__buttons: SettingsButtons = None
         self.__setup()
         self.__root.hide()

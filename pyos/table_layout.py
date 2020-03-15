@@ -701,12 +701,8 @@ class TableLayout:
         """Place card on Tableau."""
         if c_loc.visible is False and loc.visible is True and \
               c_loc.pile_id == loc.pile_id and c_loc.card_id == loc.card_id:
-            RotationInterval(
-                card_node.node,
-                0.2,
-                360,
-                blend=BlendType.EASE_IN_OUT
-            ).play()
+            RotationInterval(card_node.node, 0.2, 0, 360,
+                             blend=BlendType.EASE_IN_OUT).play()
             card_node.node.index = 0
             return True
 

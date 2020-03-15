@@ -101,6 +101,7 @@ class Game(app.AppBase):
         self.__setup()
         if self.need_new_game:
             self.__new_deal()
+            self.need_new_game = False
 
     def exit_game(self):
         """Tasks to be performed when this state is left."""
@@ -110,6 +111,7 @@ class Game(app.AppBase):
         if dlg is not None and not dlg.hidden:
             dlg.hide()
         self.__systems.layout.root.hide()
+        self.__systems.toolbar.hide()
         self.__systems.game_table.pause()
         self.__save()
 
@@ -142,6 +144,7 @@ class Game(app.AppBase):
                                       (k, ))
         self.__setup_events_tasks()
         self.__systems.layout.root.show()
+        self.__systems.toolbar.show()
         self.__load()
         self.__systems.game_table.pause()
         self.__active = True
@@ -182,7 +185,8 @@ class Game(app.AppBase):
         hud = HUD(layout.status, tuple([float(i) for i in stat_size]),
                   self.config['font']['normal'], self.config['font']['bold'])
 
-        toolbar = ToolBar(layout.toolbar, tuple([float(i) for i in tool_size]),
+        toolbar = ToolBar(self.ui.bottom_center,
+                          tuple([float(i) for i in tool_size]),
                           self.config['font']['bold'],
                           (self.__new_deal, self.__reset_deal, self.__undo_move,
                            self.__menu))
@@ -389,7 +393,7 @@ class Game(app.AppBase):
         click_threshold = self.config.getfloat('pyos', 'click_threshold',
                                                fallback=0.05)
         if up_down_length > click_threshold:
-            logger.debug('click_threshold reached.')
+            logger.debug(f'click_threshold reached -> dist={up_down_length}')
             return
 
         if self.config.getboolean('pyos', 'tap_move'):
@@ -445,6 +449,8 @@ class Game(app.AppBase):
             with open(path, 'rb') as f_handler:
                 self.__systems.game_table.set_state(f_handler.read())
             self.__state.refresh_next_frame = 2
+        else:
+            self.__new_deal()
 
     def __show_score(self):
         """Show the result screen."""
