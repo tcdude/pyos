@@ -3,7 +3,7 @@ Provide the ToolBar class.
 """
 
 from dataclasses import dataclass
-from typing import Callable, Tuple, Type
+from typing import Callable, Tuple, Type, Union
 
 from foolysh.scene import node
 from foolysh.tools import vec2
@@ -60,15 +60,25 @@ class ToolBar:
                                   corner_radius=radius, multi_sampling=2,
                                   alpha=180)
         self._frame.reparent_to(parent)
+        self._frame.pos = -size[0] / 2, -size[1]
+        self._buttons: Union[None, ToolBarButtons] = None
         self._setup_buttons(size, border, radius, font, callbacks)
+
+    def hide(self):
+        """Hide the toolbar."""
+        self._frame.hide()
+
+    def show(self):
+        """Show the toolbar."""
+        self._frame.show()
 
     def _setup_buttons(self, size, border, radius, font, callbacks):
         # pylint: disable=too-many-arguments
 
         offset = max(border, radius)
-        unit_width = (size[0] - 2 * offset) / 11.5
-        height = size[1] - border * 4
-        font_size = (height - border * 2) * 0.7
+        unit_width = (size[0] - 2 * offset) / 10.6
+        height = size[1] - border * 6
+        font_size = (height - border * 2) * 0.58
         kwargs = {'font': font, 'font_size': font_size,
                   'text_color': (0, 0, 0, 255),
                   'down_text_color': (255, 255, 255, 255),
@@ -77,33 +87,34 @@ class ToolBar:
                   'down_border_thickness': border * 1.1,
                   'border_color': (0, 0, 0),
                   'down_border_color': (255, 255, 255),
-                  'corner_radius': height / 2, 'multi_sampling': 2,
-                  'align': 'center', 'alpha': 230}
+                  'corner_radius': min(height, unit_width) / 2,
+                  'multi_sampling': 2, 'align': 'center', 'alpha': 230}
         newb = button.Button(name='new but', size=(unit_width * 3, height),
-                             text='  ' + chr(0xf893) + ' Deal', **kwargs)
+                             text=chr(0xf893) + ' Deal', **kwargs)
         newb.reparent_to(self._frame)
         newb.onclick(callbacks[0])
         newb.pos = offset, (size[1] - height) / 2
-        offset += unit_width * 3.5
+        offset += unit_width * 3.2
 
         reset = button.Button(name='reset but', size=(unit_width * 3, height),
-                              text=' ' + chr(0xf021) + ' Reset', **kwargs)
+                              text=chr(0xf021) + ' Reset', **kwargs)
         reset.reparent_to(self._frame)
         reset.onclick(callbacks[1])
         reset.pos = offset, (size[1] - height) / 2
-        offset += unit_width * 3.5
+        offset += unit_width * 3.2
 
         undo = button.Button(name='undo but', size=(unit_width * 3, height),
-                             text='  ' + chr(0xfa4b) + ' Undo', **kwargs)
+                             text=chr(0xfa4b) + ' Undo', **kwargs)
         undo.reparent_to(self._frame)
         undo.onclick(callbacks[2])
         undo.pos = offset, (size[1] - height) / 2
-        offset += unit_width * 3.5
+        offset += unit_width * 3.2
 
-        kwargs['font_size'] *= 1.15
+        kwargs['font_size'] *= 1.25
         kwargs['border_thickness'] = 0
         menu = button.Button(name='menu but', size=(unit_width, height),
-                             text=' ' + chr(0xf85b), **kwargs)
+                             text=chr(0xf85b), **kwargs)
         menu.reparent_to(self._frame)
         menu.onclick(callbacks[3])
         menu.pos = offset, (size[1] - height) / 2
+        self._buttons = ToolBarButtons(newb, reset, undo, menu)
