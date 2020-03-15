@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "ddcd4e0c1f57d4fbbe31cce3d22536d8f15250555d009c8b6d238fbb716e718a"
+            "sha256": "bbd35c1e484a13567382fa499ba49988ff92ef6fc918c3fc5e4bfb5ffc5ac950"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -130,6 +130,9 @@
                 "sha256:dd8d182285a0fe56bace7f45b5e7d1a6ebcbf524e8f3bd87eb0f125271b8831f"
             ],
             "version": "==0.6.1"
+        },
+        "p4a-build-spaces": {
+            "file": "https://github.com/JonasT/p4a-build-spaces/archive/master.zip"
         },
         "pylint": {
             "hashes": [

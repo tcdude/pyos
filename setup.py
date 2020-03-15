@@ -33,19 +33,21 @@ __version__ = '0.2'
 options = {'apk': {'debug': None,
                    'bootstrap': 'sdl2',
                    'requirements': 'libffi,sdl2,sdl2_image,sdl2_ttf,python3,'
-                                   'pysdl2,Pillow,plyer,pyksolve,loguru',
+                                   'pysdl2,pyksolve,Pillow,plyer,loguru,'
+                                   'foolysh',
                    'package': 'com.tizilogic.pyos',
                    'android-api': 28,
-                   'arch': 'arm64-v8a',  # switch for builds
+                   'arch': 'armeabi-v7a',  # switch for builds arm64-v8a
                    'dist-name': 'pyos-beta',
                    'icon': 'pyos/assets/app-images/icon192.png',
                    'presplash': 'pyos/assets/app-images/splash.png',
                    'presplash-color': '#224422',
+                   'local-recipes': './p4a-recipes',
                    }}
 
 setup(
     name='Simple Solitaire',
-    version='0.2.5',
+    version='0.2.6',
     description='An ad free, simple solitaire game',
     author='tcdude',
     author_email='tizilogic@gmail.com',
@@ -59,8 +61,5 @@ setup(
     ]},
     install_requires=[
         'Pillow',
-        'PySDL2',
-        'git+https://github.com/tcdude/foolysh.git',
-        'pyksolve'
     ],
 )
