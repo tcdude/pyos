@@ -52,6 +52,8 @@ class PyOS(menu.MainMenu, menu.SettingsMenu, game.Game):
 
 def main():
     """Launches the app."""
+    logger.remove()
+    logger.add(sys.stderr, level='INFO')
     logger.info('pyos starting')
     cfg_file = '.foolysh/foolysh.ini'
     if not os.path.isfile(cfg_file):
