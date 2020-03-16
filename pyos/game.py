@@ -1,5 +1,26 @@
 """
-Copyright (c) 2019 Tiziano Bettio
+Ad free simple Solitaire implementation.
+"""
+
+from dataclasses import dataclass
+import os
+from typing import Tuple, Union
+
+from loguru import logger
+import sdl2
+from foolysh.tools.vec2 import Vec2
+
+import app
+import common
+from dialogue import Dialogue, DialogueButton
+from hud import HUD
+from table import Table
+from table_layout import TableLayout
+from toolbar import ToolBar
+
+__author__ = 'Tiziano Bettio'
+__copyright__ = """
+Copyright (c) 2020 Tiziano Bettio
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -20,1336 +41,494 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import pickle
-import os
-import logging
-from logging.config import dictConfig
-
-import sdl2
-from sdl2.ext import Applicator
-
-from common import APPNAME
-from common import AUTO_FAST
-from common import AUTO_SLOW
-from common import BOTTOM_BAR
-from common import COL_SPACING
-from common import CONFIG
-from common import CONFIGFILE
-from common import FONT_BOLD
-from common import FONT_NORMAL
-from common import get_relative_font_size
-from common import get_scale
-from common import get_table
-from common import RATIO
-from common import get_cards
-from common import ROW_SPACING
-from common import STATEFILE
-from common import TABLEAU_SPACING
-from common import text_box
-from common import TOP_BAR
-from component import CardEntity
-from component import PlaceHolderEntity
-from engine.app import App
-from engine.vector import Vector
-from table import Table
-
-__author__ = 'Tiziano Bettio'
-__copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
 __license__ = 'MIT'
 __version__ = '0.2'
 
 
-class Game(App):
-    def __init__(self):
-        super(Game, self).__init__(APPNAME)
-        # Config
-        self.__config__ = {}
-        self.__config__.update(CONFIG)
-        if os.path.isfile(CONFIGFILE):
-            self.__config__.update(pickle.loads(open(CONFIGFILE, 'rb').read()))
+@dataclass
+class DragInfo:
+    """Retains info for a subsequent call to Table methods."""
+    pile_id: int
+    num_cards: int
+    start_area: common.TableArea
 
-        # Image Paths
-        self.__card_img__ = {}
-        self.__cardback_img__ = None
 
-        # Entities
-        self.__bg__ = []
-        self.__cards__ = {}
-        self.__points__ = None
-        self.__time__ = None
-        self.__moves__ = None
-        self.__top_bar__ = []
-        self.__bt_bar__ = []
-        self.__score_box__ = []
+@dataclass
+class GameSystems:
+    """Holds all the various systems."""
+    game_table: Table
+    layout: TableLayout
+    hud: HUD
+    toolbar: ToolBar
+    windlg: Union[None, Dialogue] = None
 
-        # Locations / Size / Duration / Speed
-        self.__cr_sep__ = int(self.screen_size[1] * ROW_SPACING)
-        self.__cardsize__ = (0, 0)
-        self.__f_pos__ = []
-        self.__s_pos__ = (0, 0)
-        self.__w_pos__ = (0, 0)
-        self.__t_pos__ = []
-        self.__auto_delay__ = AUTO_SLOW
-        self.__standard_speed__ = 1.0 / (min(self.screen_size) * 2.7)
-        self.__slow_speed__ = 1.0 / (min(self.screen_size) * 1.2)
-        self.__font_size_large__ = get_relative_font_size(28, self.screen_size)
-        self.__font_size_normal__ = get_relative_font_size(24, self.screen_size)
-        self.__font_size_icon__ = get_relative_font_size(64, self.screen_size)
 
-        # State
-        self.__table__ = Table()
-        self.__drag__ = False
-        self.__invalid_drag__ = False
-        self.__d_ent__ = []
-        self.__drag_origin__ = None
-        self.__orig_depth__ = 0
-        self.__last_click__ = 0.0
-        self.__m_d_pos__ = Vector()
-        self.__last_mouse__ = Vector()
-        self.__down__ = False
-        self.__last_undo__ = False
-        self.__last_auto__ = 0
+@dataclass
+class GameState:
+    """Holds various state attributes."""
+    valid_drop: bool = False
+    last_window_size: Tuple[int, int] = (0, 0)
+    refresh_next_frame: int = 0
+    last_auto: float = 0.0
+    last_undo: bool = False
+    mouse_down_pos: Vec2 = Vec2()
+    drag_info: DragInfo = DragInfo(-1, -1, common.TableArea.STACK)
 
-        # Setup
-        self.setup()
-        self.event_handler.listen(
-            'quit',
-            sdl2.SDL_QUIT,
-            self.quit,
-            0,
-            blocking=False
-        )
-        self.task_manager.add_task('HUD_Update', self.update_hud, 0.05)
-        self.event_handler.listen(
-            'android_back',
-            sdl2.SDL_KEYUP,
-            self.back
-        )
-        if self.isandroid:
-            self.event_handler.listen(
-                'finger_down',
-                sdl2.SDL_FINGERDOWN,
-                self.mouse_down
-            )
-            self.event_handler.listen(
-                'finger_up',
-                sdl2.SDL_FINGERUP,
-                self.mouse_up
-            )
-        else:
-            self.event_handler.listen(
-                'mouse_down',
-                sdl2.SDL_MOUSEBUTTONDOWN,
-                self.mouse_down
-            )
-            self.event_handler.listen(
-                'mouse_up',
-                sdl2.SDL_MOUSEBUTTONUP,
-                self.mouse_up
-            )
-        self.task_manager.add_task('drag_task', self.drag_task)
-        self.task_manager.add_task('auto_save', self.auto_save_task, 5)
-        self.task_manager.add_task(
-            'auto_complete',
-            self.auto_foundation,
-            0.05
-        )
-        # Logging
-        dictConfig({
-            'version': 1,
-            'disable_existing_loggers': True,
-            'formatters': {
-                'standard': {
-                    'format': '%(levelname)s %(filename)s:%(funcName)s:'
-                              '%(lineno)d => %(message)s'
-                },
-            },
-            'handlers': {
-                'default': {
-                    'level': 'INFO',
-                    'class': 'logging.StreamHandler',
-                    'formatter': 'standard'
-                },
-            },
-            'loggers': {
-                '': {
-                    'handlers': ['default'],
-                    'level': 'INFO',
-                    'propagate': True
-                }
-            }
-        })
-        if self.isandroid:
-            self.event_handler.listen(
-                'APP_TERMINATING',
-                sdl2.SDL_APP_TERMINATING,
-                self.quit,
-                0,
-                blocking=False
-            )
-            self.event_handler.listen(
-                'APP_WILLENTERBACKGROUND',
-                sdl2.SDL_APP_WILLENTERBACKGROUND,
-                self.event_will_enter_bg
-            )
-            self.event_handler.listen(
-                'APP_DIDENTERBACKGROUND',
-                sdl2.SDL_APP_DIDENTERBACKGROUND,
-                self.event_pause
-            )
-            self.event_handler.listen(
-                'APP_LOWMEMORY',
-                sdl2.SDL_APP_LOWMEMORY,
-                self.event_low_memory
-            )
-            # noinspection PyUnresolvedReferences
-            import android
-            android.remove_presplash()
-        self.log.info('pyos started')
+
+class Game(app.AppBase):
+    """
+    Entry point of the App.
+    """
+    def __init__(self, config_file):
+        super().__init__(config_file=config_file)
+        self.__systems: Union[None, GameSystems] = None
+        self.__state: GameState = GameState()
+        self.__need_setup: bool = True
+        self.__active: bool = False
+        logger.info('Game initialized.')
 
     @property
-    def log(self):
-        return logging
+    def shuffler(self):
+        """Returns the shuffler from Table."""
+        if self.__systems is not None:
+            return self.__systems.game_table.shuffler
+        return None
 
-    @property
-    def table(self):
-        return self.__table__
+    # State
+    def enter_game(self):
+        """Tasks to be performed when this state is activated."""
+        logger.debug('Enter state game')
+        self.__setup()
+        if self.need_new_game:
+            self.__new_deal()
+            self.need_new_game = False
 
-    # noinspection PyUnusedLocal
-    def auto_save_task(self, *args, **kwargs):
-        if not self.table.is_paused:
-            self.log.debug('Auto Save')
-            self.save()
-            # self.table.resume()
+    def exit_game(self):
+        """Tasks to be performed when this state is left."""
+        logger.debug('Exit state game')
+        self.__disable_all()
+        dlg = self.__systems.windlg
+        if dlg is not None and not dlg.hidden:
+            dlg.hide()
+        self.__systems.layout.root.hide()
+        self.__systems.toolbar.hide()
+        self.__systems.game_table.pause()
+        self.__save()
 
-    # noinspection PyUnusedLocal
-    def event_pause(self, event=None):
-        self.log.info('Paused game')
-        self.table.pause()
+    # Setup / Tear down
 
-    # noinspection PyUnusedLocal
-    def event_will_enter_bg(self, event=None):
-        self.log.warning('Unhandled event APP_WILLENTERBACKGROUND!!!')
-
-    # noinspection PyUnusedLocal
-    def event_low_memory(self, event=None):
-        self.log.warning('Unhandled event APP_LOWMEMORY!!!')
-
-    # noinspection PyUnusedLocal
-    def mouse_down(self, event):
-        if self.__score_box__:
+    def __disable_all(self):
+        if not self.__active:
             return
-        self.__down__ = True
+        self.event_handler.forget('mouse_down')
+        self.event_handler.forget('mouse_up')
+        self.task_manager.remove_task('HUD_Update')
+        self.task_manager.remove_task('auto_save')
+        self.task_manager.remove_task('auto_complete')
+        self.task_manager.remove_task('layout_process')
+        for suit in range(4):
+            for value in range(13):
+                k = suit, value
+                self.drag_drop.disable(self.__systems.layout.get_card(k))
+        self.__active = False
+
+    def __setup(self):
+        if self.__active:
+            return
+        self.__setup_layout()
+        for suit in range(4):
+            for value in range(13):
+                k = suit, value
+                self.drag_drop.enable(self.__systems.layout.get_card(k),
+                                      self.__drag_cb, (k, ), self.__drop_cb,
+                                      (k, ))
+        self.__setup_events_tasks()
+        self.__systems.layout.root.show()
+        self.__systems.toolbar.show()
+        self.__load()
+        self.__systems.game_table.pause()
+        self.__active = True
+
+    def __setup_events_tasks(self):
+        """Setup Events and Tasks."""
         if self.isandroid:
-            self.__update_mouse__()
-        if event.type == sdl2.SDL_TouchFingerEvent:
-            self.__m_d_pos__ = Vector(
-                int(event.x * (self.screen_size[0] - 1)),
-                int(event.y * (self.screen_size[1] - 1))
-            )
-            self.log.debug('finger down')
+            down = sdl2.SDL_FINGERDOWN
+            upe = sdl2.SDL_FINGERUP
         else:
-            self.__m_d_pos__ = self.mouse_pos
-            self.log.debug(f'mouse button down [{self.mouse_pos}]')
+            down = sdl2.SDL_MOUSEBUTTONDOWN
+            upe = sdl2.SDL_MOUSEBUTTONUP
 
-    # noinspection PyUnusedLocal
-    def drag_task(self, *args, **kwargs):
-        if self.__invalid_drag__:
+        # make sure mouse events run after drag_drop
+        self.event_handler.listen('mouse_down', down, self.__mouse_down,
+                                  priority=-5)
+        self.event_handler.listen('mouse_up', upe, self.__mouse_up, priority=-5)
+
+        self.task_manager.add_task('HUD_Update', self.__update_hud, 0.05)
+        self.task_manager.add_task('auto_save', self.__auto_save_task, 5, False)
+        self.task_manager.add_task('auto_complete', self.__auto_foundation,
+                                   0.05)
+        self.task_manager.add_task('layout_process',
+                                   self.__systems.layout.process, 0)
+
+    def __setup_layout(self):
+        """One time setup of the scene."""
+        if not self.__need_setup:
             return
-        if self.__down__ and not self.__drag__:
+        stat_size = self.config['pyos']['status_size'].split(',')
+        tool_size = self.config['pyos']['toolbar_size'].split(',')
+        layout = TableLayout(self.config.getfloat('pyos', 'card_ratio'),
+                             self.config.getfloat('pyos', 'padding'),
+                             tuple([float(i) for i in stat_size]),
+                             tuple([float(i) for i in tool_size]))
+        layout.root.reparent_to(self.root)
 
-            dist = (self.mouse_pos - self.__m_d_pos__).length
-            if dist > self.__config__['drag_threshold'] * min(self.screen_size):
-                self.__drag_origin__, self.__d_ent__ = self.get_drag_entities()
-                if not self.__d_ent__:
-                    self.__invalid_drag__ = True
-                    return
-                self.__orig_depth__ = self.__d_ent__[0].sprite.depth
-                self.__drag__ = True
-                self.__last_mouse__ = self.__m_d_pos__
-                self.log.debug('start drag')
-        if self.__drag__:
-            dx, dy = self.mouse_pos - self.__last_mouse__
-            self.__last_mouse__ = self.mouse_pos
-            for i, e in enumerate(self.__d_ent__):
-                x, y = e.sprite.position
-                e.sprite.position = x + dx, y + dy
-                e.sprite.depth = 100 + i
+        hud = HUD(layout.status, tuple([float(i) for i in stat_size]),
+                  self.config['font']['normal'], self.config['font']['bold'])
 
-    def get_drag_entities(self):
-        a = self.check_click_pos(self.__m_d_pos__)
-        if a in ('s', None):
-            return 's', []
-        if a == 'w' and len(self.table.waste):
-            return 'w', [self.__cards__[self.table.waste[-1]]]
-        elif a == 'f':
-            for i, f in enumerate(self.table.foundation):
-                if not f:
-                    continue
-                sx = self.__f_pos__[i][0]
-                ex = sx + self.__cardsize__[0]
-                if sx <= self.__m_d_pos__.x <= ex:
-                    return f'f{i}', [self.__cards__[f[-1]]]
-        elif a == 't':
-            col = self.__m_d_pos__.x / (self.screen_size[0] / 7)
-            col = min(6, int(col))
-            if not self.table.tableau[col]:
-                return f't{col}', []
-            row = self.get_tableau_row(col, self.__m_d_pos__)
-            if row == -1:
-                return f't{col}', [
-                    self.__cards__[self.table.tableau[col][-1][0]]
-                ]
-            else:
-                return (
-                    f't{col}',
-                    [
-                        self.__cards__[c[0]]
-                        for c in self.table.tableau[col][row:]
-                    ]
-                )
-        return None, None
+        toolbar = ToolBar(self.ui.bottom_center,
+                          tuple([float(i) for i in tool_size]),
+                          self.config['font']['bold'],
+                          (self.__new_deal, self.__reset_deal, self.__undo_move,
+                           self.__menu))
+        game_table = Table(layout.callback)
+        layout.set_table(game_table)
+        self.__systems = GameSystems(game_table, layout, hud, toolbar)
+        self.__need_setup = False
 
-    # noinspection PyUnusedLocal
-    def mouse_up(self, event):
-        self.__last_undo__ = False
-        if self.__score_box__:
-            for e in self.__score_box__:
-                self.world.delete(e)
-            self.__score_box__ = []
-        self.__down__ = False
-        sa = self.check_click_pos(self.__m_d_pos__)
-        ea = self.check_click_pos()
-        if self.__invalid_drag__:
-            self.__invalid_drag__ = False
-            if not (sa == ea is not None):
-                self.__drag__ = False
-                return
-        process_click = True
-        if self.__drag__:
-            process_click = self.end_drag(sa, ea)
-        if not process_click:
+    # Tasks / Events
+
+    def __auto_save_task(self):
+        """Auto save task."""
+        if not self.__systems.game_table.is_paused:
+            logger.debug('Auto Save')
+            self.__save()
+
+    def __auto_foundation(self, dt):
+        """Task to auto solve a game."""
+        # pylint: disable=invalid-name, unused-argument
+        if not self.__active:
             return
-        a = self.check_click_pos()
-        if a == 's':
-            self.stack_click()
-        elif a == 'w' and self.table.waste:
-            self.waste_click()
-        elif a == 't':
-            self.tableau_click()
-        elif a == 'f':
-            self.foundation_click()
-        elif a == 'b':
-            self.bt_bar_click()
-        if self.table.is_paused:
+        if self.__systems.game_table.is_paused or self.__state.last_undo:
             return
+        if self.config.getboolean('pyos', 'auto_flip', fallback=False):
+            for i in range(7):
+                self.__systems.game_table.flip(i)
+        auto_solve = self.config.getboolean('pyos', 'auto_solve',
+                                            fallback=False)
+        if auto_solve and self.__systems.game_table.solved:
+            self.__auto_solve()
 
-        # if self.__config__['auto_foundation'] and not self.__last_undo__:
-        #     self.auto_foundation()
-        # if self.__config__['auto_solve']:
-        #     self.auto_solve()
-        if self.table.win_condition:
-            self.stop_all_position_sequences()
-            t, p, b, m = self.table.result
-            self.log.info(f'{t:.1f} Seconds, {p} Points, {b} Bonus, {m} Moves')
-            self.show_score()
-            # self.deal()
-
-    def end_drag(self, start_area, end_area):
-        process_click = True
-        if start_area == end_area != 't':
-            invalid = True
+    def __auto_solve(self):
+        """When solved, determines and executes the next move."""
+        call_time = self.clock.get_time()
+        delay = self.config.getfloat('pyos', 'auto_solve_delay', fallback=0.3)
+        if call_time - self.__state.last_auto < delay:
+            return
+        tbl = self.__systems.game_table
+        if self.config.getboolean('pyos', 'waste_to_foundation',
+                                  fallback=False):
+            meths = (tbl.tableau_to_foundation, tbl.waste_to_foundation,
+                     tbl.waste_to_tableau, tbl.draw)
         else:
-            to_foundation = True if end_area == 'f' else False
-            if to_foundation and len(self.__d_ent__) > 1:
-                self.log.debug('tried to drag multiple cards to foundation')
-                invalid = True
-            elif end_area in ('w', 's', None):
-                self.log.debug(f'tried to drop on invalid area={str(end_area)}')
-                invalid = True
-            else:
-                sti = self.get_array_index('t', self.__m_d_pos__)
-                srow = self.get_tableau_row(sti, self.__m_d_pos__)
-                eti = self.get_array_index('t', self.mouse_pos)
-                sfi = self.get_array_index('f', self.__m_d_pos__)
-                efi = self.get_array_index('f', self.mouse_pos)
-                if start_area == 'w':
-                    if end_area == 't':
-                        self.log.debug(f'waste_to_tableau(col={eti})')
-                        invalid = not self.table.waste_to_tableau(
-                            col=eti
-                        )
-                        if not invalid:
-                            self.update_tableau(eti)
-                    elif end_area == 'f':
-                        self.log.debug(f'waste_to_foundation(col={efi})')
-                        invalid = not self.table.waste_to_foundation(
-                            col=efi
-                        )
-                        if not invalid:
-                            self.update_foundation(efi)
-                    else:
-                        self.log.debug('invalid waste_to_... move')
-                        invalid = True
-                    if not invalid:
-                        self.update_waste()
-                elif start_area == 't':
-                    if end_area == 't':
-                        self.log.debug(
-                            f'tableau_to_tableau(scol={sti}, ecol={eti}, srow='
-                            f'{srow})'
-                        )
-                        invalid = not self.table.tableau_to_tableau(
-                            scol=sti,
-                            ecol=eti,
-                            srow=srow
-                        )
-                        self.flip_cards()
-                        if not invalid:
-                            self.update_tableau(eti)
-                        else:
-                            process_click = False
-                    elif end_area == 'f':
-                        self.log.debug(
-                            f'tableau_to_foundation(col={sti}, fcol={efi})'
-                        )
-                        invalid = not self.table.tableau_to_foundation(
-                            col=sti,
-                            fcol=efi
-                        )
-                        self.flip_cards()
-                        if not invalid:
-                            self.update_foundation(efi)
-                    else:
-                        self.log.debug('invalid tableau_to_... move')
-                        invalid = True
-                    if not invalid:
-                        self.update_tableau(sti)
-                elif start_area == 'f':
-                    if end_area == 't':
-                        self.log.debug(
-                            f'foundation_to_tableau(col={sfi}, tcol={eti})'
-                        )
-                        invalid = not self.table.foundation_to_tableau(
-                            col=sfi,
-                            tcol=eti,
-                        )
-                        if not invalid:
-                            self.update_tableau(eti)
-                            self.__last_undo__ = True
-                    else:
-                        self.log.debug('invalid foundation_to_... move')
-                        invalid = True
-                    if not invalid:
-                        self.update_foundation(sfi)
-                else:
-                    self.log.warning(
-                        f'unhandled drag event: start_area={str(start_area)}, '
-                        f'end_area={str(end_area)}, sti={sti}, srow={srow}, '
-                        f'eti={eti}, sfi={sfi}, efi={efi}'
-                    )
-                    invalid = True
-        if invalid or not process_click:
-            self.log.debug('!!invalid move!!')
-            dx, dy = self.__m_d_pos__ - self.mouse_pos
-            for i, e in enumerate(self.__d_ent__):
-                x, y = e.sprite.position
-                e.sprite.position = x + dx, y + dy
-                e.sprite.depth = self.__orig_depth__ + i
-            self.update_waste()
-            self.update_foundation()
-            self.update_tableau()
+            meths = (tbl.tableau_to_foundation, tbl.waste_to_tableau,
+                     tbl.waste_to_foundation, tbl.draw)
+        for meth in meths:
+            if meth():
+                self.__state.last_auto = call_time
+                return
+        raise RuntimeError('Unhandled exception.')
+
+    def __update_hud(self, dt):
+        """Update HUD."""
+        # pylint: disable=invalid-name,unused-argument
+        if self.window.size != self.__state.last_window_size \
+              or self.layout_refresh:
+            self.__state.last_window_size = self.window.size
+            self.__systems.layout.setup(self.__state.last_window_size,
+                                        self.config.getboolean('pyos',
+                                                               'left_handed'))
+            self.__state.refresh_next_frame = 2
+            self.layout_refresh = False
+        elif self.__state.refresh_next_frame > 0:
+            self.__state.refresh_next_frame -= 1
+            self.__systems.game_table.refresh_table()
+            logger.debug('refresh_table')
+        if not self.__systems.game_table.win_condition:
+            moves, elapsed_time, points = self.__systems.game_table.stats
+            self.__systems.hud.update(points, int(elapsed_time + 0.5), moves)
         else:
-            self.log.debug('!!valid move!!')
-            process_click = False
-        self.__drag__ = False
-        self.__d_ent__ = []
-        return process_click
+            self.__systems.layout.setup(self.__state.last_window_size,
+                                        self.config.getboolean('pyos',
+                                                               'left_handed'))
+            self.__systems.layout.process(self.clock.get_dt())
+            self.__systems.game_table.refresh_table()
+            self.__state.refresh_next_frame = 2
+            self.__systems.game_table.pause()
+            self.__show_score()
 
-    def check_click_pos(self, mouse_pos=None):
-        """Return a single lowercase letter for the clicked area or None"""
-        if mouse_pos is None:
-            mouse_pos = self.mouse_pos
-
-        # Stack
-        sx = self.__s_pos__[0]
-        ex = sx + self.__cardsize__[0]
-        sy = self.__s_pos__[1]
-        ey = sy + self.__cardsize__[1]
-        if sx <= mouse_pos.x <= ex and sy <= mouse_pos.y <= ey:
-            return 's'
-
-        # Waste
-        sx = self.__w_pos__[0]
-        if self.__config__['left_handed']:
-            sx += min(len(self.table.waste) - 1, 3) * self.__cr_sep__
-        ex = sx + self.__cardsize__[0]
-        sy = self.__w_pos__[1]
-        ey = sy + self.__cardsize__[1]
-        if sx <= mouse_pos.x <= ex and sy <= mouse_pos.y <= ey:
-            return 'w'
-
-        # Tableau
-        sy = self.__t_pos__[0][1]
-        max_pile = max([len(i) - 1 for i in self.table.tableau] + [0])
-        ey = sy + max_pile * self.__cr_sep__ + self.__cardsize__[1]
-        if sy <= mouse_pos.y <= ey:
-            return 't'
-
-        # Foundation
-        sx = min(self.__f_pos__[0][0], self.__f_pos__[-1][0])
-        ex = max(self.__f_pos__[0][0], self.__f_pos__[-1][0])
-        ex += self.__cardsize__[0]
-        sy = self.__f_pos__[0][1]
-        ey = self.__f_pos__[-1][1] + self.__cardsize__[1]
-        if sx <= mouse_pos.x <= ex and sy <= mouse_pos.y <= ey:
-            return 'f'
-
-        # Bottom Bar
-        sx = 0
-        ex = self.screen_size[0]
-        sy = self.screen_size[1] - int(self.screen_size[1] * BOTTOM_BAR[1])
-        ey = self.screen_size[1]
-        if sx <= mouse_pos.x <= ex and sy <= mouse_pos.y <= ey:
-            return 'b'
-        return None
-
-    def back(self, event):
-        """Handles Android Back, Escape and Backspace Events"""
-        if event.key.keysym.sym in (
-                sdl2.SDLK_AC_BACK, 27, sdl2.SDLK_BACKSPACE):
-            self.quit(blocking=False)
-
-    def on_quit(self):
-        self.log.info('Saving state and quiting pyos')
-        self.save()
-
-    def save(self):
-        with open(STATEFILE, 'wb') as f:
-            f.write(self.table.get_state(pause=False))
-
-    # noinspection PyUnusedLocal
-    def auto_foundation(self, dt, *args, **kwargs):
-        self.__last_auto__ += dt
-        if self.__last_auto__ < self.__auto_delay__:
-            return
-        self.__last_auto__ -= self.__auto_delay__
-        if self.table.win_condition and not self.__score_box__:
-            self.show_score()
-            self.__auto_delay__ = AUTO_SLOW
-        if self.table.is_paused or self.__last_undo__:
-            return
-        if self.table.solved and self.__config__['auto_solve']:
-            if self.__auto_delay__ != AUTO_FAST:
-                self.__auto_delay__ = AUTO_FAST
-            self.auto_solve()
-        elif self.__config__['auto_foundation']:
-            if self.__try_tableau_to_foundation__():
-                return
-            if self.__try_waste_to_foundation__():
-                return
-
-    def __try_tableau_to_foundation__(self):
-        before = [len(t) for t in self.table.foundation]
-        tableau = self.table.tableau_to_foundation()
-        if not tableau:
+    def __drag_cb(self, k) -> bool:
+        """Callback on start drag of a card."""
+        table_click = self.__systems.layout.click_area(self.mouse_pos)
+        if table_click is None or table_click[0] == common.TableArea.STACK or \
+              self.__systems.layout.get_card(k).index == 1:
             return False
-        self.animate_tableau_to_foundation(
-            self.__last_foundation__(before),
-            shake=True
-        )
+        dragi = self.__state.drag_info
+        tbl = self.__systems.game_table.table
+        dragi.start_area = table_click[0]
+        if table_click[0] == common.TableArea.TABLEAU:
+            pile_id = table_click[1][0]
+            card_id = table_click[1][1]
+            pile = tbl.tableau[pile_id]
+            if len(pile) < card_id + 1:
+                return False
+            self.__systems.layout \
+                .on_drag(pile[card_id].index[0],
+                         [i.index[0] for i in pile[card_id + 1:]])
+            dragi.pile_id = pile_id
+            num_cards = len(pile) - card_id
+            dragi.num_cards = num_cards
+        elif table_click[0] == common.TableArea.FOUNDATION:
+            dragi.pile_id = table_click[1][0]
+            dragi.num_cards = 1
+            self.__systems.layout \
+                .on_drag(tbl.foundation[table_click[1][0]][-1].index[0])
+        else:  # WASTE
+            dragi.pile_id = -1
+            dragi.num_cards = 1
+            self.__systems.layout.on_drag(tbl.waste[-1].index[0])
         return True
 
-    def __last_foundation__(self, before):
-        after = [len(t) for t in self.table.foundation]
-        col = -1
-        for i, (t, c) in enumerate(zip(before, after)):
-            if t != c:
-                col = i
-                break
-        if col > -1:
-            return self.table.foundation[col][-1]
-        raise ValueError('unable to find last foundation card')
+    def __drop_cb(self, k):
+        """Callback on drop of a card."""
+        self.__systems.layout.on_drop()
+        waste_tableau = common.TableArea.WASTE, common.TableArea.TABLEAU
+        if self.__state.drag_info.start_area in waste_tableau:
+            if not self.__drop_foundation(k):
+                self.__drop_tableau(k)
+        elif self.__state.drag_info.start_area == common.TableArea.FOUNDATION:
+            self.__drop_tableau(k)
+        self.__state.refresh_next_frame = 1
+        self.__state.valid_drop = True
 
-    def __try_waste_to_foundation__(self):
-        before = [len(t) for t in self.table.foundation]
-        waste = self.table.waste_to_foundation()
-        if not waste:
-            return False
-        self.animate_waste_to_foundation(
-            self.__last_foundation__(before),
-            shake=True
-        )
-        self.animate_stack(left_to_right=True)
-        return True
+    # Drop helper methods
 
-    def __try_waste_to_tableau__(self):
-        k = self.table.waste[-1] if self.table.waste else None
-        waste = self.table.waste_to_tableau()
-        if not waste:
-            return False
-        self.animate_waste_to_tableau(
-            k,
-            shake=True
-        )
-        self.animate_stack(left_to_right=True)
-        return True
+    def __drop_foundation(self, k):
+        """Evaluates a drop on foundation"""
+        for i, t_node in enumerate(self.__systems.layout.foundation):
+            if t_node.aabb.overlap(self.__systems.layout.get_card(k).aabb):
+                if self.__state.drag_info.start_area == common.TableArea.WASTE:
+                    if self.__systems.game_table.waste_to_foundation(i):
+                        return True
+                elif self.__state.drag_info.start_area == common.TableArea \
+                      .TABLEAU:
+                    if self.__systems.game_table.tableau_to_foundation(
+                            self.__state.drag_info.pile_id, i):
+                        return True
+        return False
 
-    def auto_solve(self):
-        if self.__try_tableau_to_foundation__():
+    def __drop_tableau(self, k):
+        """Evaluates a drop on tableau"""
+        tbl = self.__systems.game_table
+        tableau = tbl.table.tableau
+        dragi = self.__state.drag_info
+        t2t_move = dragi.start_area == common.TableArea.TABLEAU
+        w2t_move = dragi.start_area == common.TableArea.WASTE
+        f2t_move = dragi.start_area == common.TableArea \
+            .FOUNDATION
+        res = False
+        for i, t_node in enumerate(self.__systems.layout.tableau):
+            pile_id = dragi.pile_id
+            if not tableau[i]:
+                if k[1] == 12:  # King special case
+                    check_aabb = self.__systems.layout.get_card(k).aabb
+                    if t_node.aabb.overlap(check_aabb):
+                        res = tbl.tableau_to_tableau(pile_id, i,dragi.num_cards)
+                        if t2t_move and res:
+                            res = True
+                            break
+                        res = tbl.waste_to_tableau(i)
+                        if w2t_move and res:
+                            res = True
+                            break
+                        res = tbl \
+                            .foundation_to_tableau(pile_id, i)
+                        if f2t_move and res:
+                            res = True
+                            break
+                continue
+            check_aabb = self.__systems.layout.get_card(tableau[i][-1].index[0])
+            check_aabb = check_aabb.aabb
+            if check_aabb.overlap(self.__systems.layout.get_card(k).aabb):
+                if t2t_move and tbl.tableau_to_tableau(pile_id, i,
+                                                       dragi.num_cards):
+                    res = True
+                    break
+                if w2t_move and tbl.waste_to_tableau(i):
+                    res = True
+                    break
+                if f2t_move and tbl.foundation_to_tableau(pile_id, i):
+                    res = True
+                    break
+        return res
+
+    def __mouse_down(self, event):
+        """
+        Global mouse down event to register mouse position when a click starts.
+        """
+        # pylint: disable=unused-argument
+        self.__state.mouse_down_pos = self.mouse_pos
+
+    def __mouse_up(self, event):
+        """
+        Global mouse up event.
+        """
+        # pylint: disable=unused-argument
+        if self.__state.valid_drop:  # Event is handled by dragdrop.
+            self.__state.valid_drop = False
             return
-        if self.__try_waste_to_foundation__():
+        self.__systems.layout.on_drop()
+        self.__state.last_undo = False
+        # Check click threshold
+        up_down_length = (self.__state.mouse_down_pos - self.mouse_pos).length
+        click_threshold = self.config.getfloat('pyos', 'click_threshold',
+                                               fallback=0.05)
+        if up_down_length > click_threshold:
+            logger.debug(f'click_threshold reached -> dist={up_down_length}')
             return
-        if self.__try_waste_to_tableau__():
-            return
-        r = self.table.draw()
-        if r == 2:
-            self.reset_stack()
-            self.table.draw()
-        if r == 1:
-            self.animate_stack()
 
-    def show_score(self):
-        if not self.table.win_condition:
-            raise ValueError('win_condition is not True')
-        if self.__score_box__:
-            raise ValueError('score box is not empty')
-        t, pts, bonus, moves = self.table.result
-        ti = int(t)
-        cent = int((t - ti) * 10)
-        p, (x, y) = text_box(
-            self.screen_size,
-            f'\nYou WON!!!\n\n\n'
-            f'Points:     {pts + bonus}  \n'
-            f'Duration:   {ti // 60}:{ti % 60:02d}.{cent}  \n'
-            f'Moves:      {moves}  \n\n'
-        )
-        self.__score_box__.append(PlaceHolderEntity(
-            self.world,
-            self.load_sprite(p),
-            (self.screen_size[0] - x) // 2,
-            (self.screen_size[1] - y) // 2,
-            200
-        ))
-
-    # noinspection PyUnusedLocal
-    def update_hud(self, *args, **kwargs):
-        # if self.table.is_paused:
-        #     return
-        if self.table.win_condition:
-            self.update_foundation()
-            t, p, b, m = self.table.result
-            p += b
-            t = int(t)
-        else:
-            t = int(self.table.time)
-            p = self.table.points
-            m = self.table.moves
-        x_spacing = int(self.screen_size[0] * (1 - BOTTOM_BAR[0]))
-        top_color = sdl2.ext.Color(29, 66, 39)
-        y = int(x_spacing * 1.5)
-        sprite = self.text_sprite(
-            f'{p}',
-            alias='bold',
-            size=self.__font_size_normal__,
-            bg_color=top_color
-        )
-        if self.__points__ is None:
-            self.__points__ = PlaceHolderEntity(
-                self.world,
-                sprite,
-                x_spacing,
-                y
-            )
-        else:
-            self.__points__.sprite = sprite
-            self.__points__.sprite.position = x_spacing, y
-        self.__points__.sprite.depth = 99
-
-        sprite = self.text_sprite(
-            f'{t // 60}:{t % 60:02d}',
-            alias='bold',
-            size=self.__font_size_normal__,
-            bg_color=top_color
-        )
-        x = sprite.size[0] // 2
-        if self.__time__ is None:
-            self.__time__ = PlaceHolderEntity(
-                self.world,
-                sprite,
-                self.screen_size[0] // 2 - x,
-                y
-            )
-        else:
-            self.__time__.sprite = sprite
-            self.__time__.sprite.position = self.screen_size[0] // 2 - x, y
-        self.__time__.sprite.depth = 99
-
-        sprite = self.text_sprite(
-            f'{m}',
-            alias='bold',
-            size=self.__font_size_normal__,
-            bg_color=top_color
-        )
-        x = sprite.size[0]
-        if self.__moves__ is None:
-            self.__moves__ = PlaceHolderEntity(
-                self.world,
-                sprite,
-                self.screen_size[0] - x - x_spacing,
-                y
-            )
-        else:
-            self.__moves__.sprite = sprite
-            self.__moves__.sprite.position = (
-                self.screen_size[0] - x - x_spacing,
-                y
-            )
-        self.__moves__.sprite.depth = 99
-
-    def setup(self):
-        # General
-        left_handed = self.__config__['left_handed']
-        self.init_font_manager(
-            FONT_NORMAL,
-            'normal',
-            self.__font_size_large__,
-            bg_color=sdl2.ext.Color(85, 85, 85, 0)
-        )
-        self.add_font(
-            FONT_BOLD,
-            'bold',
-            self.__font_size_normal__
-        )
-
-        # Top Bar
-        x_spacing = int(self.screen_size[0] * (1 - BOTTOM_BAR[0]))
-        top_color = sdl2.ext.Color(29, 66, 39)
-        y = x_spacing // 2 + 1  # int(self.screen_size[1] * TOP_BAR[1])
-        self.__top_bar__ = []
-        # self.__font_size_normal__ = 24
-        sprite = self.text_sprite(
-            f'Points:',
-            size=self.__font_size_normal__,
-            bg_color=top_color
-        )
-        self.__top_bar__.append(PlaceHolderEntity(
-            self.world,
-            sprite,
-            x_spacing,
-            y
-        ))
-        self.__top_bar__[-1].sprite.depth = 100
-        sprite = self.text_sprite(
-            f'Time:',
-            size=self.__font_size_normal__,
-            bg_color=top_color
-        )
-        x = sprite.size[0] // 2
-        self.__top_bar__.append(PlaceHolderEntity(
-            self.world,
-            sprite,
-            self.screen_size[0] // 2 - x,
-            y
-        ))
-        self.__top_bar__[-1].sprite.depth = 100
-        sprite = self.text_sprite(
-            f'Moves:',
-            size=self.__font_size_normal__,
-            bg_color=top_color
-        )
-        x = sprite.size[0]
-        self.__top_bar__.append(PlaceHolderEntity(
-            self.world,
-            sprite,
-            self.screen_size[0] - x - x_spacing,
-            y
-        ))
-        self.__top_bar__[-1].sprite.depth = 100
-
-        # Bottom Bar
-        sprite = self.text_sprite(f'   Deal')
-        x_spacing = int(self.screen_size[0] * (1 - BOTTOM_BAR[0]))
-        self.__bt_bar__.append(PlaceHolderEntity(
-            self.world,
-            sprite,
-            x_spacing,
-            self.screen_size[1] - int(
-                self.screen_size[1] * BOTTOM_BAR[1] * 0.85
-            )
-        ))
-        self.__bt_bar__[-1].sprite.depth = 100
-        sprite = self.text_sprite(
-            f'{chr(0xf893)}', size=self.__font_size_icon__
-        )
-        self.__bt_bar__.append(PlaceHolderEntity(
-            self.world,
-            sprite,
-            x_spacing,
-            self.screen_size[1] - int(self.screen_size[1] * BOTTOM_BAR[1] * 1.1)
-        ))
-        self.__bt_bar__[-1].sprite.depth = 100
-        sprite = self.text_sprite(f'   Reset')
-        x = sprite.size[0] // 2
-        self.__bt_bar__.append(PlaceHolderEntity(
-            self.world,
-            sprite,
-            self.screen_size[0] // 2 - x,
-            self.screen_size[1] - int(
-                self.screen_size[1] * BOTTOM_BAR[1] * 0.85
-            )
-        ))
-        self.__bt_bar__[-1].sprite.depth = 100
-        sprite = self.text_sprite(
-            f'{chr(0xf021)}', size=self.__font_size_icon__
-        )
-        self.__bt_bar__.append(PlaceHolderEntity(
-            self.world,
-            sprite,
-            self.screen_size[0] // 2 - x,
-            self.screen_size[1] - int(self.screen_size[1] * BOTTOM_BAR[1] * 1.1)
-        ))
-        self.__bt_bar__[-1].sprite.depth = 100
-        sprite = self.text_sprite(f'   Undo')
-        x = sprite.size[0]
-        self.__bt_bar__.append(PlaceHolderEntity(
-            self.world,
-            sprite,
-            self.screen_size[0] - x - x_spacing,
-            self.screen_size[1] - int(
-                self.screen_size[1] * BOTTOM_BAR[1] * 0.85
-            )
-        ))
-        self.__bt_bar__[-1].sprite.depth = 100
-        sprite = self.text_sprite(
-            f'{chr(0xfa4b)}', size=self.__font_size_icon__
-        )
-        self.__bt_bar__.append(PlaceHolderEntity(
-            self.world,
-            sprite,
-            self.screen_size[0] - x - x_spacing,
-            self.screen_size[1] - int(self.screen_size[1] * BOTTOM_BAR[1] * 1.1)
-        ))
-        self.__bt_bar__[-1].sprite.depth = 100
-
-        # Table
-        table = get_table(
-            self.screen_size,
-            RATIO,
-            left_handed
-        )
-        self.__bg__ = PlaceHolderEntity(self.world, self.load_sprite(table))
-
-        # Positions
-        cx, cy = self.__cardsize__ = get_scale(self.screen_size, RATIO)
-        col = int(self.screen_size[0] * COL_SPACING)
-        y_start = int(self.screen_size[1] * TOP_BAR[1])
-        r = range(6, 2, -1) if left_handed else range(4)
-        self.__f_pos__ = [(col + i * (cx + col), y_start) for i in r]
-        self.__w_pos__ = (col + (1 if left_handed else 5) * (cx + col), y_start)
-        self.__s_pos__ = (col + (0 if left_handed else 6) * (cx + col), y_start)
-        y_start = y_start + cy + int(self.screen_size[1] * TABLEAU_SPACING)
-        self.__t_pos__ = [(col + i * (cx + col), y_start) for i in range(7)]
-
-        # Cards
-        cards = get_cards(self.screen_size, RATIO)
-        self.__cardback_img__ = cards.pop((-1, -1))
-        self.__card_img__.update(cards)
-        self.__cards__ = {
-            k: CardEntity(
-                self.world,
-                self.load_sprite(self.__cardback_img__),
-                k[1],
-                k[0],
-                False,
-                self.__s_pos__[0],
-                self.__s_pos__[1],
-                2
-            ) for k in self.__card_img__
-        }
-        if os.path.isfile(STATEFILE):
-            with open(STATEFILE, 'rb') as f:
-                try:
-                    self.table.set_state(f.read())
-                except ValueError:
-                    os.remove(STATEFILE)
-                    self.log.error('state file could not be unpacked')
-                    self.deal()
-                    return
-            self.table.draw_count = 1 if self.__config__['draw_one'] else 3
-            self.update_tableau()
-            self.update_foundation()
-            self.update_waste()
-            self.update_hud()
-        else:
-            self.deal()
-
-    def deal(self, random_seed=None):
-        if self.__config__['draw_one']:
-            self.table.draw_count = 1
-        else:
-            self.table.draw_count = 3
-        self.table.deal(random_seed, self.__config__['winner_deal'])
-        self.update_foundation()
-        self.reset_stack()
-        self.update_tableau()
-        self.update_waste()
-
-    def reset(self):
-        self.table.reset()
-        self.update_foundation()
-        self.reset_stack()
-        self.update_tableau()
-        self.update_waste()
-
-    def bt_bar_click(self):
-        but_width = self.screen_size[0] // 3
-        if self.mouse_pos.x < but_width:
-            self.new_deal()
-        elif but_width < self.mouse_pos.x < but_width * 2:
-            self.reset_deal()
-        else:
-            self.undo_move()
-
-    def undo_move(self):
-        self.__last_undo__ = True
-        self.table.undo()
-        self.stop_all_position_sequences()
-        self.update_tableau()
-        self.update_foundation()
-        self.update_waste()
-
-    def reset_deal(self):
-        self.stop_all_position_sequences()
-        self.reset()
-
-    def new_deal(self):
-        self.stop_all_position_sequences()
-        self.deal()
-
-    def stack_click(self):
-        res = self.table.draw(self.__config__['draw_one'])
-        if res == 1:
-            self.animate_stack()
-        elif res == 2:
-            self.reset_stack()
-
-    def animate_stack(self, left_to_right=False):
-        x_rh = self.__w_pos__[0]
-        x_lh = x_rh + min(len(self.table.waste) - 1, 3) * self.__cr_sep__
-        if left_to_right:
-            for i, k in enumerate(reversed(self.table.waste[-4:])):
-                x = (x_lh if self.__config__['left_handed'] else x_rh)
-                x -= i * self.__cr_sep__
-                if i == 3:
-                    x_prev = x
-                else:
-                    x_prev = x - self.__cr_sep__
-                self.__cards__[k].sprite.position = x_prev, self.__w_pos__[1]
-                self.anim_fly_to(
-                    self.__cards__[k],
-                    Vector(x, self.__w_pos__[1]),
-                    6 - i,
-                    self.__slow_speed__
-                )
-            return
-        if len(self.table.waste) > 4:
-            self.__cards__[self.table.waste[-5]].sprite.depth = 1
-        for i, k in enumerate(reversed(self.table.waste[-4:])):
-            draw_one = self.__config__['draw_one']
-            if (not i and draw_one) or not draw_one:
-                self.__cards__[k].sprite = self.load_sprite(
-                    self.__card_img__[k]
-                )
-                self.__cards__[k].card.visible = True
-                self.__cards__[k].sprite.position = self.__s_pos__
-            x = (x_lh if self.__config__['left_handed'] else x_rh)
-            x -= i * self.__cr_sep__
-            self.anim_fly_to(
-                self.__cards__[k],
-                Vector(x, self.__w_pos__[1]),
-                6 - i,
-                self.__slow_speed__
-            )
-
-    def waste_click(self):
-        k = self.table.waste[-1] if self.table.waste else None
-        if k is not None and k[1] == 0:
-            self.table.waste_to_foundation()
-            self.animate_waste_to_foundation(k)
-            return
-        if self.table.waste_to_tableau():
-            self.animate_waste_to_tableau(k)
-            return
-        if self.table.waste_to_foundation():
-            self.animate_waste_to_foundation(k)
-            return
-        if k is None:
-            return
-        card = self.__cards__[k]
-        if self.table.waste and not self.entity_in_sequences(card):
-            self.anim_shake(card)
-
-    def animate_waste_to_tableau(self, k, shake=False):
-        self.move_card(k, 't', shake=shake)
-        self.update_waste()
-
-    def animate_waste_to_foundation(self, k, shake=False):
-        self.move_card(k, 'f', shake=shake)
-        self.update_waste()
-
-    def tableau_click(self):
-        i = self.get_array_index('t', self.mouse_pos)
-        row = self.get_tableau_row(i, self.mouse_pos)
-        tableau = self.table.tableau[i]
-        if not tableau or row is None:
-            return
-        movable = tableau[row:]
-        if row > -1 and tableau[row] != tableau[-1]:
-            if tableau[row][0][1] == 12 and tableau[row][1] == 1 and row < 1:
-                for k, _ in movable:
-                    if not self.entity_in_sequences(self.__cards__[k]):
-                        self.anim_shake(self.__cards__[k])
+        if self.config.getboolean('pyos', 'tap_move'):
+            table_click = self.__systems.layout.click_area(self.mouse_pos)
+            if table_click is not None:
+                logger.info(f'Table: {repr(table_click)}')
+                self.__table_click(table_click)
                 return
-        if tableau and tableau[row][1] == 0:  # Flip Card
-            if row == -1:
-                self.flip_cards()
-                return
-            if not self.__cards__[tableau[row][0]].card.visible:
-                return
-        if row == -1:
-            k = self.table.tableau[i][row][0]
-            if self.table.tableau_to_foundation(col=i):
-                self.animate_tableau_to_foundation(k)
-                return
-            if self.table.tableau_to_tableau(scol=i):
-                self.animate_tableau_to_tableau(movable)
-                return
-        if self.table.tableau_to_tableau(scol=i, srow=row):
-            self.log.debug(f'row={row} move {str(movable)}')
-            self.animate_tableau_to_tableau(movable)
-        else:
-            for k, _ in movable:
-                card = self.__cards__[k]
-                if card.card.visible and not self.entity_in_sequences(card):
-                    self.anim_shake(card)
 
-    def animate_tableau_to_tableau(self, cards, shake=False):
-        for k, _ in cards:
-            self.move_card(k, 't', shake=shake)
-        if self.__config__['auto_flip']:
-            self.flip_cards()
+    # Click helper methods
 
-    def animate_tableau_to_foundation(self, k, shake=False):
-        self.move_card(k, 'f', shake=shake)
-        if self.__config__['auto_flip']:
-            self.flip_cards()
-
-    def foundation_click(self):
-        i = self.get_array_index('f', self.mouse_pos)
-        if len(self.table.foundation[i]):
-            k = self.table.foundation[i][-1]
-        else:
-            k = None
-        if self.table.foundation_to_tableau(col=i):
-            self.move_card(k, 't')
-            self.__last_undo__ = True  # almost equal to an undo move
-        else:
-            c = self.get_card_under_mouse('f')
-            if c is not None and not self.entity_in_sequences(c):
-                self.anim_shake(c)
-
-    def flip_cards(self):
-        if not self.__config__['auto_flip']:
-            return
-        flipped = []
-        for i, t in enumerate(self.table.tableau):
-            if t and t[-1][1] == 0:
-                self.__cards__[t[-1][0]].card.visible = True
-                flipped.append(t[-1][0])
-                self.table.flip(i)
-        self.update_tableau()
-        for k in flipped:
-            if not self.entity_in_sequences(self.__cards__[k]):
-                self.log.info(f'shake card {k}')
-                self.anim_shake(
-                    self.__cards__[k],
-                    duration=0.6,
-                    delta_x=0,
-                    delta_y=0.1
-                )
-
-    def move_card(self, k, area, shake=False):
-        dest = None
-        target_depth = 0
-        card = self.__cards__[k]
-        if area == 't':
-            search = [k, 1 if card.card.visible else 0]
-            arr = self.table.tableau
-        elif area == 'f':
-            search = k
-            arr = self.table.foundation
-        else:
-            raise ValueError('expected either "t" or "f" for argument area')
-
-        for i, t in enumerate(arr):
-            if search in t:
-                row = t.index(search)
-                if area == 't':
-                    dest = Vector(*self.get_tableau_pos(i, row))
-                else:
-                    dest = Vector(*self.__f_pos__[i])
-                target_depth = row + 2
-                break
-        if dest is None:
-            self.log.error(f'could not find {k} in area {area}')
-            return
-            # raise ValueError('cannot find moved card on tableau')
-        self.anim_fly_to(
-            self.__cards__[k],
-            dest,
-            target_depth,
-            shake=shake
-        )
-
-    # noinspection PyUnusedLocal
-    def anim_fly_to(self, card, dest, target_depth, speed=None, shake=False):
-        if speed is None:
-            speed = self.__standard_speed__
-        if not card.card.visible:
-            self.update_card(card, visible=True)
-        start = Vector(*card.sprite.position)
-        distance = (dest - start).length
-        depth = card.sprite.depth + 40
-        self.position_sequence(
-            card,
-            depth,
-            ((distance * speed, start, dest),),
-            self.after_fly_to,
-            card,
-            new_depth=target_depth,
-            shake=shake
-        )
-        card.card.in_anim = True
-
-    def after_fly_to(self, card, new_depth, shake):
-        self.update_card(
-            card,
-            new_depth=new_depth,
-            in_anim=False,
-            position=True
-        )
-        if shake:
-            self.anim_shake(card, 0.6, 0, 0.1)
-
-    def anim_shake(self, card, duration=0.2, delta_x=0.05, delta_y=0.0):
-        x, y = card.sprite.position
-        d = duration / 8
-        mx = int(self.__cardsize__[0] * delta_x)
-        my = int(self.__cardsize__[1] * delta_y)
-        od = card.sprite.depth
-        self.position_sequence(card, od, (
-            (d, Vector(x, y), Vector(x + mx, y + my)),
-            (d, Vector(x + mx, y + my), Vector(x, y)),
-            (d, Vector(x, y), Vector(x - mx, y - my)),
-            (d, Vector(x - mx, y - my), Vector(x, y)),
-            (d, Vector(x, y), Vector(x + mx, y + my)),
-            (d, Vector(x + mx, y + my), Vector(x, y)),
-            (d, Vector(x, y), Vector(x - mx, y - my)),
-            (d, Vector(x - mx, y - my), Vector(x, y)),
-        ))
-
-    def update_card(
-            self,
-            card,
-            position=None,
-            new_depth=None,
-            visible=None,
-            in_anim=None):
-        k = card.card.suit, card.card.value
-        if visible is not None:
-            if card.card.visible != visible:
-                card.card.visible = visible
-                if visible:
-                    card.sprite = self.load_sprite(self.__card_img__[k])
-                else:
-                    card.sprite = self.load_sprite(self.__cardback_img__)
-        if position is not None:
-            if isinstance(position, bool):
-                area, col, row = self.table.find_card(
-                    (card.card.suit, card.card.value)
-                )
-                if area == 'f':
-                    card.sprite.position = self.__f_pos__[col]
-                elif area == 't':
-                    x = self.__t_pos__[col][0]
-                    y = self.__t_pos__[col][1] + row * self.__cr_sep__
-                    card.sprite.position = x, y
-                elif area == 's':
-                    card.sprite.position = self.__s_pos__
-                elif area == 'w':
-                    self.log.warning('unhandled position update waste...')
-                else:
-                    raise ValueError(f'unknown area "{area}"')
-                if new_depth is None:
-                    card.sprite.depth = row + 2
-                elif new_depth != row + 2:
-                    self.log.warning('correcting wrong depth')
-                    new_depth = row + 2
-            elif isinstance(position, tuple):
-                card.sprite.position = position
+    def __table_click(self, table_click):
+        """Evaluates possible moves for table clicks."""
+        if table_click[0] == common.TableArea.STACK:
+            self.__systems.game_table.draw()
+        elif table_click[0] == common.TableArea.WASTE:
+            if self.config.getboolean(
+                    'pyos', 'waste_to_foundation', fallback=False):
+                if not self.__systems.game_table.waste_to_foundation():
+                    self.__systems.game_table.waste_to_tableau()
             else:
-                raise ValueError(f'expected either bool or tuple for argument'
-                                 f'position, got {type(position)} instead')
-        if new_depth is not None:
-            card.sprite.depth = new_depth
-        if in_anim is not None:
-            card.card.in_anim = in_anim
+                if not self.__systems.game_table.waste_to_tableau():
+                    self.__systems.game_table.waste_to_foundation()
+        elif table_click[0] == common.TableArea.FOUNDATION:
+            self.__systems.game_table.foundation_to_tableau(table_click[1][0])
+        else:  # TABLEAU
+            from_pile = self.__systems.game_table.table \
+                .tableau[table_click[1][0]]
+            num_cards = len(from_pile) - table_click[1][1]
+            if num_cards == 1 and self.__systems.game_table \
+                  .flip(table_click[1][0]):
+                return
+            if num_cards == 1 and self.__systems.game_table \
+                  .tableau_to_foundation(table_click[1][0]):
+                return
+            if self.__systems.game_table \
+                  .tableau_to_tableau(from_pile=table_click[1][0],
+                                      num_cards=num_cards):
+                return
 
-    def update_tableau(self, col=None):
-        for col in range(7) if col is None else [col]:
-            x = self.__t_pos__[col][0]
-            sy = self.__t_pos__[col][1]
-            for row, (k, v) in enumerate(self.table.tableau[col]):
-                y = sy + row * self.__cr_sep__
-                self.__cards__[k].card.visible = True if v else False
-                if self.__cards__[k].card.visible:
-                    self.__cards__[k].sprite = self.load_sprite(
-                        self.__card_img__[k]
-                    )
-                else:
-                    self.__cards__[k].sprite = self.load_sprite(
-                        self.__cardback_img__
-                    )
-                if not self.__cards__[k].card.in_anim:
-                    if self.__cards__[k].sprite.position != (x, y):
-                        self.__cards__[k].sprite.position = x, y
-                    self.__cards__[k].sprite.depth = 2 + row
+    # Game State
 
-    def update_foundation(self, col=None):
-        for col in range(4) if col is None else [col]:
-            for i, k in enumerate(self.table.foundation[col]):
-                if not self.__cards__[k].card.visible:
-                    self.__cards__[k].card.visible = True
-                    self.__cards__[k].sprite = self.load_sprite(
-                        self.__card_img__[k]
-                    )
-                if not self.__cards__[k].card.in_anim:
-                    self.__cards__[k].sprite.position = self.__f_pos__[col]
-                    self.__cards__[k].sprite.depth = 2 + i
+    def __save(self):
+        path = os.path.join(self.config['base']['cache_dir'],
+                            self.config['pyos']['state_file'])
+        with open(path, 'wb') as f_handler:
+            f_handler.write(self.__systems.game_table.get_state(pause=False))
 
-    def update_waste(self):
-        x_rh = self.__w_pos__[0]
-        x_lh = x_rh + min(len(self.table.waste) - 1, 3) * self.__cr_sep__
-        for i, k in enumerate(reversed(self.table.waste[-4:])):
-            card = self.__cards__[k]
-            card.sprite = self.load_sprite(self.__card_img__[k])
-            card.card.visible = True
-            if not card.card.in_anim:
-                x = (x_lh if self.__config__['left_handed'] else x_rh)
-                x -= i * self.__cr_sep__
-                card.sprite.position = x, self.__w_pos__[1]
-                card.sprite.depth = 6 - i
-        for i in range(len(self.table.waste) - 4):
-            self.__cards__[self.table.waste[i]].sprite.depth = 1
-        for c in self.table.stack:
-            if self.__cards__[c].sprite.position != self.__s_pos__:
-                self.__cards__[c].sprite = self.load_sprite(
-                    self.__cardback_img__
-                )
-                self.__cards__[c].sprite.position = self.__s_pos__
-                self.__cards__[c].sprite.depth = 2
+    def __load(self):
+        path = os.path.join(self.config['base']['cache_dir'],
+                            self.config['pyos']['state_file'])
+        if os.path.isfile(path):
+            with open(path, 'rb') as f_handler:
+                self.__systems.game_table.set_state(f_handler.read())
+            self.__state.refresh_next_frame = 2
+        else:
+            self.__new_deal()
 
-    def reset_stack(self):
-        for k in self.table.stack:
-            self.__cards__[k].sprite = self.load_sprite(self.__cardback_img__)
-            self.__cards__[k].sprite.position = (
-                self.__s_pos__[0],
-                self.__s_pos__[1]
-            )
-            self.__cards__[k].card.visible = False
+    def __show_score(self):
+        """Show the result screen."""
+        secs, pts, bonus, moves = self.__systems.game_table.result
+        mins = int(secs / 60)
+        secs -= mins * 60
+        txt = f'You WON!\n\n'
+        scr = f'{pts + bonus}'
+        mvs = f'{moves}'
+        tim = f'{mins}:{secs:05.2f}'
+        mlen = max(len(scr), len(mvs), len(tim))
+        txt += f'Score: {" " * (mlen - len(scr))}{scr}\n'
+        txt += f'Moves: {" " * (mlen - len(mvs))}{mvs}\n'
+        txt += f'Time:  {" " * (mlen - len(tim))}{tim}\n\n\n\n'
+        self.__gen_dlg(txt)
+        self.__disable_all()
 
-    def get_tableau_pos(self, col, row):
-        return (
-            self.__t_pos__[col][0],
-            self.__t_pos__[col][1] + self.__cr_sep__ * row
-        )
+    def __gen_dlg(self, txt: str):
+        if self.__systems.windlg is None:
+            fnt = self.config.get('font', 'bold')
+            buttons = [DialogueButton(text='New Game',
+                                      fmtkwargs={'size': (0.35, 0.1),
+                                                 'font': fnt,
+                                                 'text_color': (0, 50, 0, 255),
+                                                 'down_text_color': (255, 255,
+                                                                     255, 255),
+                                                 'border_thickness': 0.005,
+                                                 'down_border_thickness': 0.008,
+                                                 'border_color': (0, 50, 0),
+                                                 'down_border_color': (255, 255,
+                                                                       255),
+                                                 'corner_radius': 0.05,
+                                                 'multi_sampling': 2,
+                                                 'align': 'center'},
+                                      callback=self.__new_deal)]
+            dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
+                           size=(0.7, 0.7), font=fnt, align='center',
+                           frame_color=(40, 120, 20), border_thickness=0.01,
+                           corner_radius=0.05, multi_sampling=2)
+            dlg.pos = -0.35, -0.35
+            dlg.reparent_to(self.ui.center)
+            self.__systems.windlg = dlg
+        else:
+            self.__systems.windlg.text = txt
+            self.__systems.windlg.show()
 
-    def get_array_index(self, area, mouse_pos=None):
-        if mouse_pos is None:
-            mouse_pos = self.mouse_pos
-        if area == 'f':
-            for i, _ in enumerate(self.table.foundation):
-                sx = self.__f_pos__[i][0]
-                ex = sx + self.__cardsize__[0]
-                if sx <= mouse_pos.x <= ex:
-                    return i
-        elif area == 't':
-            col = mouse_pos.x / (self.screen_size[0] / 7)
-            col = min(6, int(col))
-            return col
-        return -1
+    # Interaction
 
-    def get_tableau_row(self, col, mouse_pos=None):
-        if mouse_pos is None:
-            mouse_pos = self.mouse_pos
-        sy = self.__t_pos__[col][1]
-        ey = sy + self.__cardsize__[1]
-        ey += len(self.table.tableau[col]) * self.__cr_sep__
-        if sy <= mouse_pos.y <= ey:
-            if mouse_pos.y >= ey - self.__cardsize__[1]:
-                return -1
-            return int((mouse_pos.y - sy) / self.__cr_sep__)
-        return None
+    def __undo_move(self):
+        """On Undo click: Undo the last move."""
+        if self.__systems.game_table.win_condition:
+            return
+        self.__systems.game_table.undo()
+        self.__state.last_undo = True
 
-    def get_card_under_mouse(self, area=None):
-        if area is None:
-            area = self.check_click_pos()
-        if area == 'f':
-            i = self.get_array_index(area)
-            if i != -1:
-                f = self.table.foundation[i]
-                return self.__cards__[f[-1]] if len(f) else None
-        elif area == 't':
-            col = self.get_array_index(area)
-            if len(self.table.tableau[col]):
-                return self.__cards__[self.table.tableau[col][-1][0]]
-        elif area == 'w':
-            return self.__cards__[self.table.waste[-1]]
-        return None
+    def __reset_deal(self):
+        """On Reset click: Reset the current game to start."""
+        dlg = self.__systems.windlg
+        if dlg is not None and not dlg.hidden:
+            dlg.hide()
+            self.__setup()
+        self.__systems.game_table.reset()
+        self.__state.refresh_next_frame = 2
 
+    def __new_deal(self):
+        """On New Deal click: Deal new game."""
+        dlg = self.__systems.windlg
+        if dlg is not None and not dlg.hidden:
+            dlg.hide()
+            self.__setup()
+        if self.config.getboolean('pyos', 'draw_one'):
+            self.__systems.game_table.draw_count = 1
+        else:
+            self.__systems.game_table.draw_count = 3
+        win_deal = self.config.getboolean('pyos', 'winner_deal')
+        self.__systems.game_table.deal(win_deal=win_deal)
+        self.__state.refresh_next_frame = 2
 
-class GameApplicator(Applicator):
-    """
-    Applicator to handle all Game Components.
-    """
-    def __init__(self):
-        super(GameApplicator, self).__init__()
-        self.componenttypes = ()
-
-    def process(self, world, components):
-        pass
-
-    def enter(self):
-        pass
-
-    def exit(self):
-        pass
-
-
-class MenuApplicator(Applicator):
-    """
-    Applicator to handle all Menu/GUI Components.
-    """
-    def __init__(self):
-        super(MenuApplicator, self).__init__()
-        self.componenttypes = ()
-
-    def process(self, world, components):
-        pass
-
-    def enter(self):
-        pass
-
-    def exit(self):
-        pass
+    def __menu(self):
+        """On Menu click."""
+        self.request('main_menu')

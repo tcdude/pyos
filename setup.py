@@ -1,5 +1,5 @@
 """
-Copyright (c) 2019 Tiziano Bettio
+Copyright (c) 2020 Tiziano Bettio
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,30 +21,34 @@ SOFTWARE.
 """
 
 from distutils.core import setup
+from distutils.core import Extension
 from setuptools import find_packages
 
 __author__ = 'Tiziano Bettio'
-__copyright__ = 'Copyright (C) 2019 Tiziano Bettio'
+__copyright__ = 'Copyright (C) 2020 Tiziano Bettio'
 __license__ = 'MIT'
-__version__ = '0.1'
+__version__ = '0.2'
 
 
 options = {'apk': {'debug': None,
                    'bootstrap': 'sdl2',
                    'requirements': 'libffi,sdl2,sdl2_image,sdl2_ttf,python3,'
-                                   'pysdl2,Pillow,plyer',
+                                   'pysdl2,pyksolve,Pillow,plyer,loguru,'
+                                   'foolysh',
                    'package': 'com.tizilogic.pyos',
                    'android-api': 28,
-                   'arch': 'arm64-v8a',  # -> waiting for fix...
+                   # 'arch': 'arm64-v8a',  # switch for builds
+                   'arch': 'armeabi-v7a',  # switch for builds
                    'dist-name': 'pyos-beta',
                    'icon': 'pyos/assets/app-images/icon192.png',
                    'presplash': 'pyos/assets/app-images/splash.png',
                    'presplash-color': '#224422',
+                   'local-recipes': './p4a-recipes',
                    }}
 
 setup(
     name='Simple Solitaire',
-    version='0.2.4',
+    version='0.2.7',
     description='An ad free, simple solitaire game',
     author='tcdude',
     author_email='tizilogic@gmail.com',
@@ -52,10 +56,11 @@ setup(
     options=options,
     package_data={'pyos': [
         '*.py',
-        'gui/*.py',
-        'engine/*.py',
         'assets/images/*.png',
-        'assets/fonts/*.ttf'
+        'assets/fonts/*.ttf',
+        '.foolysh/foolysh.ini'
     ]},
-    install_requires=['plyer', 'Pillow']
+    install_requires=[
+        'Pillow',
+    ],
 )

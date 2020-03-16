@@ -3,7 +3,7 @@
 ## Card Table
 
 | X | Y | Description |
-| :---: | :---: | :--- |
+| :---: | :---: | :c--- |
 | `96%` | `7.8125%` | Top Bar for Clock, Moves and Points |
 | `100%` | `1 card height` | Foundation (4x), 1 empty, Waste, Stack <br>*(or inverse for left handed play)*|
 | `100% / 7.5` | `relative height` | Card Width |

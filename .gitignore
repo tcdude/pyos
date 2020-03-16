@@ -1,9 +1,13 @@
 #Custom
 .idea/
 *venv*/
+venv
 **cache/
 **.md#
 **.apk
+sign-apk.sh
+test.sh
+.vscode
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

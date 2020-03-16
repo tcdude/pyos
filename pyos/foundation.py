@@ -1,16 +1,10 @@
 """
-Entry point of the app.
+Provide Foundation class.
 """
 
-import configparser
-import os
-import sys
-
-from loguru import logger
-
-import common
-import menu
-import game
+import card
+from area import Area
+from pile import Pile
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = """
@@ -34,40 +28,53 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-
 __license__ = 'MIT'
 __version__ = '0.2'
 
 
-class PyOS(menu.MainMenu, menu.SettingsMenu, game.Game):
+class Foundation(Area):
     """
-    All states collected using multiple inheritance.
+    Provide an abstraction of the foundation.
     """
-    def on_quit(self):
-        shf = self.shuffler
-        if shf is not None:
-            shf.stop()
-        super().on_quit()
+
+    def __init__(self):
+        super().__init__(FoundationPile, 4)
+
+    @property
+    def isfinished(self) -> bool:
+        """
+        If the foundation is in the winning state.
+        """
+        for pile in self._piles:
+            if len(pile.pile) != 13:
+                return False
+        return True
 
 
-def main():
-    """Launches the app."""
-    logger.remove()
-    logger.add(sys.stderr, level='INFO')
-    logger.info('pyos starting')
-    cfg_file = '.foolysh/foolysh.ini'
-    if not os.path.isfile(cfg_file):
-        os.makedirs(os.path.split(cfg_file)[0])
-        cfg = configparser.ConfigParser()
-        cfg.read_dict(common.DEFAULTCONFIG)
-        cfg.write(open(cfg_file, 'w'))
-    pyos = PyOS(config_file=cfg_file)
-    logger.debug('Request state main_menu')
-    pyos.request('main_menu')
-    logger.debug('Start main loop')
-    pyos.run()
-    sys.exit(0)
+class FoundationPile(Pile):
+    """
+    Provides a pile helper for the Foundation class.
+    """
 
+    def valid(self, a_card: card.Card) -> bool:
+        """
+        Determine if adding the indicated card to this pile is valid.
 
-if __name__ == '__main__':
-    main()
+        Args:
+            a_card: :class:`card.Card` -> the card to verify.
+
+        Returns:
+            ``True`` if valid otherwise ``False``.
+        """
+        if self._pile:
+            return self._pile[-1].foundation_valid(a_card)
+        if a_card.value == 0:
+            return True
+        return False
+
+    @property
+    def isstart(self) -> bool:
+        """
+        If the pile is in its original state after a fresh deal.
+        """
+        return len(self._pile) == 0
