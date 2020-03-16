@@ -37,7 +37,8 @@ options = {'apk': {'debug': None,
                                    'foolysh',
                    'package': 'com.tizilogic.pyos',
                    'android-api': 28,
-                   'arch': 'armeabi-v7a',  # switch for builds arm64-v8a
+                   # 'arch': 'arm64-v8a',  # switch for builds
+                   'arch': 'armeabi-v7a',  # switch for builds
                    'dist-name': 'pyos-beta',
                    'icon': 'pyos/assets/app-images/icon192.png',
                    'presplash': 'pyos/assets/app-images/splash.png',

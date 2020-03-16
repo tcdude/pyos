@@ -3,14 +3,14 @@ Recipe for pyksolve.
 """
 
 from multiprocessing import cpu_count
+from os.path import join
 
 from pythonforandroid.recipe import CppCompiledComponentsPythonRecipe
 
 
 class PyksolveRecipe(CppCompiledComponentsPythonRecipe):
-    version = 'v0.0.9'
-    url = 'https://github.com/tcdude/py-klondike-solver/releases/download/' \
-          '{version}/py-klondike-solver.zip'
+    version = 'p4a'
+    url = 'https://www.tizilogic.com/various/{version}/py-klondike-solver.zip'
     site_packages_name = 'pyksolve'
 
     depends = ['python3', 'setuptools']
