@@ -52,15 +52,17 @@ class PyOS(menu.MainMenu, menu.SettingsMenu, game.Game):
 
 def main():
     """Launches the app."""
-    logger.remove()
-    logger.add(sys.stderr, level='INFO')
-    logger.info('pyos starting')
     cfg_file = '.foolysh/foolysh.ini'
     if not os.path.isfile(cfg_file):
         os.makedirs(os.path.split(cfg_file)[0])
         cfg = configparser.ConfigParser()
         cfg.read_dict(common.DEFAULTCONFIG)
         cfg.write(open(cfg_file, 'w'))
+    cfg = configparser.ConfigParser()
+    cfg.read(cfg_file)
+    logger.remove()
+    logger.add(sys.stderr, level=cfg.get('pyos', 'log_level'))
+    logger.info('pyos starting')
     pyos = PyOS(config_file=cfg_file)
     logger.debug('Request state main_menu')
     pyos.request('main_menu')
