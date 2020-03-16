@@ -63,19 +63,31 @@ class AppBase(app.App):
             self.event_handler.listen('APP_DIDENTERBACKGROUND',
                                       sdl2.SDL_APP_DIDENTERBACKGROUND,
                                       self.__event_pause)
+            self.event_handler.listen('APP_DIDENTERFOREGROUND',
+                                      sdl2.SDL_APP_DIDENTERFOREGROUND,
+                                      self.__event_resume)
             self.event_handler.listen('APP_LOWMEMORY', sdl2.SDL_APP_LOWMEMORY,
                                       self.__event_low_memory)
 
     def __back(self, event):
         """Handles Android Back, Escape and Backspace Events"""
         if event.key.keysym.sym in (sdl2.SDLK_AC_BACK, 27, sdl2.SDLK_BACKSPACE):
-            self.quit(blocking=False)
+            if self.active_state != 'main_menu':
+                self.request('main_menu')
+            else:
+                self.quit(blocking=False)
 
     def __event_pause(self, event=None):
         """Called when the app enters background."""
         # pylint: disable=unused-argument
-        logger.info('Paused game')
+        logger.info('Paused app')
         self.request('app_base')
+
+    def __event_resume(self, event=None):
+        """Called when the app enters background."""
+        # pylint: disable=unused-argument
+        logger.info('Resume app')
+        self.request('main_menu')
 
     def __event_will_enter_bg(self, event=None):
         """Called when the os announces that the app will enter background."""
@@ -83,7 +95,8 @@ class AppBase(app.App):
         logger.warning('Unhandled event APP_WILLENTERBACKGROUND!!!')
         self.request('app_base')
 
-    def __event_low_memory(self, event=None):
+    @staticmethod
+    def __event_low_memory(event=None):
         """Called when the os announces low memory."""
         # pylint: disable=unused-argument
         logger.warning('Unhandled event APP_LOWMEMORY!!!')
@@ -92,9 +105,10 @@ class AppBase(app.App):
         """Overridden on_quit event to make sure the state is saved."""
         logger.info('Saving state and quitting pyos')
         self.request('app_base')
+        super().on_quit()
 
     def enter_app_base(self):
-        """Just to trigger the exit_ event of the current active state."""
+        """Stub to enable this to become a state."""
 
     def exit_app_base(self):
         """Stub to enable this to become a state."""
