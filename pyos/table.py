@@ -210,6 +210,9 @@ class Table:
     @property
     def solved(self) -> bool:
         """Whether all cards on the tableau are face up."""
+        if self._state.draw_count > 1:
+            if len(self._stack) + len(self._waste) > 1:
+                return False
         return self._tableau.issolved
 
     @property
