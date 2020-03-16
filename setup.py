@@ -48,7 +48,7 @@ options = {'apk': {'debug': None,
 
 setup(
     name='Simple Solitaire',
-    version='0.2.7',
+    version='0.2.8',
     description='An ad free, simple solitaire game',
     author='tcdude',
     author_email='tizilogic@gmail.com',
@@ -57,8 +57,9 @@ setup(
     package_data={'pyos': [
         '*.py',
         'assets/images/*.png',
-        'assets/fonts/*.ttf',
-        '.foolysh/foolysh.ini'
+        # Add other fonts as needed
+        'assets/fonts/SpaceMono.ttf',
+        'assets/fonts/SpaceMonoBold.ttf',
     ]},
     install_requires=[
         'Pillow',

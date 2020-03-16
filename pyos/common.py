@@ -60,14 +60,12 @@ DEFAULTCONFIG = {
                          ('left_handed', 'False'), ('state_file', 'state.bin'),
                          ('card_ratio', '1.3968253968253967'),
                          ('padding', '0.06'), ('status_size', '0.96, 0.08'),
-                         ('toolbar_size', '0.96, 0.08'),
-                         ('click_threshold', '0.03'),
-                         ('log_level', 'DEBUG'),
+                         ('toolbar_size', '0.96, 0.12'),
+                         ('click_threshold', '0.06'),
+                         ('log_level', 'INFO'),
                          ('auto_solve_delay', '0.3')]),
     'font': OrderedDict([('normal', 'fonts/SpaceMono.ttf'),
-                         ('bold', 'fonts/SpaceMonoBold.ttf'),
-                         ('italic', 'fonts/SpaceMonoItalic.ttf'),
-                         ('bold_italic', 'fonts/SpaceMonoBoldItalic.ttf')])
+                         ('bold', 'fonts/SpaceMonoBold.ttf')])
 }
 
 # Timing
