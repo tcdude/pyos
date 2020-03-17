@@ -21,12 +21,19 @@ SOFTWARE.
 """
 
 import os
+import glob
 from typing import Optional, Union, Tuple, List
 import random
 
-from pyksolve import deferred, solver
+from pyksolve import solver
+try:
+    from jnius import autoclass
+    print('got jnius')
+except ImportError:
+    from subprocess import Popen, DEVNULL
 
 import common
+from service.solver import SOLUTION_PATH, STOP_FILE
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = 'Copyright (C) 2020 Tiziano Bettio'
@@ -64,12 +71,30 @@ class Shuffler:
     Serves starting states, optionally guaranteed to be solvable.
     """
     def __init__(self):
-        self._deferred_solver = deferred.DeferredSolver(threads=1, cache_num=2,
-                                                        max_closed=10_000)
         self._solitaire = solver.Solitaire()
+        self.start_service()
 
-    def stop(self):
-        self._deferred_solver.stop()
+    def start_service(self):
+        """Start the solver service."""
+        if os.path.exists(STOP_FILE):
+            os.remove(STOP_FILE)
+        if 'autoclass' in globals():
+            print('starting service')
+            service = autoclass('com.tizilogic.pyos.ServiceSolver')
+            # pylint: disable=invalid-name
+            mActivity = autoclass('org.kivy.android.PythonActivity').mActivity
+            # pylint: enable=invalid-name
+            argument = ''
+            service.start(mActivity, argument)
+        else:
+            self.__proc = Popen(['python', 'services/solver.py'],
+                                stdout=DEVNULL, stderr=DEVNULL)
+
+    @staticmethod
+    def stop():
+        """Stop the solver service."""
+        with open(STOP_FILE, 'w') as fptr:
+            fptr.write('1')
 
     @staticmethod
     def deal(random_seed=None):
@@ -103,7 +128,7 @@ class Shuffler:
         card = Tuple(suit, value)
         """
         if random_seed is None:
-            seed, tbl_setup, _ = self._deferred_solver.get_solved(draw)
+            seed, tbl_setup = self._get_deal(draw)
         else:
             self._solitaire.shuffle1(random_seed)
             self._solitaire.reset_game()
@@ -127,3 +152,14 @@ class Shuffler:
                 tableau[-1].insert(0, (_convert_pyksolve(card), first))
                 first = False
         return seed, tableau, stack
+
+    def _get_deal(self, draw: int) -> Tuple[int, str]:
+        pth = os.path.join(SOLUTION_PATH, str(draw))
+        solutions = []
+        while not solutions:
+            solutions = glob.glob(pth + '/solution*')
+        seed = int(solutions[0].split(pth + '/solution')[1])
+        os.remove(solutions[0])
+        self._solitaire.shuffle1(seed)
+        self._solitaire.reset_game()
+        return seed, self._solitaire.game_diagram()

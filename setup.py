@@ -34,7 +34,7 @@ options = {'apk': {'debug': None,
                    'bootstrap': 'sdl2',
                    'requirements': 'libffi,sdl2,sdl2_image,sdl2_ttf,python3,'
                                    'pysdl2,pyksolve,Pillow,plyer,loguru,'
-                                   'foolysh',
+                                   'foolysh,pyjnius',
                    'package': 'com.tizilogic.pyos',
                    'android-api': 28,
                    'arch': 'arm64-v8a',  # switch for builds
@@ -44,12 +44,13 @@ options = {'apk': {'debug': None,
                    'presplash': 'pyos/assets/app-images/splash.png',
                    'presplash-color': '#224422',
                    'local-recipes': './p4a-recipes',
-                   'orientation': 'fullUser'
+                   'orientation': 'fullUser',
+                   'service': 'solver:service/solver.py',
                    }}
 
 setup(
     name='Simple Solitaire',
-    version='0.2.9',
+    version='0.2.10',
     description='An ad free, simple solitaire game',
     author='tcdude',
     author_email='tizilogic@gmail.com',
@@ -57,6 +58,7 @@ setup(
     options=options,
     package_data={'pyos': [
         '*.py',
+        'service/*.py',
         'assets/images/*.png',
         # Add other fonts as needed
         'assets/fonts/SpaceMono.ttf',
