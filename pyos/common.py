@@ -63,7 +63,8 @@ DEFAULTCONFIG = {
                          ('toolbar_size', '0.96, 0.12'),
                          ('click_threshold', '0.06'),
                          ('log_level', 'INFO'),
-                         ('auto_solve_delay', '0.3')]),
+                         ('auto_solve_delay', '0.3'),
+                         ('orientation', 'auto')]),
     'font': OrderedDict([('normal', 'fonts/SpaceMono.ttf'),
                          ('bold', 'fonts/SpaceMonoBold.ttf')])
 }

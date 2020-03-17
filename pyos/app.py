@@ -5,6 +5,7 @@ shared with all the states.
 
 from loguru import logger
 import sdl2
+import plyer
 
 from foolysh import app
 
@@ -46,6 +47,7 @@ class AppBase(app.App):
         self.__setup_events_tasks()
         self.layout_refresh = False
         self.need_new_game = False
+        self.__last_orientation: str = None
 
     def __setup_events_tasks(self):
         """Setup Events and Tasks."""
@@ -54,6 +56,7 @@ class AppBase(app.App):
                                   blocking=False)
         self.event_handler.listen('android_back', sdl2.SDL_KEYUP, self.__back)
         if self.isandroid:
+            plyer.gravity.enable()
             self.event_handler.listen('APP_TERMINATING',
                                       sdl2.SDL_APP_TERMINATING, self.quit,
                                       blocking=False)
@@ -68,6 +71,8 @@ class AppBase(app.App):
                                       self.__event_resume)
             self.event_handler.listen('APP_LOWMEMORY', sdl2.SDL_APP_LOWMEMORY,
                                       self.__event_low_memory)
+            self.task_manager.add_task('ORIENTATION', self.__orientation, 0.2,
+                                       False)
 
     def __back(self, event):
         """Handles Android Back, Escape and Backspace Events"""
@@ -101,10 +106,44 @@ class AppBase(app.App):
         # pylint: disable=unused-argument
         logger.warning('Unhandled event APP_LOWMEMORY!!!')
 
+    def __orientation(self):
+        """Handles orientation change."""
+        orientation = self.config.get('pyos', 'orientation', fallback='auto')
+        if orientation == 'auto':
+            plyer.orientation.set_sensor()
+            return
+        gravity = plyer.gravity.gravity
+        if abs(gravity[0]) > abs(gravity[1]):
+            if gravity[0] > 0:
+                new_orientation = 'landscape'
+            else:
+                new_orientation = 'landscape_reversed'
+        else:
+            if gravity[1] > 0:
+                new_orientation = 'portrait'
+            else:
+                new_orientation = 'portrait_reversed'
+        if new_orientation != self.__last_orientation:
+            self.__last_orientation = new_orientation
+            logger.info(f'Updating orientation to "{new_orientation}"')
+            if new_orientation == 'landscape' and orientation == 'landscape':
+                plyer.orientation.set_landscape()
+            elif new_orientation == 'landscape_reversed' \
+                  and orientation == 'landscape':
+                plyer.orientation.set_landscape(reverse=True)
+            elif new_orientation == 'portrait' and orientation == 'portrait':
+                plyer.orientation.set_portrait()
+            elif new_orientation == 'portrait_reversed' \
+                  and orientation == 'portrait':
+                plyer.orientation.set_portrait(reverse=True)
+
+
     def on_quit(self):
         """Overridden on_quit event to make sure the state is saved."""
         logger.info('Saving state and quitting pyos')
         self.request('app_base')
+        if self.isandroid:
+            plyer.gravity.disable()
         super().on_quit()
 
     def enter_app_base(self):

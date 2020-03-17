@@ -117,6 +117,7 @@ class SettingsButtons:
     auto_solve: button.Button
     auto_flip: button.Button
     left_handed: button.Button
+    orientation: button.Button
     back: button.Button
 
 
@@ -193,6 +194,17 @@ class SettingsMenu(app.AppBase):
         elif task == 'left_handed':
             self.__toggle(task, self.__buttons.left_handed, ('Left', 'Right'))
             self.layout_refresh = True
+        elif task == 'orientation':
+            orient = self.config.get('pyos', 'orientation', fallback='auto')
+            if orient == 'auto':
+                txt = 'Portrait'
+            elif orient == 'portrait':
+                txt = 'Landscape'
+            else:
+                txt = 'Auto'
+            self.config.set('pyos', 'orientation', txt.lower())
+            for i in self.__buttons.orientation.labels:
+                i.text = txt
         elif task == 'back':
             self.request('main_menu')
         else:
@@ -202,11 +214,11 @@ class SettingsMenu(app.AppBase):
     def __setup(self):
         # pylint: disable=too-many-statements
         tot_height = 0.77
-        step_y = tot_height / 8
+        step_y = tot_height / 9
         pos_y = -0.35
         height = step_y / 1.06
         kwargs = {'font': self.config.get('font', 'bold'),
-                  'font_size': 0.04, 'text_color': (0, 50, 0, 255),
+                  'font_size': 0.0355, 'text_color': (0, 50, 0, 255),
                   'down_text_color': (255, 255, 255, 255),
                   'border_thickness': height * 0.043,
                   'down_border_thickness': height * 0.06,
@@ -217,7 +229,7 @@ class SettingsMenu(app.AppBase):
                   'disabled_frame_color': (160, 160, 160),
                   'disabled_border_color': (255, 255, 255),
                   'corner_radius': height / 2, 'multi_sampling': 2,
-                  'align': 'center'}
+                  'align': 'center', 'margin': 0.01}
 
         buttons = []
         self.__create_label(text='Winner Deal:', size=(0.34, height),
@@ -304,6 +316,18 @@ class SettingsMenu(app.AppBase):
         buttons.append(but)
         pos_y += step_y
 
+        kwargs['align'] = 'left'
+        self.__create_label(text='Orientation:', size=(0.34, height),
+                            pos=(-0.42, pos_y), **kwargs)
+        txt = self.config.get('pyos', 'orientation', fallback='auto')
+        txt = txt.capitalize()
+        but = self.__create_button(text=txt, size=(0.3, height),
+                                   pos=(-0.05, pos_y), **kwargs)
+        but.onclick(self.__click, 'orientation')
+        buttons.append(but)
+        pos_y += step_y
+
+        kwargs['align'] = 'center'
         but = self.__create_button(text='Back', size=(0.84, height),
                                    pos=(-0.42, 0.43 - height), **kwargs)
         but.onclick(self.__click, 'back')
