@@ -8,6 +8,7 @@ from typing import Tuple, Union
 
 from loguru import logger
 import sdl2
+from foolysh.animation import BlendType, PosInterval, Sequence
 from foolysh.tools.vec2 import Vec2
 
 import app
@@ -342,7 +343,8 @@ class Game(app.AppBase):
                 if k[1] == 12:  # King special case
                     check_aabb = self.__systems.layout.get_card(k).aabb
                     if t_node.aabb.overlap(check_aabb):
-                        res = tbl.tableau_to_tableau(pile_id, i,dragi.num_cards)
+                        res = tbl.tableau_to_tableau(pile_id, i,
+                                                     dragi.num_cards)
                         if t2t_move and res:
                             res = True
                             break
@@ -400,39 +402,54 @@ class Game(app.AppBase):
             table_click = self.__systems.layout.click_area(self.mouse_pos)
             if table_click is not None:
                 logger.info(f'Table: {repr(table_click)}')
-                self.__table_click(table_click)
+                res = self.__table_click(table_click)
+                print(res)
+                if not res:
+                    nd = self.__systems.layout.root
+                    Sequence(PosInterval(nd, 0.05, Vec2(0.01, 0),
+                                         blend=BlendType.EASE_IN_OUT),
+                             PosInterval(nd, 0.1, Vec2(-0.01, 0),
+                                         blend=BlendType.EASE_IN_OUT),
+                             PosInterval(nd, 0.05, Vec2(0, 0),
+                                         blend=BlendType.EASE_IN_OUT)).play()
                 return
 
     # Click helper methods
 
-    def __table_click(self, table_click):
+    def __table_click(self, table_click) -> bool:
         """Evaluates possible moves for table clicks."""
         if table_click[0] == common.TableArea.STACK:
             self.__systems.game_table.draw()
-        elif table_click[0] == common.TableArea.WASTE:
+            return True
+        if table_click[0] == common.TableArea.WASTE:
             if self.config.getboolean(
                     'pyos', 'waste_to_foundation', fallback=False):
-                if not self.__systems.game_table.waste_to_foundation():
-                    self.__systems.game_table.waste_to_tableau()
+                res = self.__systems.game_table.waste_to_foundation()
+                if not res:
+                    res = self.__systems.game_table.waste_to_tableau()
             else:
-                if not self.__systems.game_table.waste_to_tableau():
-                    self.__systems.game_table.waste_to_foundation()
-        elif table_click[0] == common.TableArea.FOUNDATION:
-            self.__systems.game_table.foundation_to_tableau(table_click[1][0])
-        else:  # TABLEAU
-            from_pile = self.__systems.game_table.table \
-                .tableau[table_click[1][0]]
-            num_cards = len(from_pile) - table_click[1][1]
-            if num_cards == 1 and self.__systems.game_table \
-                  .flip(table_click[1][0]):
-                return
-            if num_cards == 1 and self.__systems.game_table \
-                  .tableau_to_foundation(table_click[1][0]):
-                return
-            if self.__systems.game_table \
-                  .tableau_to_tableau(from_pile=table_click[1][0],
-                                      num_cards=num_cards):
-                return
+                res = self.__systems.game_table.waste_to_tableau()
+                if not res:
+                    res = self.__systems.game_table.waste_to_foundation()
+            return res
+        if table_click[0] == common.TableArea.FOUNDATION:
+            return self.__systems.game_table \
+                    .foundation_to_tableau(table_click[1][0])
+        # TABLEAU
+        from_pile = self.__systems.game_table.table.tableau[table_click[1][0]]
+        num_cards = len(from_pile) - table_click[1][1]
+        if num_cards == 1:
+            res = self.__systems.game_table.flip(table_click[1][0])
+            if res:
+                return res
+            res = self.__systems.game_table \
+                    .tableau_to_foundation(table_click[1][0])
+            if res:
+                return res
+        res = self.__systems.game_table \
+                .tableau_to_tableau(from_pile=table_click[1][0],
+                                    num_cards=num_cards)
+        return res
 
     # Game State
 
