@@ -50,7 +50,7 @@ options = {'apk': {'debug': None,
 
 setup(
     name='Simple Solitaire',
-    version='0.2.11',
+    version='0.2.12',
     description='An ad free, simple solitaire game',
     author='tcdude',
     author_email='tizilogic@gmail.com',
