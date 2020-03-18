@@ -28,7 +28,6 @@ import random
 from pyksolve import solver
 try:
     from jnius import autoclass
-    print('got jnius')
 except ImportError:
     from subprocess import Popen, DEVNULL
 
@@ -79,7 +78,6 @@ class Shuffler:
         if os.path.exists(STOP_FILE):
             os.remove(STOP_FILE)
         if 'autoclass' in globals():
-            print('starting service')
             service = autoclass('com.tizilogic.pyos.ServiceSolver')
             # pylint: disable=invalid-name
             mActivity = autoclass('org.kivy.android.PythonActivity').mActivity

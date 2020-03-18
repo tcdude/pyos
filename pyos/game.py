@@ -4,11 +4,13 @@ Ad free simple Solitaire implementation.
 
 from dataclasses import dataclass
 import os
+import random
 from typing import Tuple, Union
 
 from loguru import logger
 import sdl2
-from foolysh.animation import BlendType, PosInterval, Sequence
+from foolysh.animation import DepthInterval, BlendType, PosInterval, Sequence \
+                              , RotationInterval
 from foolysh.tools.vec2 import Vec2
 
 import app
@@ -164,9 +166,9 @@ class Game(app.AppBase):
                                   priority=-5)
         self.event_handler.listen('mouse_up', upe, self.__mouse_up, priority=-5)
 
-        self.task_manager.add_task('HUD_Update', self.__update_hud, 0.05)
+        self.task_manager.add_task('HUD_Update', self.__update_hud, 0.2)
         self.task_manager.add_task('auto_save', self.__auto_save_task, 5, False)
-        self.task_manager.add_task('auto_complete', self.__auto_foundation,
+        self.task_manager.add_task('auto_complete', self.__auto_complete,
                                    0.05)
         self.task_manager.add_task('layout_process',
                                    self.__systems.layout.process, 0)
@@ -204,7 +206,7 @@ class Game(app.AppBase):
             logger.debug('Auto Save')
             self.__save()
 
-    def __auto_foundation(self, dt):
+    def __auto_complete(self, dt):
         """Task to auto solve a game."""
         # pylint: disable=invalid-name, unused-argument
         if not self.__active:
@@ -216,7 +218,8 @@ class Game(app.AppBase):
                 self.__systems.game_table.flip(i)
         auto_solve = self.config.getboolean('pyos', 'auto_solve',
                                             fallback=False)
-        if auto_solve and self.__systems.game_table.solved:
+        if auto_solve and self.__systems.game_table.solved \
+              and not self.__systems.game_table.win_condition:
             self.__auto_solve()
 
     def __auto_solve(self):
@@ -254,10 +257,9 @@ class Game(app.AppBase):
             self.__state.refresh_next_frame -= 1
             self.__systems.game_table.refresh_table()
             logger.debug('refresh_table')
-        if not self.__systems.game_table.win_condition:
-            moves, elapsed_time, points = self.__systems.game_table.stats
-            self.__systems.hud.update(points, int(elapsed_time + 0.5), moves)
-        else:
+        moves, elapsed_time, points = self.__systems.game_table.stats
+        self.__systems.hud.update(points, int(elapsed_time + 0.5), moves)
+        if self.__systems.game_table.win_condition:
             self.__systems.layout.setup(self.__state.last_window_size,
                                         self.config.getboolean('pyos',
                                                                'left_handed'))
@@ -483,6 +485,7 @@ class Game(app.AppBase):
         txt += f'Moves: {" " * (mlen - len(mvs))}{mvs}\n'
         txt += f'Time:  {" " * (mlen - len(tim))}{tim}\n\n\n\n'
         self.__gen_dlg(txt)
+        self.__win_animation()
         self.__disable_all()
 
     def __gen_dlg(self, txt: str):
@@ -513,6 +516,38 @@ class Game(app.AppBase):
         else:
             self.__systems.windlg.text = txt
             self.__systems.windlg.show()
+
+    def __win_animation(self):
+        scx, scy = self.screen_size
+        caw, cah = self.__systems.layout.card_size
+        scx, scy = scx / min(scx, scy) - caw, scy / min(scx, scy) - cah
+        blends = [BlendType.EASE_OUT]  + [BlendType.EASE_IN_OUT] * 3
+        depth = list(range(52))
+        random.shuffle(depth)
+        offset = 0
+        for suit in range(4):
+            for value in range(13):
+                nd = self.__systems.layout.get_card((suit, value))
+                seqa = []
+                seqb = []
+                for blend in blends:
+                    dur = random.random() * 0.8
+                    pos = Vec2(random.random() * scx, random.random() * scy)
+                    seqa.append(PosInterval(nd, dur, pos, blend=blend))
+                    angle = random.random() * 360
+                    seqb.append(RotationInterval(nd, dur, angle, blend=blend))
+                dur = random.random() * 0.8
+                pos = Vec2(offset)
+                angle = 0
+                offset += 0.0002
+                seqa.append(PosInterval(nd, dur, pos,
+                                        rel=self.__systems.layout.stack,
+                                        blend=blend))
+                seqa.append(DepthInterval(nd, 0.5, suit * 13 + value))
+                seqb.append(RotationInterval(nd, dur, angle, blend=blend))
+                Sequence(*seqa).play()
+                Sequence(*seqb).play()
+                nd.depth = depth.pop()
 
     # Interaction
 

@@ -293,6 +293,11 @@ class TableLayout:
         return self._nodes.toolbar
 
     @property
+    def card_size(self) -> Tuple[float, float]:
+        """Card size in world units."""
+        return self._cfg.card_size
+
+    @property
     def callback(self) -> Callable[[card.Card, common.TableLocation], None]:
         """Callback to pass into Table."""
         return self._callback
