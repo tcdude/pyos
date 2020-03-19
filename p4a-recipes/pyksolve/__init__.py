@@ -9,8 +9,8 @@ from pythonforandroid.recipe import CppCompiledComponentsPythonRecipe
 
 
 class PyksolveRecipe(CppCompiledComponentsPythonRecipe):
-    version = 'p4a'
-    url = 'https://www.tizilogic.com/various/{version}/py-klondike-solver.zip'
+    version = 'master'
+    url = 'https://github.com/tcdude/py-klondike-solver/archive/{version}.zip'
     site_packages_name = 'pyksolve'
 
     depends = ['python3', 'setuptools']

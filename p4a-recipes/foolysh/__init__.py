@@ -8,7 +8,7 @@ from pythonforandroid.recipe import CppCompiledComponentsPythonRecipe
 
 
 class FoolyshRecipe(CppCompiledComponentsPythonRecipe):
-    version = 'p4a'
+    version = 'master'
     url = 'https://github.com/tcdude/foolysh/archive/{version}.zip'
     site_packages_name = 'foolysh'
 
