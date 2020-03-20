@@ -37,7 +37,7 @@ options = {'apk': {'debug': None,
                                    'foolysh,pyjnius',
                    'package': 'com.tizilogic.pyos',
                    'android-api': 28,
-                   'arch': 'arm64-v8a',  # switch for builds
+                   # 'arch': 'arm64-v8a',  # switch for builds
                    # 'arch': 'armeabi-v7a',  # switch for builds
                    'dist-name': 'pyos-beta',
                    'icon': 'pyos/assets/app-images/icon192.png',
@@ -50,7 +50,7 @@ options = {'apk': {'debug': None,
 
 setup(
     name='Simple Solitaire',
-    version='0.2.12',
+    version='0.2.14',
     description='An ad free, simple solitaire game',
     author='tcdude',
     author_email='tizilogic@gmail.com',

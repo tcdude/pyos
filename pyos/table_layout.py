@@ -10,9 +10,8 @@ from typing import Tuple
 from typing import Type
 from dataclasses import dataclass
 
-from foolysh.animation import BlendType
-from foolysh.animation import PosInterval
-from foolysh.animation import RotationInterval
+from foolysh.animation import (BlendType, DepthInterval, PosInterval,
+                               RotationInterval, Sequence)
 from foolysh.scene import node
 from foolysh.tools import aabb
 from foolysh.tools import vec2
@@ -102,50 +101,27 @@ class DragInfo:
     v_offset: Optional[float] = 0.0
 
 
-@dataclass
-class DepthQueueItem:
-    """Holds information about a queued depth step."""
-    card: CardNode
-    expiration: float
-    depth: int
-
-
-class DepthQueue:
-    """Retains information about deferred depth processing."""
-
+class AnimationQueue:
+    """Assures execution of animations in LIFO order."""
     def __init__(self):
-        self._time: float = 0.0
-        self._queue: Optional[Dict[Tuple[int, int], DepthQueueItem]] = {}
+        self._queue: List[Tuple[Tuple[int, int], Sequence]] = []
 
-    @property
-    def time(self) -> float:
-        """Return the current retained time."""
-        return self._time
+    def add(self, k: Tuple[int, int], seq: Sequence) -> None:
+        """Add a sequence to be executed for the specified card key."""
+        self._queue.append((k, seq))
 
-    def update_time(self, delta_time: float) -> None:
-        """Update the time"""
-        self._time += delta_time
-
-    def pop_items(self) -> Optional[List[DepthQueueItem]]:
+    def animate(self):
         """
-        To be called after update_time to retrieve all expired queue items.
+        Clears the animation queue and executes the most recent sequence per
+        card.
         """
-        pop_list = []
-        res = []
-        for k in self._queue:
-            item = self._queue[k]
-            if item.expiration <= self._time:
-                pop_list.append(k)
-                res.append(item)
-        if pop_list:
-            for i in pop_list:
-                self._queue.pop(i)
-            return res
-        return None
-
-    def append(self, item: DepthQueueItem) -> None:
-        """Insert a new item to the queue."""
-        self._queue[item.card.k] = item
+        cards = {}
+        for k, seq in reversed(self._queue):
+            if k in cards:
+                continue
+            seq.play()
+            cards[k] = True
+        self._queue.clear()
 
 
 class TableLayout:
@@ -164,13 +140,9 @@ class TableLayout:
     """
     # pylint: disable=too-many-instance-attributes
 
-    def __init__(
-            self,
-            card_ratio: float,
-            padding: float,
-            status_size: Tuple[float, float],
-            toolbar_size: Tuple[float, float]
-        ) -> None:
+    def __init__(self, card_ratio: float, padding: float,
+                 status_size: Tuple[float, float],
+                 toolbar_size: Tuple[float, float]) -> None:
         card_size = (
             1 / (7 + 8 * padding),
             card_ratio * (1 / (7 + 8 * padding))
@@ -248,7 +220,6 @@ class TableLayout:
             self._cards[k].node.index = 1
 
         self._drag_info: DragInfo = DragInfo()
-        self._depth_queue = DepthQueue()
         self._relative_positions = RelativePositions(
             stack=vec2.Vec2(),
             waste=[vec2.Vec2() for _ in range(4)],
@@ -256,6 +227,7 @@ class TableLayout:
             tableau=[vec2.Vec2() for _ in range(7)]
         )
         self._table: Optional[Table] = None
+        self._animq = AnimationQueue()
 
     @property
     def root(self) -> Type[node.Node]:
@@ -323,12 +295,8 @@ class TableLayout:
                 self._children.tableau[i].relative_pos for i in range(7)
             ]
         )
-        self._depth_queue.update_time(dt)
-        queue = self._depth_queue.pop_items()
-        if queue is not None:
-            for item in queue:
-                item.card.node.depth = item.depth
         self._drag_task()
+        self._animq.animate()
 
     def _drag_task(self) -> None:
         """Updates cards during drag and drop interaction."""
@@ -339,12 +307,9 @@ class TableLayout:
         for i, card_node in enumerate(self._drag_info.child_cards):
             card_node.node.pos = drag_pos + ((i + 1) * offset)
 
-    def on_drag(
-            self,
-            drag_card: Tuple[int, int],
-            child_cards: Optional[List[Tuple[int, int]]] = None,
-            pile_size: Optional[int] = 1
-        ) -> None:
+    def on_drag(self, drag_card: Tuple[int, int],
+                child_cards: Optional[List[Tuple[int, int]]] = None,
+                pile_size: Optional[int] = 1) -> None:
         """
         Called to start a drag.
         """
@@ -372,10 +337,8 @@ class TableLayout:
             for card_node in card_nodes:
                 card_node.node.depth = card_node.location.card_id
 
-    def click_area(
-            self,
-            mouse_pos: vec2.Vec2()
-        ) -> Optional[Tuple[common.TableArea, Tuple[int, int]]]:
+    def click_area(self, mouse_pos: vec2.Vec2()) -> Optional[
+            Tuple[common.TableArea, Tuple[int, int]]]:
         """
         Find the area and if applicable the index of the specified mouse
         position.
@@ -428,11 +391,8 @@ class TableLayout:
         offset = (1 - cards / 19) * (self._v_offset[1] - self._v_offset[0])
         return offset + self._v_offset[0]
 
-    def setup(
-            self,
-            screen_size: Tuple[int, int],
-            left_handed: Optional[bool] = False
-        ) -> None:
+    def setup(self, screen_size: Tuple[int, int],
+              left_handed: Optional[bool] = False) -> None:
         """
         Setup the node positions to reflect screen size and left vs right
         handed.
@@ -446,11 +406,8 @@ class TableLayout:
         else:  # Landscape
             self._setup_landscape(screen_size, left_handed)
 
-    def _setup_portrait(
-            self,
-            screen_size: Tuple[int, int],
-            left_handed: bool
-        ) -> None:
+    def _setup_portrait(self, screen_size: Tuple[int, int],
+                        left_handed: bool) -> None:
         """
         Setup node positions for portrait layout.
 
@@ -494,11 +451,8 @@ class TableLayout:
             screen_height - self._cfg.toolbar_size[1] - pad[1]
         )
 
-    def _setup_landscape(
-            self,
-            screen_size: Tuple[int, int],
-            left_handed: bool
-        ) -> None:
+    def _setup_landscape(self, screen_size: Tuple[int, int],
+                         left_handed: bool) -> None:
         """
         Setup node positions for landscape layout.
 
@@ -594,28 +548,21 @@ class TableLayout:
                 continue
             meths[card_node.location.area](c_loc, card_node.location, card_node)
 
-    def _callback(
-            self,
-            t_card: card.Card,
-            loc: common.TableLocation
-        ) -> None:
+    def _callback(self, t_card: card.Card, loc: common.TableLocation) -> None:
         """
         Callback method to handle placement and depth of cards.
         """
         card_node = self._cards[t_card.index[0]]
         c_loc = card_node.location
 
-        queue = False
         if loc.area == common.TableArea.STACK:
-            queue = self._callback_stack(c_loc, loc, card_node)
+            self._callback_stack(c_loc, loc, card_node)
         elif loc.area == common.TableArea.WASTE:
-            queue = self._callback_waste(c_loc, loc, card_node)
+            self._callback_waste(c_loc, loc, card_node)
         elif loc.area == common.TableArea.FOUNDATION:
-            queue = self._callback_foundation(c_loc, loc, card_node)
+            self._callback_foundation(c_loc, loc, card_node)
         elif loc.area == common.TableArea.TABLEAU:
-            queue = self._callback_tableau(c_loc, loc, card_node)
-        elif card_node.node.depth != loc.card_id:
-            queue = True
+            self._callback_tableau(c_loc, loc, card_node)
 
         if loc.visible:  # To force foolysh to render the next frame!
             card_node.node.index = 1
@@ -623,91 +570,72 @@ class TableLayout:
         else:
             card_node.node.index = 0
             card_node.node.index = 1
-
         card_node.location = loc
-        if queue:
-            self._depth_queue.append(
-                DepthQueueItem(
-                    card_node,
-                    self._depth_queue.time + 0.3,
-                    loc.card_id
-                )
-            )
 
-    def _callback_stack(
-            self,
-            c_loc: common.TableLocation,
-            loc: common.TableLocation,
-            card_node: CardNode
-        ) -> bool:
+    def _callback_stack(self, c_loc: common.TableLocation,
+                        loc: common.TableLocation, card_node: CardNode) -> bool:
         """Place card on Stack."""
         t_pos = self._relative_positions.stack
-        if c_loc.area != loc.area or c_loc.pile_id != loc.pile_id or \
-                c_loc.card_id != loc.card_id or card_node.node.pos != t_pos:
-            PosInterval(
-                card_node.node,
-                0.2,
-                t_pos,
-                blend=BlendType.EASE_OUT
-            ).play()
+        if c_loc.area != loc.area or c_loc.pile_id != loc.pile_id \
+              or c_loc.card_id != loc.card_id or card_node.node.pos != t_pos \
+              or card_node.node.depth != loc.card_id:
+            seq = Sequence(DepthInterval(card_node.node, 0.01,
+                                         200 + loc.card_id),
+                           PosInterval(card_node.node, 0.2, t_pos,
+                                       blend=BlendType.EASE_OUT),
+                           DepthInterval(card_node.node, 0.01, loc.card_id))
+            self._animq.add(card_node.k, seq)
             card_node.node.index = 1
-            card_node.node.depth = 200 + loc.card_id
             return True
         return False
 
-    def _callback_waste(
-            self,
-            c_loc: common.TableLocation,
-            loc: common.TableLocation,
-            card_node: CardNode
-        ) -> bool:
+    def _callback_waste(self, c_loc: common.TableLocation,
+                        loc: common.TableLocation, card_node: CardNode) -> bool:
         """Place card on Waste."""
         t_pos = self._relative_positions.waste[loc.pile_id]
-        if c_loc.area != loc.area or c_loc.pile_id != loc.pile_id or \
-              c_loc.card_id != loc.card_id or card_node.node.pos != t_pos:
-            PosInterval(
-                card_node.node,
-                0.2,
-                t_pos,
-                blend=BlendType.EASE_OUT
-            ).play()
+        if c_loc.area != loc.area or c_loc.pile_id != loc.pile_id \
+              or c_loc.card_id != loc.card_id or card_node.node.pos != t_pos \
+              or card_node.node.depth != loc.card_id:
+            seq = Sequence(DepthInterval(card_node.node, 0.01,
+                                         200 + loc.card_id),
+                           PosInterval(card_node.node, 0.2, t_pos,
+                                       blend=BlendType.EASE_OUT),
+                           DepthInterval(card_node.node, 0.01, loc.card_id))
+            self._animq.add(card_node.k, seq)
             card_node.node.index = 0
-            card_node.node.depth = 200 + loc.card_id
             return True
         return False
 
-    def _callback_foundation(
-            self,
-            c_loc: common.TableLocation,
-            loc: common.TableLocation,
-            card_node: CardNode
-        ) -> bool:
+    def _callback_foundation(self, c_loc: common.TableLocation,
+                             loc: common.TableLocation,
+                             card_node: CardNode) -> bool:
         """Place card on Foundation."""
         t_pos = self._relative_positions.foundation[loc.pile_id]
         if c_loc.area != loc.area or c_loc.pile_id != loc.pile_id or \
-              c_loc.card_id != loc.card_id or card_node.node.pos != t_pos:
-            PosInterval(
-                card_node.node,
-                0.2,
-                t_pos,
-                blend=BlendType.EASE_OUT
-            ).play()
+              c_loc.card_id != loc.card_id or card_node.node.pos != t_pos \
+              or card_node.node.depth != loc.card_id:
+            seq = Sequence(DepthInterval(card_node.node, 0.01,
+                                         320 + loc.card_id),
+                           PosInterval(card_node.node, 0.2, t_pos,
+                                       blend=BlendType.EASE_OUT),
+                           DepthInterval(card_node.node, 0.01, loc.card_id))
+            self._animq.add(card_node.k, seq)
             card_node.node.index = 0
-            card_node.node.depth = 260 + loc.card_id
             return True
         return False
 
-    def _callback_tableau(
-            self,
-            c_loc: common.TableLocation,
-            loc: common.TableLocation,
-            card_node: CardNode,
-        ) -> bool:
+    def _callback_tableau(self, c_loc: common.TableLocation,
+                          loc: common.TableLocation,
+                          card_node: CardNode) -> bool:
         """Place card on Tableau."""
         if c_loc.visible is False and loc.visible is True and \
               c_loc.pile_id == loc.pile_id and c_loc.card_id == loc.card_id:
-            RotationInterval(card_node.node, 0.2, 0, 360,
-                             blend=BlendType.EASE_IN_OUT).play()
+            seq = Sequence(DepthInterval(card_node.node, 0.01,
+                                         260 + loc.card_id),
+                           RotationInterval(card_node.node, 0.25, 0, -360,
+                                            blend=BlendType.EASE_OUT),
+                           DepthInterval(card_node.node, 0.01, loc.card_id))
+            self._animq.add(card_node.k, seq)
             card_node.node.index = 0
             return True
 
@@ -715,15 +643,15 @@ class TableLayout:
         offset = vec2.Vec2(0, self.v_offset(pile_size) * loc.card_id)
         t_pos = self._relative_positions.tableau[loc.pile_id] + offset
         if c_loc.area != loc.area or c_loc.pile_id != loc.pile_id or \
-              c_loc.card_id != loc.card_id or card_node.node.pos != t_pos:
-            PosInterval(
-                card_node.node,
-                0.2,
-                t_pos,
-                blend=BlendType.EASE_OUT
-            ).play()
+              c_loc.card_id != loc.card_id or card_node.node.pos != t_pos \
+              or card_node.node.depth != loc.card_id:
+            seq = Sequence(DepthInterval(card_node.node, 0.01,
+                                         260 + loc.card_id),
+                           PosInterval(card_node.node, 0.2, t_pos,
+                                       blend=BlendType.EASE_OUT),
+                           DepthInterval(card_node.node, 0.01, loc.card_id))
+            self._animq.add(card_node.k, seq)
             card_node.node.index = 0 if loc.visible else 1
-            card_node.node.depth = 200 + loc.card_id
             return True
         card_node.node.index = 0 if loc.visible else 1
         return False

@@ -16,7 +16,7 @@
     "default": {
         "foolysh": {
             "git": "https://github.com/tcdude/foolysh.git",
-            "ref": "f0f3358f4810c0f01d3a19fd8aa5bfcf76be48dd"
+            "ref": "9a78006ca322ddc4a2df6e5947d0859d82512fc6"
         },
         "loguru": {
             "hashes": [
@@ -56,23 +56,23 @@
         },
         "pyksolve": {
             "hashes": [
-                "sha256:127a8a02b9c7661e34c87b1c28916b7913c6e75092e3139bc8b17a7114dc3463",
-                "sha256:170f74a5bda452f8588480fba1d01acf7170facddd124d84c08fa6f55361a110",
-                "sha256:197a6e78db73e7da0b0e04fd44e937618ca343e83c6c21bfaff1e8d6021729f4",
-                "sha256:1cd0e55cd8bcf35ff6c53a64ac7efbfbd9e3fd503dc7a24930d12b244b274b6f",
-                "sha256:20277f0741ca6b3d0449167b5de52ad32e5fccb4317aaff431d33c2cdd20556d",
-                "sha256:2f96f6f0d38e7a9dfcc6124daab553b0b1215dda26b18a5d1913c1710bddf5a3",
-                "sha256:432860f0bcb854bc82068ed02df0d1bdac30527936d434079c137cae5c9671e4",
-                "sha256:464094a3e2d58a64df779c0bb2abc1e5e43cc8e8280e4c5b8ca67241a634a00f",
-                "sha256:605b05e3203e613f41d407aee9d3b25c76fc0abb9be7dafc2346d8f83ea5970d",
-                "sha256:635098992064975516dcd3af3e1887dbe3b8c852c847bf100c5aba4bdde0427a",
-                "sha256:6b7804e8d678dc3981f9b4219b8c9f95a5d1d408359d66cc7203c6b4b89368d0",
-                "sha256:7b97c4f982b5c0ce0e3e796ef396feba52609c4847474a9b2d3fe3acd6560427",
-                "sha256:a2c6db57f43d46aac4d20cdcd616cde08ad135b5a9c5919412bc8155f104ff43",
-                "sha256:dea667b7e6519848f494905e1e20a47a27070af62fccf05c28746db08e6684f5"
+                "sha256:154ccb6625f7aada423c0891658db2cb6417630fb969abe9f97a316e178b2e18",
+                "sha256:2501ad01bb516f657e953adabeaf9c0f89efb47f6d59b36c545c05398573865a",
+                "sha256:2c01d7c7f6e2d5dbd616ecb545f308dcf457f440537ca73bc5a2122751c66940",
+                "sha256:30babcef1fda0ce19db01a9bc7858298bf4cc287efc8d81d2caf3df84f6a3313",
+                "sha256:4bdf25c86733ab004764e2ed5c1282970e39c835d730a287fcead34c64cee0d9",
+                "sha256:4daf525464fde6558ce93c697f5951ea73c2a5c63bc6d433713afae78362b16c",
+                "sha256:71a6ae4ab502804c2ccec5ce2ce78e94b25f1d39689aa8ecc9bcbcedfd301f0d",
+                "sha256:74d1d001464194b7bc40a50aa29958df943a18978b101f5cf7f2c91f1d9f8148",
+                "sha256:8b418010e5b965b0c24bdd6752bafedafecce264272a73d32be4090938b17d02",
+                "sha256:93fbcb0053a700ab7f72910834ff4227ffe6d148a5ec566c52660cd46084852c",
+                "sha256:a365055c96b35e47c3c8e8b9a8c39d4f0af066fd713710623eaa8fd7ccc44c2d",
+                "sha256:a47ed17cd98c60c7984ef7bde150d88f3f63d5482906c17ed418f38ebadefde4",
+                "sha256:a981698bdb8460503b198f067ad6c8985cad5ea42e0f10c59e70d04742117e20",
+                "sha256:f94f6dc8684bd6aec45a209888c3e4ee6489010e21f042c6319a20be0d4ed078"
             ],
             "index": "pypi",
-            "version": "==0.0.7"
+            "version": "==0.0.10"
         },
         "pysdl2": {
             "hashes": [

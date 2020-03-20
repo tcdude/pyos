@@ -44,9 +44,7 @@ class PyOS(menu.MainMenu, menu.SettingsMenu, game.Game):
     All states collected using multiple inheritance.
     """
     def on_quit(self):
-        shf = self.shuffler
-        if shf is not None:
-            shf.stop()
+        self.shuffler.stop()
         super().on_quit()
 
 

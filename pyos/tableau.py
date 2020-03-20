@@ -146,7 +146,7 @@ class TableauPile(Pile):
         """
         if self._pile:
             return self._pile[-1].tableau_valid(a_card)
-        if a_card.value == 12:
+        if a_card.value == 12 and a_card.visible:
             return True
         return False
 

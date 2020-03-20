@@ -22,6 +22,7 @@ SOFTWARE.
 
 import os
 import glob
+import time
 from typing import Optional, Union, Tuple, List
 import random
 
@@ -85,7 +86,11 @@ class Shuffler:
             argument = ''
             service.start(mActivity, argument)
         else:
-            self.__proc = Popen(['python', 'services/solver.py'],
+            self.stop()
+            time.sleep(0.5)
+            if os.path.exists(STOP_FILE):
+                os.remove(STOP_FILE)
+            self.__proc = Popen(['python', 'service/solver.py'],
                                 stdout=DEVNULL, stderr=DEVNULL)
 
     @staticmethod

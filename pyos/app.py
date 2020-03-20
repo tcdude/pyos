@@ -9,6 +9,8 @@ import plyer
 
 from foolysh import app
 
+import rules
+
 __author__ = 'Tiziano Bettio'
 __copyright__ = """
 Copyright (c) 2020 Tiziano Bettio
@@ -47,6 +49,7 @@ class AppBase(app.App):
         self.__setup_events_tasks()
         self.layout_refresh = False
         self.need_new_game = False
+        self.shuffler = rules.Shuffler()
         self.__last_orientation: str = None
 
     def __setup_events_tasks(self):

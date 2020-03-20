@@ -7,6 +7,7 @@ venv
 **.apk
 sign-apk.sh
 test.sh
+build.sh
 .vscode
 
 # Byte-compiled / optimized / DLL files

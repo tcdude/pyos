@@ -90,13 +90,6 @@ class Game(app.AppBase):
         self.__active: bool = False
         logger.info('Game initialized.')
 
-    @property
-    def shuffler(self):
-        """Returns the shuffler from Table."""
-        if self.__systems is not None:
-            return self.__systems.game_table.shuffler
-        return None
-
     # State
     def enter_game(self):
         """Tasks to be performed when this state is activated."""
@@ -193,7 +186,7 @@ class Game(app.AppBase):
                           self.config['font']['bold'],
                           (self.__new_deal, self.__reset_deal, self.__undo_move,
                            self.__menu))
-        game_table = Table(layout.callback)
+        game_table = Table(layout.callback, self.shuffler)
         layout.set_table(game_table)
         self.__systems = GameSystems(game_table, layout, hud, toolbar)
         self.__need_setup = False
@@ -405,7 +398,6 @@ class Game(app.AppBase):
             if table_click is not None:
                 logger.info(f'Table: {repr(table_click)}')
                 res = self.__table_click(table_click)
-                print(res)
                 if not res:
                     nd = self.__systems.layout.root
                     Sequence(PosInterval(nd, 0.05, Vec2(0.01, 0),
@@ -534,7 +526,7 @@ class Game(app.AppBase):
                     dur = random.random() * 0.8
                     pos = Vec2(random.random() * scx, random.random() * scy)
                     seqa.append(PosInterval(nd, dur, pos, blend=blend))
-                    angle = random.random() * 360
+                    angle = random.random() * 1440 - 720
                     seqb.append(RotationInterval(nd, dur, angle, blend=blend))
                 dur = random.random() * 0.8
                 pos = Vec2(offset)

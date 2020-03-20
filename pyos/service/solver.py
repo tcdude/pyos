@@ -5,6 +5,7 @@ Service to run pyksolve in separately from the main app.
 import os
 import glob
 import time
+import random
 from typing import Tuple
 
 from pyksolve import solver
@@ -41,6 +42,9 @@ DRAW_COUNTS = 1, 3
 CACHE_COUNT = 10
 MCC = 100_000
 
+if not os.path.exists(SOLUTION_PATH):
+    os.makedirs(SOLUTION_PATH)
+
 
 class Solver:
     """
@@ -67,7 +71,7 @@ class Solver:
             if seed:
                 self.solitaire.shuffle1(seed)
             else:
-                seed = self.solitaire.shuffle1()
+                seed = self.solitaire.shuffle1(random.randint(1, 2**31 - 1))
             self.solitaire.reset_game()
             if abs(self.solitaire.solve_fast(max_closed_count=MCC).value) == 1:
                 pth = os.path.join(SOLUTION_PATH, str(draw_count))

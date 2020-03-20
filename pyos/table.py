@@ -86,11 +86,8 @@ class Table:
     Provides handling of the game state.
     """
     # pylint: disable=too-many-public-methods,too-many-instance-attributes
-    def __init__(
-            self,
-            callback: Callable[
-                [card.Card, common.TableLocation, List[int]], None]
-        ) -> None:
+    def __init__(self, callback: Callable[[card.Card, common.TableLocation,
+                                           List[int]], None], shuffler) -> None:
         self._tableau = tableau.Tableau()
         self._foundation = foundation.Foundation()
         self._stack: List[card.Card] = []
@@ -98,7 +95,7 @@ class Table:
         self._history: List[Move] = []
         self._state = State()
         self._callback = callback
-        self._shuffler = rules.Shuffler()
+        self._shuffler = shuffler
         self._wrapped = {
             'draw': self.__wrap_method(self.__draw),
             'flip': self.__wrap_method(self.__flip),
@@ -224,11 +221,6 @@ class Table:
             tableau=self._tableau.piles,
             foundation=self._foundation.piles
         )
-
-    @property
-    def shuffler(self) -> rules.Shuffler:
-        """The shuffler."""
-        return self._shuffler
 
     def deal(
             self,
