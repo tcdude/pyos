@@ -7,6 +7,7 @@ import os
 import sys
 
 from loguru import logger
+import plyer
 
 import common
 import menu
@@ -48,9 +49,9 @@ class PyOS(menu.MainMenu, menu.SettingsMenu, game.Game):
         super().on_quit()
 
 
-def main():
+def main(cfg_file):
     """Launches the app."""
-    cfg_file = '.foolysh/foolysh.ini'
+    cfg_file = os.path.join(plyer.storagepath.get_application_dir(), cfg_file)
     if not os.path.isfile(cfg_file):
         os.makedirs(os.path.split(cfg_file)[0])
         cfg = configparser.ConfigParser()
@@ -70,4 +71,9 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        import android  # pylint: disable=unused-import
+        CFG = 'com.tizilogic.pyos/files/.foolysh/foolysh.ini'
+    except ImportError:
+        CFG = '.foolysh/foolysh.ini'
+    main(CFG)

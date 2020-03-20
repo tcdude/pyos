@@ -44,6 +44,11 @@ FOUNDATION = 'images/f_empty.png'
 STACK = 'images/s_empty.png'
 TABLEAU = 'images/t_empty.png'
 WASTE = 'images/w_empty.png'
+try:
+    import android  # pylint: disable=unused-import
+    CACHEDIR = '../cache'
+except ImportError:
+    CACHEDIR = 'cache/'
 
 # Config
 DEFAULTCONFIG = {
@@ -51,7 +56,7 @@ DEFAULTCONFIG = {
                          ('asset_pixel_ratio', '4712'),
                          ('window_size', '480x800'),
                          ('asset_dir', 'assets/'),
-                         ('cache_dir', 'cache/'),
+                         ('cache_dir', CACHEDIR),
                          ('drag_threshold', '0.025')]),
     'pyos': OrderedDict([('winner_deal', 'True'), ('draw_one', 'True'),
                          ('tap_move', 'True'), ('auto_foundation', 'False'),
