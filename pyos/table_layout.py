@@ -632,11 +632,11 @@ class TableLayout:
               c_loc.pile_id == loc.pile_id and c_loc.card_id == loc.card_id:
             seq = Sequence(DepthInterval(card_node.node, 0.01,
                                          260 + loc.card_id),
-                           RotationInterval(card_node.node, 0.05, 0, -60,
+                           RotationInterval(card_node.node, 0.05, 0, -30,
                                             blend=BlendType.EASE_IN_OUT),
-                           RotationInterval(card_node.node, 0.1, -60, 60,
+                           RotationInterval(card_node.node, 0.1, -30, 30,
                                             blend=BlendType.EASE_IN_OUT),
-                           RotationInterval(card_node.node, 0.05, 60, 0,
+                           RotationInterval(card_node.node, 0.05, 30, 0,
                                             blend=BlendType.EASE_IN_OUT),
                            DepthInterval(card_node.node, 0.01, loc.card_id))
             self._animq.add(card_node.k, seq)
