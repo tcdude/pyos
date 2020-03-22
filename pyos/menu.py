@@ -41,6 +41,8 @@ __version__ = '0.2'
 class MenuButtons:
     """Buttons of the main menu."""
     play: button.Button
+    daydeal: button.Button
+    stats: button.Button
     settings: button.Button
     quit: button.Button
 
@@ -77,30 +79,46 @@ class MainMenu(app.AppBase):
 
     def __setup_menu_buttons(self):
         kwargs = {'font': self.config.get('font', 'bold'),
-                  'text_color': (0, 50, 0, 255),
+                  'text_color': (0, 50, 0, 255), 'frame_color': (200, 220, 200),
                   'down_text_color': (255, 255, 255, 255),
                   'border_thickness': 0.005, 'down_border_thickness': 0.008,
                   'border_color': (0, 50, 0),
                   'down_border_color': (255, 255, 255),
                   'corner_radius': 0.05, 'multi_sampling': 2,
                   'align': 'center', 'size': (0.8, 0.1)}
-        play = button.Button(name='play button', pos=(0, -0.1),
+        offset = 0.125
+        pos_y = -0.2
+        play = button.Button(name='play button', pos=(0, pos_y),
                              text=chr(0xf90b) + ' Play    ',
                              **kwargs)
         play.origin = Origin.CENTER
         play.reparent_to(self.__frame)
         play.onclick(self.request, 'game')
-        settings = button.Button(name='settings button', pos=(0, 0.05),
+        pos_y += offset
+        daydeal = button.Button(name='daydeal button', pos=(0, pos_y),
+                                text=chr(0xf274) + ' Daily Deal', **kwargs)
+        daydeal.origin = Origin.CENTER
+        daydeal.reparent_to(self.__frame)
+        daydeal.onclick(self.request, 'main_menu')
+        pos_y += offset
+        stats = button.Button(name='stats button', pos=(0, pos_y),
+                              text='' + chr(0xf201) + ' Statistics', **kwargs)
+        stats.origin = Origin.CENTER
+        stats.reparent_to(self.__frame)
+        stats.onclick(self.request, 'statistics')
+        pos_y += offset
+        settings = button.Button(name='settings button', pos=(0, pos_y),
                                  text=chr(0xf425) + ' Settings', **kwargs)
         settings.origin = Origin.CENTER
         settings.reparent_to(self.__frame)
         settings.onclick(self.request, 'settings_menu')
-        quitb = button.Button(name='quit button', pos=(0, 0.2),
+        pos_y += offset
+        quitb = button.Button(name='quit button', pos=(0, pos_y),
                               text=chr(0xf705)+ ' Quit    ', **kwargs)
         quitb.origin = Origin.CENTER
         quitb.reparent_to(self.__frame)
         quitb.onclick(self.quit, blocking=False)
-        self.__buttons = MenuButtons(play, settings, quitb)
+        self.__buttons = MenuButtons(play, daydeal, stats, settings, quitb)
 
 
 @dataclass

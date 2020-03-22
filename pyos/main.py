@@ -12,6 +12,7 @@ import plyer
 import common
 import menu
 import game
+import statsmenu
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = """
@@ -40,7 +41,7 @@ __license__ = 'MIT'
 __version__ = '0.2'
 
 
-class PyOS(menu.MainMenu, menu.SettingsMenu, game.Game):
+class PyOS(menu.MainMenu, menu.SettingsMenu, game.Game, statsmenu.Statistics):
     """
     All states collected using multiple inheritance.
     """

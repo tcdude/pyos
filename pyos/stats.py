@@ -237,3 +237,21 @@ class Stats:
         if self._session.query(Game).first():
             return False
         return True
+
+    @property
+    def deals_played(self) -> int:
+        """
+        Returns the number of individual games played, that have at least one
+        attempt.
+        """
+        return self._session.query(Attempt).group_by(Attempt.game_id).count()
+
+    @property
+    def solved_ratio(self) -> float:
+        """Returns the ratio of attempts to attempts_solved."""
+        solved = self._session.query(Attempt) \
+            .filter(Attempt.solved == True).count()
+        attempts = self._session.query(Attempt).count()
+        if attempts:
+            return solved / attempts
+        return 0.0
