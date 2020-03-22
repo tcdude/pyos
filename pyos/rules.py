@@ -163,8 +163,18 @@ class Shuffler:
     def _get_deal(self, draw: int) -> Tuple[int, str]:
         pth = os.path.join(SOLUTION_PATH, str(draw))
         solutions = []
+        i = 0
         while not solutions:
             solutions = glob.glob(pth + '/solution*')
+            time.sleep(0.001)
+            i += 1
+            if i > 2000:
+                self.stop()
+                time.sleep(0.5)
+                if os.path.exists(STOP_FILE):
+                    os.remove(STOP_FILE)
+                self.start_service()
+                i = 0
         seed = int(solutions[0].split(pth + '/solution')[1])
         os.remove(solutions[0])
         self._solitaire.shuffle1(seed)
