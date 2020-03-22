@@ -47,8 +47,10 @@ WASTE = 'images/w_empty.png'
 try:
     import android  # pylint: disable=unused-import
     CACHEDIR = '../cache'
+    DATAFILE = '../gamedata.db'
 except ImportError:
     CACHEDIR = 'cache/'
+    DATAFILE = 'gamedata.db'
 
 # Config
 DEFAULTCONFIG = {
@@ -69,7 +71,8 @@ DEFAULTCONFIG = {
                          ('click_threshold', '0.06'),
                          ('log_level', 'INFO'),
                          ('auto_solve_delay', '0.3'),
-                         ('orientation', 'auto')]),
+                         ('orientation', 'auto'),
+                         ('datafile', DATAFILE)]),
     'font': OrderedDict([('normal', 'fonts/SpaceMono.ttf'),
                          ('bold', 'fonts/SpaceMonoBold.ttf')])
 }

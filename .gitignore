@@ -9,6 +9,7 @@ sign-apk.sh
 test.sh
 build.sh
 .vscode
+**gamedata.db
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

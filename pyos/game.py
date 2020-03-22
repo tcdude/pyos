@@ -76,6 +76,7 @@ class GameState:
     last_undo: bool = False
     mouse_down_pos: Vec2 = Vec2()
     drag_info: DragInfo = DragInfo(-1, -1, common.TableArea.STACK)
+    fresh_state: bool = True
 
 
 class Game(app.AppBase):
@@ -95,7 +96,8 @@ class Game(app.AppBase):
         """Tasks to be performed when this state is activated."""
         logger.debug('Enter state game')
         self.__setup()
-        if self.need_new_game:
+        self.__state.fresh_state = True
+        if self.need_new_game or self.stats.first_launch:
             self.__new_deal()
             self.need_new_game = False
 
@@ -232,6 +234,7 @@ class Game(app.AppBase):
         for meth in meths:
             if meth():
                 self.__state.last_auto = call_time
+                self.__update_attempt()
                 return
         raise RuntimeError('Unhandled exception.')
 
@@ -298,13 +301,21 @@ class Game(app.AppBase):
         """Callback on drop of a card."""
         self.__systems.layout.on_drop()
         waste_tableau = common.TableArea.WASTE, common.TableArea.TABLEAU
+        invalid = False
         if self.__state.drag_info.start_area in waste_tableau:
             if not self.__drop_foundation(k):
-                self.__drop_tableau(k)
+                if not self.__drop_tableau(k):
+                    invalid = True
         elif self.__state.drag_info.start_area == common.TableArea.FOUNDATION:
-            self.__drop_tableau(k)
+            if not self.__drop_tableau(k):
+                invalid = True
         self.__state.refresh_next_frame = 1
         self.__state.valid_drop = True
+        if invalid:
+            self.__systems.game_table.invalid_move()
+        else:
+            self.__state.fresh_state = False
+        self.__update_attempt()
 
     # Drop helper methods
 
@@ -406,6 +417,10 @@ class Game(app.AppBase):
                                          blend=BlendType.EASE_IN_OUT),
                              PosInterval(nd, 0.05, Vec2(0, 0),
                                          blend=BlendType.EASE_IN_OUT)).play()
+                    self.__systems.game_table.invalid_move()
+                else:
+                    self.__state.fresh_state = False
+                self.__update_attempt()
                 return
 
     # Click helper methods
@@ -447,6 +462,14 @@ class Game(app.AppBase):
 
     # Game State
 
+    def __update_attempt(self, solved=False, bonus=0):
+        mvs, tim, pts = self.__systems.game_table.stats
+        undo, invalid = self.__systems.game_table.undo_invalid
+        self.stats.update_attempt(moves=mvs, duration=tim, points=pts,
+                                  undo=undo, invalid=invalid, solved=solved,
+                                  total=pts + bonus)
+
+
     def __save(self):
         path = os.path.join(self.config['base']['cache_dir'],
                             self.config['pyos']['state_file'])
@@ -465,6 +488,7 @@ class Game(app.AppBase):
 
     def __show_score(self):
         """Show the result screen."""
+        self.__save()
         secs, pts, bonus, moves = self.__systems.game_table.result
         mins = int(secs / 60)
         secs -= mins * 60
@@ -477,7 +501,9 @@ class Game(app.AppBase):
         txt += f'Moves: {" " * (mlen - len(mvs))}{mvs}\n'
         txt += f'Time:  {" " * (mlen - len(tim))}{tim}\n\n\n\n'
         self.__gen_dlg(txt)
-        self.__win_animation()
+        if not self.__state.fresh_state:
+            self.__win_animation()
+            self.__update_attempt(solved=True, bonus=bonus)
         self.__disable_all()
 
     def __gen_dlg(self, txt: str):
@@ -547,8 +573,10 @@ class Game(app.AppBase):
         """On Undo click: Undo the last move."""
         if self.__systems.game_table.win_condition:
             return
-        self.__systems.game_table.undo()
-        self.__state.last_undo = True
+        res = self.__systems.game_table.undo()
+        if res:
+            self.__state.last_undo = True
+            self.__update_attempt()
 
     def __reset_deal(self):
         """On Reset click: Reset the current game to start."""
@@ -558,6 +586,9 @@ class Game(app.AppBase):
             self.__setup()
         self.__systems.game_table.reset()
         self.__state.refresh_next_frame = 2
+        self.stats.new_attempt(self.__systems.game_table.seed,
+                               self.__systems.game_table.draw_count,
+                               self.config.getboolean('pyos', 'winner_deal'))
 
     def __new_deal(self):
         """On New Deal click: Deal new game."""
@@ -572,6 +603,10 @@ class Game(app.AppBase):
         win_deal = self.config.getboolean('pyos', 'winner_deal')
         self.__systems.game_table.deal(win_deal=win_deal)
         self.__state.refresh_next_frame = 2
+        seed = self.__systems.game_table.seed
+        draw = self.__systems.game_table.draw_count
+        self.stats.new_deal(seed, draw, win_deal)
+        self.stats.new_attempt(seed, draw, win_deal)
 
     def __menu(self):
         """On Menu click."""

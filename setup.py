@@ -34,7 +34,7 @@ options = {'apk': {'debug': None,
                    'bootstrap': 'sdl2',
                    'requirements': 'libffi,sdl2,sdl2_image,sdl2_ttf,python3,'
                                    'pysdl2,pyksolve,Pillow,plyer,loguru,'
-                                   'foolysh,pyjnius',
+                                   'foolysh,pyjnius,sqlalchemy',
                    'package': 'com.tizilogic.pyos',
                    'android-api': 28,
                    # 'arch': 'arm64-v8a',  # switch for builds

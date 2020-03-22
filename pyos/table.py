@@ -75,6 +75,8 @@ class State:
     moves: int = 0
     points: int = 0
     paused: bool = True
+    undo: int = 0
+    invalid: int = 0
     fresh_deal: bool = False
     seed: Union[None, int] = None
     draw_count: int = 1
@@ -159,6 +161,11 @@ class Table:
         self._state.draw_count = value
 
     @property
+    def seed(self) -> int:
+        """Current seed."""
+        return self._state.seed
+
+    @property
     def waste_card(self) -> Union[card.Card, None]:
         """The top most card on the waste pile."""
         return self._waste[-1] if self._waste else None
@@ -222,6 +229,15 @@ class Table:
             foundation=self._foundation.piles
         )
 
+    @property
+    def undo_invalid(self) -> Tuple[int, int]:
+        """Returns the current undo and invalid move count."""
+        return self._state.undo, self._state.invalid
+
+    def invalid_move(self):
+        """Register an invalid move."""
+        self._state.invalid += 1
+
     def deal(
             self,
             random_seed: Optional[int] = None,
@@ -255,6 +271,8 @@ class Table:
         self._state.points = 0
         self._state.moves = 0
         self._state.result = None
+        self._state.undo = 0
+        self._state.invalid = 0
         self._history = []
 
     def _start(self) -> None:
@@ -721,6 +739,7 @@ class Table:
         if not success:
             raise RuntimeError(f'Illegal move ({repr(move)}) to undo.')
         self._state.points = max(0, self._state.points - 15)
+        self._state.undo += 1
         return True
 
     def __undo_draw(self, move: Move) -> bool:

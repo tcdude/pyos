@@ -28,6 +28,7 @@ import random
 
 from pyksolve import solver
 try:
+    import android  # pylint: disable=unused-import
     from jnius import autoclass
 except ImportError:
     from subprocess import Popen, DEVNULL
@@ -85,6 +86,9 @@ class Shuffler:
             # pylint: enable=invalid-name
             argument = ''
             service.start(mActivity, argument)
+            print('mActivity', [i for i in dir(mActivity) if ord(i[0]) > 90],
+                  '\nservice', [i for i in dir(service) if ord(i[0]) > 90],
+                  '', sep='\n')
         else:
             self.stop()
             time.sleep(0.5)

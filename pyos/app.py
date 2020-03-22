@@ -9,6 +9,7 @@ import plyer
 
 from foolysh import app
 
+import stats
 import rules
 
 __author__ = 'Tiziano Bettio'
@@ -50,6 +51,8 @@ class AppBase(app.App):
         self.layout_refresh = False
         self.need_new_game = False
         self.shuffler = rules.Shuffler()
+        self.stats = stats.Stats(self.config.get('pyos', 'datafile'))
+        self.stats.start_session()
         self.__last_orientation: str = None
 
     def __setup_events_tasks(self):
@@ -90,12 +93,14 @@ class AppBase(app.App):
         # pylint: disable=unused-argument
         logger.info('Paused app')
         self.request('app_base')
+        self.stats.end_session()
 
     def __event_resume(self, event=None):
         """Called when the app enters background."""
         # pylint: disable=unused-argument
         logger.info('Resume app')
         self.request('main_menu')
+        self.stats.start_session()
 
     def __event_will_enter_bg(self, event=None):
         """Called when the os announces that the app will enter background."""
@@ -147,6 +152,8 @@ class AppBase(app.App):
         self.request('app_base')
         if self.isandroid:
             plyer.gravity.disable()
+        self.stats.end_session()
+        self.stats.close()
         super().on_quit()
 
     def enter_app_base(self):
