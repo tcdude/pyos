@@ -467,7 +467,7 @@ class Game(app.AppBase):
         undo, invalid = self.__systems.game_table.undo_invalid
         self.stats.update_attempt(moves=mvs, duration=tim, points=pts,
                                   undo=undo, invalid=invalid, solved=solved,
-                                  total=pts + bonus)
+                                  bonus=bonus)
 
 
     def __save(self):
@@ -489,17 +489,36 @@ class Game(app.AppBase):
     def __show_score(self):
         """Show the result screen."""
         self.__save()
-        secs, pts, bonus, moves = self.__systems.game_table.result
-        mins = int(secs / 60)
-        secs -= mins * 60
+        dur, pts, bonus, moves = self.__systems.game_table.result
+        mins = int(dur / 60)
+        secs = dur - mins * 60
         txt = f'You WON!\n\n'
         scr = f'{pts + bonus}'
+        top = False
+        i = self.stats.highscore(self.__systems.game_table.draw_count)
+        logger.debug(f'Current highscore: {i}')
+        if pts + bonus > i:
+            scr += f' {chr(0xf01b)}'
+            top = True
         mvs = f'{moves}'
+        i = self.stats.least_moves(self.__systems.game_table.draw_count)
+        logger.debug(f'Current least_moves: {i}')
+        if moves <= i:
+            mvs += f' {chr(0xf01b)}'
+            top = True
         tim = f'{mins}:{secs:05.2f}'
+        i = self.stats.fastest(self.__systems.game_table.draw_count)
+        logger.debug(f'Current fastest: {i}')
+        if dur < i:
+            tim += f' {chr(0xf01b)}'
+            top = True
         mlen = max(len(scr), len(mvs), len(tim))
         txt += f'Score: {" " * (mlen - len(scr))}{scr}\n'
         txt += f'Moves: {" " * (mlen - len(mvs))}{mvs}\n'
-        txt += f'Time:  {" " * (mlen - len(tim))}{tim}\n\n\n\n'
+        txt += f'Time:  {" " * (mlen - len(tim))}{tim}\n\n'
+        if top:
+            txt += f'{chr(0xf01b)} Personal best\n'
+        txt += '\n\n'
         self.__gen_dlg(txt)
         if not self.__state.fresh_state:
             self.__win_animation()

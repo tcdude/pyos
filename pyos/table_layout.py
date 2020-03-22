@@ -632,8 +632,12 @@ class TableLayout:
               c_loc.pile_id == loc.pile_id and c_loc.card_id == loc.card_id:
             seq = Sequence(DepthInterval(card_node.node, 0.01,
                                          260 + loc.card_id),
-                           RotationInterval(card_node.node, 0.25, 0, -360,
-                                            blend=BlendType.EASE_OUT),
+                           RotationInterval(card_node.node, 0.05, 0, -60,
+                                            blend=BlendType.EASE_IN_OUT),
+                           RotationInterval(card_node.node, 0.1, -60, 60,
+                                            blend=BlendType.EASE_IN_OUT),
+                           RotationInterval(card_node.node, 0.05, 60, 0,
+                                            blend=BlendType.EASE_IN_OUT),
                            DepthInterval(card_node.node, 0.01, loc.card_id))
             self._animq.add(card_node.k, seq)
             card_node.node.index = 0
@@ -645,11 +649,16 @@ class TableLayout:
         if c_loc.area != loc.area or c_loc.pile_id != loc.pile_id or \
               c_loc.card_id != loc.card_id or card_node.node.pos != t_pos \
               or card_node.node.depth != loc.card_id:
-            seq = Sequence(DepthInterval(card_node.node, 0.01,
-                                         260 + loc.card_id),
-                           PosInterval(card_node.node, 0.2, t_pos,
-                                       blend=BlendType.EASE_OUT),
-                           DepthInterval(card_node.node, 0.01, loc.card_id))
+            if card_node.location.visible:
+                seq = Sequence(DepthInterval(card_node.node, 0.01,
+                                             260 + loc.card_id),
+                               PosInterval(card_node.node, 0.2, t_pos,
+                                           blend=BlendType.EASE_OUT),
+                               DepthInterval(card_node.node, 0.01, loc.card_id))
+            else:
+                seq = Sequence(PosInterval(card_node.node, 0.2, t_pos,
+                                           blend=BlendType.EASE_OUT),
+                               DepthInterval(card_node.node, 0.01, loc.card_id))
             self._animq.add(card_node.k, seq)
             card_node.node.index = 0 if loc.visible else 1
             return True

@@ -891,13 +891,14 @@ class Table:
 
     def _update_tableau_pile(self, pile_id: int) -> None:
         """Make sure all cards in a tableau pile get updated."""
-        for i, t_card in enumerate(self._tableau.piles[pile_id]):
+        offset = len(self._tableau.piles[pile_id]) - 1
+        for i, t_card in enumerate(reversed(self._tableau.piles[pile_id])):
             self._callback(
                 t_card,
                 common.TableLocation(
                     area=common.TableArea.TABLEAU,
                     visible=t_card.visible,
                     pile_id=pile_id,
-                    card_id=i
+                    card_id=offset - i
                 )
             )

@@ -9,6 +9,7 @@ import plyer
 
 from foolysh import app
 
+import common
 import stats
 import rules
 
@@ -51,7 +52,10 @@ class AppBase(app.App):
         self.layout_refresh = False
         self.need_new_game = False
         self.shuffler = rules.Shuffler()
-        self.stats = stats.Stats(self.config.get('pyos', 'datafile'))
+        dtf = self.config.get('pyos', 'datafile',
+                              fallback=common.DEFAULTCONFIG['pyos']['datafile'])
+        self.stats = stats.Stats(dtf)
+        self.config.save()
         self.stats.start_session()
         self.__last_orientation: str = None
 

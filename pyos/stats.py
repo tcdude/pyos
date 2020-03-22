@@ -203,30 +203,33 @@ class Stats:
             field = Attempt.total
         else:
             field = Attempt.points
-        res = self._session.query(Attempt) \
-            .filter(Attempt.game.draw == draw) \
+        res = self._session.query(Attempt, Game) \
+            .filter(Attempt.game_id == Game.id, Game.draw == draw,
+                    Attempt.solved == True) \
             .order_by(field.desc()).first()
         if res is None:
             return 0
-        return res.total if with_bonus else res.points
+        return res.Attempt.total if with_bonus else res.points
 
     def fastest(self, draw: int) -> float:
         """Returns fastest time achieved for the specified draw count."""
-        res = self._session.query(Attempt) \
-            .filter(Attempt.game.draw == draw) \
+        res = self._session.query(Attempt, Game) \
+            .filter(Attempt.game_id == Game.id, Game.draw == draw,
+                    Attempt.solved == True) \
             .order_by(Attempt.duration.asc()).first()
         if res is None:
-            return -1.0
-        return res.duration
+            return float('inf')
+        return res.Attempt.duration
 
     def least_moves(self, draw: int) -> int:
         """Returns least moves achieved for the specified draw count."""
-        res = self._session.query(Attempt) \
-            .filter(Attempt.game.draw == draw) \
+        res = self._session.query(Attempt, Game) \
+            .filter(Attempt.game_id == Game.id, Game.draw == draw,
+                    Attempt.solved == True) \
             .order_by(Attempt.moves.asc()).first()
         if res is None:
-            return -1
-        return res.moves
+            return 2**32
+        return res.Attempt.moves
 
     @property
     def first_launch(self) -> bool:
