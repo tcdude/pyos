@@ -468,6 +468,13 @@ class Game(app.AppBase):
     def __update_attempt(self, solved=False, bonus=0):
         mvs, tim, pts = self.__systems.game_table.stats
         undo, invalid = self.__systems.game_table.undo_invalid
+        if mvs == 1:
+            seed = self.__systems.game_table.seed
+            draw = self.__systems.game_table.draw_count
+            win_deal = self.config.getboolean('pyos', 'winner_deal',
+                                              fallback=True)
+            win_deal = win_deal or self.__state.day_deal
+            self.stats.new_attempt(seed, draw, win_deal, self.__state.day_deal)
         self.stats.update_attempt(moves=mvs, duration=tim, points=pts,
                                   undo=undo, invalid=invalid, solved=solved,
                                   bonus=bonus)
@@ -610,15 +617,6 @@ class Game(app.AppBase):
             self.__setup()
         self.__systems.game_table.reset()
         self.__state.refresh_next_frame = 2
-        if self.__state.day_deal:
-            self.stats.new_attempt(self.__systems.game_table.seed,
-                                   self.__systems.game_table.draw_count,
-                                   True, True)
-        else:
-            self.stats.new_attempt(self.__systems.game_table.seed,
-                                   self.__systems.game_table.draw_count,
-                                   self.config.getboolean('pyos',
-                                                          'winner_deal'))
 
     def __new_deal(self):
         """On New Deal click: Deal new game."""
@@ -628,13 +626,15 @@ class Game(app.AppBase):
             self.__setup()
         if self.daydeal is not None:
             draw, seed = self.daydeal
-            self.__systems.game_table.draw_count = draw
-            self.__systems.game_table.deal(seed, win_deal=True)
-            self.stats.new_deal(seed, draw, True, True)
-            self.stats.new_attempt(seed, draw, True, True)
-            self.daydeal = None
-            self.__state.day_deal = True
-            logger.debug('Started a daydeal')
+            if self.__systems.game_table.seed != seed \
+                  or self.__systems.game_table.draw_count != draw \
+                  or self.__systems.game_table.stats[0] <= 0:
+                self.__systems.game_table.draw_count = draw
+                self.__systems.game_table.deal(seed, win_deal=True)
+                self.stats.new_deal(seed, draw, True, True)
+                self.daydeal = None
+                self.__state.day_deal = True
+                logger.debug('Started a daydeal')
         elif self.__state.day_deal and self.need_new_game:
             pass
         else:
@@ -644,13 +644,12 @@ class Game(app.AppBase):
                 self.__systems.game_table.draw_count = 3
             win_deal = self.config.getboolean('pyos', 'winner_deal')
             self.__systems.game_table.deal(win_deal=win_deal)
-            self.__state.refresh_next_frame = 2
             seed = self.__systems.game_table.seed
             draw = self.__systems.game_table.draw_count
             self.stats.new_deal(seed, draw, win_deal)
-            self.stats.new_attempt(seed, draw, win_deal)
             self.__state.day_deal = False
             logger.debug('Started a regular deal')
+        self.__state.refresh_next_frame = 2
         self.need_new_game = False
 
     def __menu(self):

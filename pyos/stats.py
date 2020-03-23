@@ -266,7 +266,9 @@ class Stats:
         Returns the number of individual games played, that have at least one
         attempt.
         """
-        return self._session.query(Attempt).group_by(Attempt.game_id).count()
+        return self._session.query(Attempt) \
+            .filter(Attempt.moves > 0) \
+            .group_by(Attempt.game_id).count()
 
     @property
     def solved_ratio(self) -> float:
@@ -281,7 +283,8 @@ class Stats:
     @property
     def avg_attempts(self) -> float:
         """Returns average attempts per deal."""
-        attempts = self._session.query(Attempt).count()
+        attempts = self._session.query(Attempt) \
+            .filter(Attempt.moves > 0).count()
         deals = self.deals_played
         if deals:
             return attempts / deals
