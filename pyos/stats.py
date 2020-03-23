@@ -3,10 +3,11 @@ Data collection and preparation.
 """
 
 import datetime
-from typing import Optional, Union
+from typing import Optional, Tuple, Union
 
 from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.sql.expression import true
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy import create_engine
 from loguru import logger
@@ -191,6 +192,19 @@ class Stats:
         self._session.close()
         logger.debug('closing database session')
 
+    def result(self, seed: int, draw: int, windeal: bool,
+               daydeal: bool = False) -> Union[Tuple[float, int, int, int],
+                                               None]:
+        """Returns the result of a game, if available otherwise None."""
+        res = self._session.query(Attempt) \
+            .filter(Game.seed == seed, Game.draw == draw,
+                    Game.windeal == windeal, Game.daydeal == daydeal,
+                    Attempt.solved == true()) \
+            .order_by(Attempt.total.desc()).first()
+        if res:
+            return res.duration, res.moves, res.points, res.bonus
+        return None
+
     def highscore(self, draw: int, with_bonus: Optional[bool] = True) -> int:
         """
         Returns the highest score achieved for the specified draw count.
@@ -205,7 +219,7 @@ class Stats:
             field = Attempt.points
         res = self._session.query(Attempt, Game) \
             .filter(Attempt.game_id == Game.id, Game.draw == draw,
-                    Attempt.solved == True) \
+                    Attempt.solved == true()) \
             .order_by(field.desc()).first()
         if res is None:
             return 0
@@ -215,7 +229,7 @@ class Stats:
         """Returns fastest time achieved for the specified draw count."""
         res = self._session.query(Attempt, Game) \
             .filter(Attempt.game_id == Game.id, Game.draw == draw,
-                    Attempt.solved == True) \
+                    Attempt.solved == true()) \
             .order_by(Attempt.duration.asc()).first()
         if res is None:
             return float('inf')
@@ -225,11 +239,19 @@ class Stats:
         """Returns least moves achieved for the specified draw count."""
         res = self._session.query(Attempt, Game) \
             .filter(Attempt.game_id == Game.id, Game.draw == draw,
-                    Attempt.solved == True) \
+                    Attempt.solved == true()) \
             .order_by(Attempt.moves.asc()).first()
         if res is None:
             return 2**32
         return res.Attempt.moves
+
+    def issolved(self, seed: int, draw: int, windeal: bool,
+                 daydeal: bool = False) -> bool:
+        """Returns whether the specified deal is solved."""
+        return self._session.query(Attempt).join(Game) \
+            .filter(Attempt.solved == true(), Game.seed == seed,
+                    Game.draw == draw, Game.windeal == windeal,
+                    Game.daydeal == daydeal).count() > 0
 
     @property
     def first_launch(self) -> bool:
@@ -250,8 +272,8 @@ class Stats:
     def solved_ratio(self) -> float:
         """Returns the ratio of attempts to attempts_solved."""
         solved = self._session.query(Attempt) \
-            .filter(Attempt.solved == True).count()
-        attempts = self._session.query(Attempt).count()
+            .filter(Attempt.solved == true()).group_by(Attempt.game_id).count()
+        attempts = self.deals_played
         if attempts:
             return solved / attempts
         return 0.0

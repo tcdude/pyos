@@ -69,6 +69,8 @@ class GameSystems:
 @dataclass
 class GameState:
     """Holds various state attributes."""
+    # pylint: disable=too-many-instance-attributes
+
     valid_drop: bool = False
     last_window_size: Tuple[int, int] = (0, 0)
     refresh_next_frame: int = 0
@@ -77,6 +79,7 @@ class GameState:
     mouse_down_pos: Vec2 = Vec2()
     drag_info: DragInfo = DragInfo(-1, -1, common.TableArea.STACK)
     fresh_state: bool = True
+    day_deal: bool = True
 
 
 class Game(app.AppBase):
@@ -97,9 +100,9 @@ class Game(app.AppBase):
         logger.debug('Enter state game')
         self.__setup()
         self.__state.fresh_state = True
-        if self.need_new_game or self.stats.first_launch:
+        if self.need_new_game or self.stats.first_launch \
+              or self.daydeal is not None:
             self.__new_deal()
-            self.need_new_game = False
 
     def exit_game(self):
         """Tasks to be performed when this state is left."""
@@ -220,7 +223,7 @@ class Game(app.AppBase):
     def __auto_solve(self):
         """When solved, determines and executes the next move."""
         call_time = self.clock.get_time()
-        delay = self.config.getfloat('pyos', 'auto_solve_delay', fallback=0.3)
+        delay = self.config.getfloat('pyos', 'auto_solve_delay', fallback=0.25)
         if call_time - self.__state.last_auto < delay:
             return
         tbl = self.__systems.game_table
@@ -492,7 +495,8 @@ class Game(app.AppBase):
         dur, pts, bonus, moves = self.__systems.game_table.result
         mins = int(dur / 60)
         secs = dur - mins * 60
-        txt = f'You WON!\n\n'
+        txt = f'Daily deal WON!' if self.__state.day_deal else f'You WON!'
+        txt += '\n\n'
         scr = f'{pts + bonus}'
         top = False
         i = self.stats.highscore(self.__systems.game_table.draw_count)
@@ -524,6 +528,7 @@ class Game(app.AppBase):
             self.__win_animation()
             self.__update_attempt(solved=True, bonus=bonus)
         self.__disable_all()
+        self.__state.day_deal = False
 
     def __gen_dlg(self, txt: str):
         if self.__systems.windlg is None:
@@ -605,9 +610,15 @@ class Game(app.AppBase):
             self.__setup()
         self.__systems.game_table.reset()
         self.__state.refresh_next_frame = 2
-        self.stats.new_attempt(self.__systems.game_table.seed,
-                               self.__systems.game_table.draw_count,
-                               self.config.getboolean('pyos', 'winner_deal'))
+        if self.__state.day_deal:
+            self.stats.new_attempt(self.__systems.game_table.seed,
+                                   self.__systems.game_table.draw_count,
+                                   True, True)
+        else:
+            self.stats.new_attempt(self.__systems.game_table.seed,
+                                   self.__systems.game_table.draw_count,
+                                   self.config.getboolean('pyos',
+                                                          'winner_deal'))
 
     def __new_deal(self):
         """On New Deal click: Deal new game."""
@@ -615,17 +626,32 @@ class Game(app.AppBase):
         if dlg is not None and not dlg.hidden:
             dlg.hide()
             self.__setup()
-        if self.config.getboolean('pyos', 'draw_one'):
-            self.__systems.game_table.draw_count = 1
+        if self.daydeal is not None:
+            draw, seed = self.daydeal
+            self.__systems.game_table.draw_count = draw
+            self.__systems.game_table.deal(seed, win_deal=True)
+            self.stats.new_deal(seed, draw, True, True)
+            self.stats.new_attempt(seed, draw, True, True)
+            self.daydeal = None
+            self.__state.day_deal = True
+            logger.debug('Started a daydeal')
+        elif self.__state.day_deal and self.need_new_game:
+            pass
         else:
-            self.__systems.game_table.draw_count = 3
-        win_deal = self.config.getboolean('pyos', 'winner_deal')
-        self.__systems.game_table.deal(win_deal=win_deal)
-        self.__state.refresh_next_frame = 2
-        seed = self.__systems.game_table.seed
-        draw = self.__systems.game_table.draw_count
-        self.stats.new_deal(seed, draw, win_deal)
-        self.stats.new_attempt(seed, draw, win_deal)
+            if self.config.getboolean('pyos', 'draw_one'):
+                self.__systems.game_table.draw_count = 1
+            else:
+                self.__systems.game_table.draw_count = 3
+            win_deal = self.config.getboolean('pyos', 'winner_deal')
+            self.__systems.game_table.deal(win_deal=win_deal)
+            self.__state.refresh_next_frame = 2
+            seed = self.__systems.game_table.seed
+            draw = self.__systems.game_table.draw_count
+            self.stats.new_deal(seed, draw, win_deal)
+            self.stats.new_attempt(seed, draw, win_deal)
+            self.__state.day_deal = False
+            logger.debug('Started a regular deal')
+        self.need_new_game = False
 
     def __menu(self):
         """On Menu click."""

@@ -94,8 +94,8 @@ class Shuffler:
             time.sleep(0.5)
             if os.path.exists(STOP_FILE):
                 os.remove(STOP_FILE)
-            self.__proc = Popen(['python', 'service/solver.py'],
-                                stdout=DEVNULL, stderr=DEVNULL)
+            self.__proc = Popen(['python', 'service/solver.py'],)
+                                # stdout=DEVNULL, stderr=DEVNULL)
 
     @staticmethod
     def stop():
@@ -124,6 +124,26 @@ class Shuffler:
                 first = False
         return seed, tableau, stack
 
+    @staticmethod
+    def request_deal(draw, random_seed):
+        """Request a solution of a specific deal."""
+        pth = os.path.join(SOLUTION_PATH, str(draw))
+        spth = os.path.join(pth, f'solution{random_seed}')
+        if not os.path.exists(spth):
+            rpth = os.path.join(pth, f'request{random_seed}')
+            with open(rpth, 'w') as fptr:
+                fptr.write('1')
+
+    @staticmethod
+    def get_solution(draw, random_seed):
+        """Retrieve solution of a previously requested deal."""
+        pth = os.path.join(SOLUTION_PATH, str(draw))
+        spth = os.path.join(pth, f'rsolution{random_seed}')
+        while True:
+            if os.path.exists(spth):
+                with open(spth, 'r') as fptr:
+                    return fptr.read()
+            time.sleep(0.001)
 
     def winner_deal(self, random_seed=None, draw=1):
         # type: (Optional[Seed], Optional[int]) -> Tuple[Seed, List, List]

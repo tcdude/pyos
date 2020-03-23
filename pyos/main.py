@@ -10,6 +10,7 @@ from loguru import logger
 import plyer
 
 import common
+import daydeal
 import menu
 import game
 import statsmenu
@@ -41,13 +42,28 @@ __license__ = 'MIT'
 __version__ = '0.2'
 
 
-class PyOS(menu.MainMenu, menu.SettingsMenu, game.Game, statsmenu.Statistics):
+class PyOS(menu.MainMenu, menu.SettingsMenu, game.Game, statsmenu.Statistics,
+           daydeal.DayDeal):
     """
     All states collected using multiple inheritance.
     """
+    # pylint: disable=too-many-ancestors
     def on_quit(self):
         self.shuffler.stop()
         super().on_quit()
+
+
+def verify_config(cfg: configparser.ConfigParser, cfg_file: str):
+    """Check if all default keys are in the stored configuration."""
+    for sec in common.DEFAULTCONFIG:
+        for k in common.DEFAULTCONFIG[sec]:
+            if cfg.get(sec, k, fallback=None) is None:
+                cfg.set(sec, k, common.DEFAULTCONFIG[sec][k])
+    for k in common.OVERWRITE_PYOS:
+        cfg.set('pyos', k, common.DEFAULTCONFIG['pyos'][k])
+    for k in common.OVERWRITE_FONT:
+        cfg.set('font', k, common.DEFAULTCONFIG['font'][k])
+    cfg.write(open(cfg_file, 'w'))
 
 
 def main(cfg_file):
@@ -60,6 +76,7 @@ def main(cfg_file):
         cfg.write(open(cfg_file, 'w'))
     cfg = configparser.ConfigParser()
     cfg.read(cfg_file)
+    verify_config(cfg, cfg_file)
     logger.remove()
     logger.add(sys.stderr, level=cfg.get('pyos', 'log_level'))
     logger.info('pyos starting')

@@ -3,6 +3,8 @@ Provides the base class for all states and all attributes/methods that are
 shared with all the states.
 """
 
+from typing import Tuple
+
 from loguru import logger
 import sdl2
 import plyer
@@ -57,6 +59,7 @@ class AppBase(app.App):
         self.stats = stats.Stats(dtf)
         self.config.save()
         self.stats.start_session()
+        self.daydeal: Tuple[int, int] = None
         self.__last_orientation: str = None
 
     def __setup_events_tasks(self):

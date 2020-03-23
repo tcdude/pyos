@@ -4,6 +4,7 @@ Common constants and functions.
 
 from collections import OrderedDict
 from dataclasses import dataclass
+import datetime
 from enum import Enum
 from typing import Optional
 
@@ -68,18 +69,21 @@ DEFAULTCONFIG = {
                          ('card_ratio', '1.3968253968253967'),
                          ('padding', '0.06'), ('status_size', '0.96, 0.08'),
                          ('toolbar_size', '0.96, 0.12'),
-                         ('click_threshold', '0.06'),
-                         ('log_level', 'INFO'),
-                         ('auto_solve_delay', '0.3'),
-                         ('orientation', 'auto'),
-                         ('datafile', DATAFILE)]),
+                         ('click_threshold', '0.06'), ('log_level', 'INFO'),
+                         ('auto_solve_delay', '0.25'), ('orientation', 'auto'),
+                         ('datafile', DATAFILE),
+                         ('dailyseeds', 'assets/other/dailyseeds.bin')]),
     'font': OrderedDict([('normal', 'fonts/SpaceMono.ttf'),
                          ('bold', 'fonts/SpaceMonoBold.ttf')])
 }
+OVERWRITE_PYOS = ['card_ratio', 'padding', 'status_size', 'toolbar_size',
+                  'click_threshold', 'auto_solve_delay',
+                  'datafile', 'dailyseeds']
+OVERWRITE_FONT = ['normal', 'bold']
 
-# Timing
-AUTO_SLOW = 0.5
-AUTO_FAST = 0.3
+# Daily deal
+START_DATE = datetime.datetime(year=2020, month=3, day=13)
+
 
 # Types
 

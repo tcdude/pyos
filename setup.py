@@ -50,7 +50,7 @@ options = {'apk': {'debug': None,
 
 setup(
     name='Simple Solitaire',
-    version='0.2.18',
+    version='0.3.1',
     description='An ad free, simple solitaire game',
     author='tcdude',
     author_email='tizilogic@gmail.com',
@@ -63,6 +63,7 @@ setup(
         # Add other fonts as needed
         'assets/fonts/SpaceMono.ttf',
         'assets/fonts/SpaceMonoBold.ttf',
+        'assets/other/*',
     ]},
     install_requires=[
         'Pillow',

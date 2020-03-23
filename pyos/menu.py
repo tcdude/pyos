@@ -99,7 +99,7 @@ class MainMenu(app.AppBase):
                                 text=chr(0xf274) + ' Daily Deal', **kwargs)
         daydeal.origin = Origin.CENTER
         daydeal.reparent_to(self.__frame)
-        daydeal.onclick(self.request, 'main_menu')
+        daydeal.onclick(self.request, 'day_deal')
         pos_y += offset
         stats = button.Button(name='stats button', pos=(0, pos_y),
                               text='' + chr(0xf201) + ' Statistics', **kwargs)
