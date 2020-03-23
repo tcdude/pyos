@@ -589,10 +589,10 @@ class Game(app.AppBase):
                 pos = Vec2(offset)
                 angle = 0
                 offset += 0.0002
+                seqa.append(DepthInterval(nd, 0.001, suit * 13 + value))
                 seqa.append(PosInterval(nd, dur, pos,
                                         rel=self.__systems.layout.stack,
                                         blend=blend))
-                seqa.append(DepthInterval(nd, 0.5, suit * 13 + value))
                 seqb.append(RotationInterval(nd, dur, angle, blend=blend))
                 Sequence(*seqa).play()
                 Sequence(*seqb).play()
