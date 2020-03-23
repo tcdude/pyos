@@ -39,7 +39,7 @@ from service.solver import SOLUTION_PATH, STOP_FILE
 __author__ = 'Tiziano Bettio'
 __copyright__ = 'Copyright (C) 2020 Tiziano Bettio'
 __license__ = 'MIT'
-__version__ = '0.2'
+__version__ = '0.3'
 
 Seed = Union[int, str, bytes, bytearray]
 

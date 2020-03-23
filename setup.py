@@ -27,7 +27,7 @@ from setuptools import find_packages
 __author__ = 'Tiziano Bettio'
 __copyright__ = 'Copyright (C) 2020 Tiziano Bettio'
 __license__ = 'MIT'
-__version__ = '0.2'
+__version__ = '0.3'
 
 
 options = {'apk': {'debug': None,
@@ -50,7 +50,7 @@ options = {'apk': {'debug': None,
 
 setup(
     name='Simple Solitaire',
-    version='0.3.1',
+    version='0.3.2',
     description='An ad free, simple solitaire game',
     author='tcdude',
     author_email='tizilogic@gmail.com',
