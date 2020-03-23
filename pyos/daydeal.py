@@ -102,15 +102,17 @@ class DayDeal(app.AppBase):
         if score:
             txt = f'{day}\n\n'
             dur, moves, pts, bonus = self.stats.result(seed, draw, True, True)
-            dur = f'{int(dur / 60)}:{dur % 60:5.2f}'
+            dur = f'{int(dur / 60)}:{dur % 60:05.2f}'
             moves = f'{moves}'
+            score = f'{bonus + pts}'
             pts = f'{pts}'
             bonus = f'{bonus}'
             mlen = max([len(dur), len(moves), len(pts), len(bonus)])
-            txt += f'Time: {" " * (mlen - len(dur))}{dur}\n'
-            txt += f'Moves: {" " * (mlen - len(moves))}{moves}\n'
+            txt += f'Time:    {" " * (mlen - len(dur))}{dur}\n'
+            txt += f'Moves:   {" " * (mlen - len(moves))}{moves}\n'
             txt += f'Points:  {" " * (mlen - len(pts))}{pts}\n'
-            txt += f'Bonus:  {" " * (mlen - len(bonus))}{bonus}\n'
+            txt += f'Bonus:   {" " * (mlen - len(bonus))}{bonus}\n'
+            txt += f'Score:   {" " * (mlen - len(score))}{score}\n'
             self.__gen_dlg(txt)
         else:
             self.daydeal = draw, seed

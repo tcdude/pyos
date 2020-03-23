@@ -196,7 +196,7 @@ class Stats:
                daydeal: bool = False) -> Union[Tuple[float, int, int, int],
                                                None]:
         """Returns the result of a game, if available otherwise None."""
-        res = self._session.query(Attempt) \
+        res = self._session.query(Attempt).join(Game) \
             .filter(Game.seed == seed, Game.draw == draw,
                     Game.windeal == windeal, Game.daydeal == daydeal,
                     Attempt.solved == true()) \
