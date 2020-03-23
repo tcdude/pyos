@@ -277,3 +277,12 @@ class Stats:
         if attempts:
             return solved / attempts
         return 0.0
+
+    @property
+    def avg_attempts(self) -> float:
+        """Returns average attempts per deal."""
+        attempts = self._session.query(Attempt).count()
+        deals = self.deals_played
+        if deals:
+            return attempts / deals
+        return 0.0
