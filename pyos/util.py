@@ -74,9 +74,19 @@ def parse_game_type(game_type: bytes) -> Tuple[int, int]:
         val, = struct.unpack('<B', game_type)
     except struct.error as err:
         raise ValueError(f'Unable to unpack data: {err}')
-    draw = val >> 4
-    score = val - (draw << 4)
+    score = val >> 4
+    draw = val - (score << 4)
     return draw, score
+
+
+def encode_game_type(draw: int, score: int) -> bytes:
+    """Parse an encoded game_type and return draw count, score type."""
+    val = draw + (score << 4)
+    try:
+        ret = struct.pack('<B', val)
+    except struct.error as err:
+        raise ValueError(f'Unable to pack data: {err}')
+    return ret
 
 
 def parse_result(result: bytes) -> Tuple[float, int, int]:
@@ -139,6 +149,19 @@ def encode_challenge_req(rounds: int, challenge_id: int) -> bytes:
     return ret
 
 
+def parse_challenge_status(data: bytes) -> Tuple[int, bool, int, int, int]:
+    """Parse challenge status from bytes."""
+    try:
+        challenge_id, status, user_id = struct.unpack('<IBI', data)
+    except struct.error as err:
+        raise ValueError(f'Unable to unpack data: {err}')
+    rounds = status >> 4
+    status -= rounds << 4
+    roundno = status >> 1
+    waiting = status - (roundno << 1) > 0
+    return challenge_id, waiting, roundno, rounds, user_id
+
+
 def encode_challenge_status(challenge_id: int, waiting: bool, roundno: int,
                             rounds: int) -> bytes:
     """Encodes challenge status data to bytes."""
@@ -182,6 +205,26 @@ def parse_accept(data: bytes) -> Tuple[int, bool, bytes]:
     if accept and len(data) == 6:
         return challenge_id, accept, data[5:]
     return challenge_id, False, b''
+
+
+def encode_accept(challenge_id: int, decision: bool) -> bytes:
+    """Encode challenge accept request."""
+    try:
+        ret = struct.pack('<I?', challenge_id, decision)
+    except struct.error as err:
+        raise ValueError(f'Unable to pack data: {err}')
+    return ret
+
+
+def parse_challenge_result(data: bytes) -> Tuple[int, int]:
+    """Parse challenge result."""
+    try:
+        val, = struct.unpack('<B', data)
+    except struct.error as err:
+        raise ValueError(f'Unable to unpack data: {err}')
+    other = val >> 4
+    user = val - (other << 4)
+    return user, other
 
 
 def encode_challenge_result(result: Tuple[int, int]) -> bytes:

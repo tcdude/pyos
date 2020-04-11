@@ -2,10 +2,11 @@
 Provides the multiplayer client that handles interaction with the pyosserver.
 """
 
+from dataclasses import dataclass
 import socket
 import ssl
 import struct
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 from foolysh.tools import config
 from loguru import logger
@@ -43,8 +44,26 @@ REQ = {i: chr(i) for i in range(256)}
 Result = Tuple[float, int, int]
 
 
+@dataclass
+class Challenge:
+    """Representation of a challenge."""
+    challenge_id: int
+    waiting: bool
+    roundno: int
+    rounds: int
+    userid: int
+
+
+@dataclass
+class GameType:
+    """Representation of a game type."""
+    draw: int
+    score: int
+
+
 class MultiplayerClient:
     """Provides communication means with the pyosserver."""
+    # pylint: disable=too-many-public-methods
     def __init__(self, cfg: config.Config):
         self.cfg = cfg
         self._conn: ssl.SSLSocket = None
@@ -72,6 +91,13 @@ class MultiplayerClient:
                 return True
         self._conn = None
         return False
+
+    def close(self) -> None:
+        """Close the connection."""
+        if self._conn is None:
+            return
+        self._conn.close()
+        self._conn = None
 
     def new_user(self, username: str, password: str) -> bool:
         """One time user setup to create an account."""
@@ -322,6 +348,178 @@ class MultiplayerClient:
             return False
         return True
 
+    def pending_challenge_req_in(self, timestamp: int = 0
+                                 ) -> List[Tuple[int, int, int]]:
+        """Retrieve pending incoming challenge requests."""
+        if not self._verify_connected():
+            return []
+        self._conn.sendall(REQ[129].encode('utf8') + util.encode_id(timestamp))
+        data = self._recv()
+        dlen = len(data) - 1
+        if dlen % 9:
+            return []
+        ret = []
+        for i in range(dlen // 9):
+            start = i * 9 + 1
+            try:
+                ret.append(struct.unpack('<BII', data[start:start + 9]))
+            except struct.error as err:
+                logger.error(f'Unable to unpack data: {err}')
+        return ret
+
+    def pending_challenge_req_out(self, timestamp: int = 0
+                                  ) -> List[Tuple[int, int, int]]:
+        """Retrieve pending outgoing challenge requests."""
+        if not self._verify_connected():
+            return []
+        self._conn.sendall(REQ[136].encode('utf8') + util.encode_id(timestamp))
+        data = self._recv()
+        dlen = len(data) - 1
+        if dlen % 9:
+            return []
+        ret = []
+        for i in range(dlen // 9):
+            start = i * 9 + 1
+            try:
+                ret.append(struct.unpack('<BII', data[start:start + 9]))
+            except struct.error as err:
+                logger.error(f'Unable to unpack data: {err}')
+        return ret
+
+    def active_challenges(self, timestamp: int = 0
+                          ) -> List[Challenge]:
+        """
+        Retrieve active challenges.
+
+        Returns:
+            List of Tuple: challenge_id, waiting, roundno, rounds, userid
+        """
+        if not self._verify_connected():
+            return []
+        self._conn.sendall(REQ[130].encode('utf8') + util.encode_id(timestamp))
+        data = self._recv()
+        dlen = len(data) - 1
+        if dlen % 9:
+            return []
+        ret = []
+        for i in range(dlen // 9):
+            start = i * 9 + 1
+            try:
+                challenge = Challenge(
+                    *util.parse_challenge_status(data[start:start + 9]))
+            except ValueError as err:
+                logger.error(f'Unable to unpack data: {err}')
+                return []
+            ret.append(challenge)
+        return ret
+
+    def challenge_round(self, challenge_id: int, roundno: int
+                        ) -> Union[Tuple[GameType, Result, Result], None]:
+        """Retrieve information about a challenge round."""
+        if not self._verify_connected():
+            return None
+        req = REQ[131].encode('utf8') + util.encode_id(challenge_id)
+        try:
+            req += struct.pack('<B', roundno)
+        except struct.error as err:
+            logger.error(f'Unable to pack data: {err}')
+            return None
+        self._conn.sendall(req)
+        data = self._recv()
+        if len(data) != 18:
+            return None
+        gamet = GameType(*util.parse_game_type(data[1:2]))
+        resuser = util.parse_result(data[2:10])
+        resother = util.parse_result(data[10:])
+        return gamet, resuser, resother
+
+    def accept_challenge(self, challenge_id: int, decision: bool,
+                         gamet: GameType = None) -> int:
+        """Accept or decline a challenge request."""
+        if not self._verify_connected():
+            return 0
+        req = REQ[132].encode('utf8')
+        req += util.encode_accept(challenge_id, decision)
+        req += util.encode_game_type(gamet.draw, gamet.score)
+        self._conn.sendall(req)
+        data = self._recv()
+        if decision and len(data) == 5:
+            try:
+                seed, = struct.unpack('<i', data[1:])
+            except struct.error as err:
+                logger.error(f'Unable to unpack seed: {err}')
+                return 0
+            return seed
+        if not decision and data.decode('utf8') == REQ[132] + SUCCESS:
+            return 1
+        return 0
+
+    def submit_round_result(self, challenge_id: int, roundno: int,
+                            result: Result) -> bool:
+        """Submit the result of a challenge round."""
+        if not self._verify_connected():
+            return False
+        req = REQ[133].encode('utf8')
+        try:
+            req += struct.pack('<IB', challenge_id, roundno)
+        except struct.error as err:
+            logger.error(f'Unable to pack data: {err}')
+            return False
+        req += util.encode_result(result)
+        self._conn.sendall(req)
+        data = self._recv()
+        if data.decode('utf8') != REQ[133] + SUCCESS:
+            return False
+        return True
+
+    def new_round(self, challenge_id: int, gamet: GameType) -> int:
+        """Start a new round in a challenge."""
+        if not self._verify_connected():
+            return 0
+        req = REQ[134].encode('utf8') + util.encode_id(challenge_id)
+        req += util.encode_game_type(gamet.draw, gamet.score)
+        self._conn.sendall(req)
+        data = self._recv()
+        if len(data) != 5:
+            return 0
+        try:
+            seed, = struct.unpack('<i', data[1:])
+        except struct.error as err:
+            logger.error(f'Unable to unpack seed: {err}')
+            return 0
+        return seed
+
+    def challenge_result(self, challenge_id: int) -> Tuple[int, int]:
+        """Retrieve a final result of a challenge."""
+        res = -1, -1
+        if not self._verify_connected():
+            return res
+        req = REQ[135].encode('utf8') + util.encode_id(challenge_id)
+        self._conn.sendall(req)
+        data = self._recv()
+        if len(data) == 2 and data.decode('utf8') != REQ[135] + FAIL:
+            res = util.parse_challenge_result(data[1:])
+        return res
+
+    def pending(self, timestamp: int = 0) -> List[int]:
+        """Retrieve a list of pending information to be retrieved."""
+        ret = []
+        if not self._verify_connected():
+            return ret
+        self._conn.sendall(REQ[192].encode('utf8') + util.encode_id(timestamp))
+        data = self._recv()
+        if len(data) > 1 and data.decode('utf8') != REQ[192] + FAIL:
+            ret = list(data[1:])
+        return ret
+
+    def ping_pong(self) -> bool:
+        """Ping Pong mechanism to verify the connection is still alive."""
+        if not self._verify_connected():
+            return False
+        req = REQ[255].encode('utf8')
+        self._conn.sendall(req)
+        return self._recv() == req
+
     @staticmethod
     def _userid_list(data: bytes) -> List[int]:
         if len(data) < 5 or len(data[1:]) % 4:
@@ -336,6 +534,8 @@ class MultiplayerClient:
         if not self.connected:
             if not self.connect():
                 return False
+            if self.cfg.get('mp', 'user').strip():
+                return self.login()
         return True
 
     def _recv(self):
