@@ -33,5 +33,6 @@ that data is available for reading (success) or an error code to be handled
 | 12  | **Submit Day Deal Score** | Draw, Day Offset, Result |
 | 13  | **Start Challenge** | User ID, Rounds |
 | 14  | **Synchronize Challenges** | *None* |
+| 15  | **Submit Challenge Round Result** | Challenge ID, Round#, Result |
 | 255 | **Stop Service** | *None* |
 
