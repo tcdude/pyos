@@ -16,8 +16,8 @@ that data is available for reading (success) or an error code to be handled
 
 ## Requests
 
-|REQ|Description|Payload|
-|:---:|----|-----------|-------|
+| REQ | Description |Payload |
+| :---: | ---- | ----------- | ------- |
 | 0   | **Create New Account** | Username,Password |
 | 1   | **Change Username** | New Username |
 | 2   | **Change Password** | New password |
