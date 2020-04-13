@@ -18,12 +18,12 @@ that data is available for reading (success) or an error code to be handled
 
 | REQ | Description | Payload |
 | :---: | --- | --- |
-| 0   | **Create New Account** | Username,Password |
+| 0   | **Create New Account** | Username, Password |
 | 1   | **Change Username** | New Username |
 | 2   | **Change Password** | New password |
 | 3   | **Synchronize Relationships** | *None* |
-| 4   | **Reply Friend Request** | User ID,Decison |
-| 5   | **Unblock User** | User ID,Decison |
+| 4   | **Reply Friend Request** | User ID, Decison |
+| 5   | **Unblock User** | User ID, Decison |
 | 6   | **Block User** | User ID |
 | 7   | **Remove Friend** | User ID |
 | 8   | **Set Draw Count Preference** | Preference |
