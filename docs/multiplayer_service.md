@@ -17,7 +17,7 @@ that data is available for reading (success) or an error code to be handled
 ## Requests
 
 | REQ | Description | Payload |
-| :----: | ---- | ----------- | ------- |
+| :---: | --- | --- |
 | 0   | **Create New Account** | Username,Password |
 | 1   | **Change Username** | New Username |
 | 2   | **Change Password** | New password |
@@ -34,3 +34,4 @@ that data is available for reading (success) or an error code to be handled
 | 13  | **Start Challenge** | User ID, Rounds |
 | 14  | **Synchronize Challenges** | *None* |
 | 255 | **Stop Service** | *None* |
+
