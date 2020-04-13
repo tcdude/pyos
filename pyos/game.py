@@ -100,6 +100,8 @@ class Game(app.AppBase):
         logger.debug('Enter state game')
         self.__setup()
         self.__state.fresh_state = True
+        if self.daydeal is None:
+            self.__state.day_deal = False
         if self.need_new_game or self.stats.first_launch \
               or self.daydeal is not None:
             self.__new_deal()
