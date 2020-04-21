@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Callable, Dict, List, Tuple
 
 from foolysh.scene.node import Origin
-from foolysh.ui import button, frame, label
+from foolysh.ui import button, frame, entry, label
 
 import app
 import buttonlist
@@ -471,3 +471,76 @@ class MultiplayerSettings(app.AppBase):
         self.__back.origin = Origin.CENTER
         self.__back.reparent_to(self.__frame)
         self.__back.onclick(self.request, 'multiplayer_menu')
+
+        lbl = label.Label(name='username label', text=chr(0xf007),
+                          pos=(-0.42, -0.17), **kwargs)
+        lbl.reparent_to(self.__frame)
+        user = entry.Entry(name='username entry', size=(0.7, 0.1),
+                           pos=(-0.29, -0.17), margin=0.01,
+                           hint_text='Username',
+                           hint_text_color=(10, 10, 10, 180),
+                           font=self.config.get('font', 'bold'), font_size=0.05,
+                           text_color=(10, 10, 10, 255),
+                           align='left', frame_color=(255, 255, 255),
+                           border_thickness=0.001, border_color=(0, 0, 0),
+                           corner_radius=0.02, alpha=255)
+        user.reparent_to(self.__frame)
+
+        lbl = label.Label(name='username label', text=chr(0xfcf3),
+                          pos=(-0.42, -0.05), **kwargs)
+        lbl.reparent_to(self.__frame)
+        password = entry.Entry(name='password entry', size=(0.7, 0.1),
+                               pos=(-0.29, -0.05), margin=0.01,
+                               hint_text='Password',
+                               hint_text_color=(10, 10, 10, 180),
+                               font=self.config.get('font', 'bold'),
+                               font_size=0.05, text_color=(10, 10, 10, 255),
+                               align='left', frame_color=(255, 255, 255),
+                               border_thickness=0.001, border_color=(0, 0, 0),
+                               corner_radius=0.02, alpha=255)
+        password.reparent_to(self.__frame)
+
+        kwargs['size'] = 0.8, 0.11
+        kwargs['font_size'] = 0.045
+        lbl = label.Label(name='account label',
+                          text='User account', pos=(0, -0.25),
+                          **kwargs)
+        lbl.origin = Origin.CENTER
+        lbl.reparent_to(self.__frame)
+
+        lbl = label.Label(name='draw count pref label',
+                          text='Draw count preference', pos=(0, 0.22),
+                          **kwargs)
+        lbl.origin = Origin.CENTER
+        lbl.reparent_to(self.__frame)
+
+        kwargs = {'font': self.config.get('font', 'bold'),
+                  'font_size': 0.0315, 'text_color': (0, 0, 0, 255),
+                  'down_text_color': (255, 255, 255, 255),
+                  'border_thickness': 0.005,
+                  'down_border_thickness': 0.007,
+                  'disabled_border_thickness': 0.006,
+                  'border_color': (0, 0, 0),
+                  'down_border_color': (255, 255, 255),
+                  'disabled_text_color': (255, 255, 255, 255),
+                  'disabled_frame_color': (160, 160, 160),
+                  'disabled_border_color': (255, 255, 255),
+                  'corner_radius': 0.015, 'multi_sampling': 2,
+                  'align': 'center', 'margin': 0.01}
+        buttons = []
+        btn = button.Button(name='both button', text='Both', size=(0.12, 0.1),
+                            pos=(-0.425, 0.3), **kwargs)
+        btn.reparent_to(self.__frame)
+        buttons.append(btn)
+        btn = button.Button(name='one button', text='One only',
+                            size=(0.175, 0.1), pos=(-0.29, 0.3), **kwargs)
+        btn.reparent_to(self.__frame)
+        buttons.append(btn)
+        btn = button.Button(name='three button', text='Three only',
+                            size=(0.22, 0.1), pos=(-0.1, 0.3), **kwargs)
+        btn.reparent_to(self.__frame)
+        buttons.append(btn)
+        btn = button.Button(name='no mp button', text='No Multiplayer',
+                            size=(0.29, 0.1), pos=(0.135, 0.3), **kwargs)
+        btn.reparent_to(self.__frame)
+        buttons.append(btn)

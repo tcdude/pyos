@@ -89,7 +89,7 @@ class AppBase(app.App):
 
     def __back(self, event):
         """Handles Android Back, Escape and Backspace Events"""
-        if event.key.keysym.sym in (sdl2.SDLK_AC_BACK, 27, sdl2.SDLK_BACKSPACE):
+        if event.key.keysym.sym in (sdl2.SDLK_AC_BACK, 27):
             if self.active_state != 'main_menu':
                 self.request('main_menu')
             else:
