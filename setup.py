@@ -21,7 +21,6 @@ SOFTWARE.
 """
 
 from distutils.core import setup
-from distutils.core import Extension
 from setuptools import find_packages
 
 __author__ = 'Tiziano Bettio'
@@ -30,7 +29,7 @@ __license__ = 'MIT'
 __version__ = '0.3'
 
 
-options = {'apk': {'debug': None,
+OPTIONS = {'apk': {'debug': None,
                    'bootstrap': 'sdl2',
                    'requirements': 'libffi,sdl2,sdl2_image,sdl2_ttf,python3,'
                                    'pysdl2,pyksolve,Pillow,plyer,loguru,'
@@ -45,7 +44,7 @@ options = {'apk': {'debug': None,
                    'presplash-color': '#224422',
                    'local-recipes': './p4a-recipes',
                    'orientation': 'fullUser',
-                   'service': 'solver:service/solver.py',
+                   'service': ['solver:service/solver.py', 'mp:multiplayer.py'],
                    }}
 
 setup(
@@ -55,7 +54,7 @@ setup(
     author='tcdude',
     author_email='tizilogic@gmail.com',
     packages=find_packages(),
-    options=options,
+    options=OPTIONS,
     package_data={'pyos': [
         '*.py',
         'service/*.py',
