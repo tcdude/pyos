@@ -271,12 +271,12 @@ class SettingsMenu(app.AppBase):
 
     def __setup(self):
         # pylint: disable=too-many-statements
-        tot_height = 0.77
-        step_y = tot_height / 9
-        pos_y = -0.3
-        height = step_y / 1.06
+        tot_height = 0.79
+        step_y = tot_height / 8.5
+        pos_y = -0.32
+        height = step_y / 1.1
         kwargs = {'font': self.config.get('font', 'bold'),
-                  'font_size': 0.0355, 'text_color': (0, 50, 0, 255),
+                  'font_size': 0.0355, 'text_color': (0, 0, 0, 255),
                   'down_text_color': (255, 255, 255, 255),
                   'border_thickness': height * 0.043,
                   'down_border_thickness': height * 0.06,
