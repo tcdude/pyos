@@ -468,6 +468,8 @@ class Game(app.AppBase):
     # Game State
 
     def __update_attempt(self, solved=False, bonus=0):
+        if self.__systems.game_table.is_paused:
+            return
         mvs, tim, pts = self.__systems.game_table.stats
         undo, invalid = self.__systems.game_table.undo_invalid
         if mvs == 1:
