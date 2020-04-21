@@ -12,6 +12,7 @@ import plyer
 import common
 import daydeal
 import menu
+import mpmenu
 import game
 import statsmenu
 
@@ -43,7 +44,8 @@ __version__ = '0.3'
 
 
 class PyOS(menu.MainMenu, menu.SettingsMenu, game.Game, statsmenu.Statistics,
-           daydeal.DayDeal):
+           daydeal.DayDeal, mpmenu.MultiplayerMenu, mpmenu.Challenges,
+           mpmenu.Friends, mpmenu.Leaderboard, mpmenu.MultiplayerSettings):
     """
     All states collected using multiple inheritance.
     """
@@ -61,6 +63,13 @@ def verify_config(cfg: configparser.ConfigParser, cfg_file: str):
                 cfg.set(sec, k, common.DEFAULTCONFIG[sec][k])
     for k in common.OVERWRITE_PYOS:
         cfg.set('pyos', k, common.DEFAULTCONFIG['pyos'][k])
+    if 'mp' not in cfg:
+        cfg.add_section('mp')
+        for k in common.DEFAULTCONFIG['mp']:
+            cfg.set('mp', k, common.DEFAULTCONFIG['mp'][k])
+    else:
+        for k in common.OVERWRITE_MP:
+            cfg.set('mp', k, common.DEFAULTCONFIG['mp'][k])
     for k in common.OVERWRITE_FONT:
         cfg.set('font', k, common.DEFAULTCONFIG['font'][k])
     cfg.write(open(cfg_file, 'w'))

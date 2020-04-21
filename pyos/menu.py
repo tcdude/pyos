@@ -43,6 +43,7 @@ class MenuButtons:
     play: button.Button
     daydeal: button.Button
     stats: button.Button
+    multiplayer: button.Button
     settings: button.Button
     quit: button.Button
 
@@ -64,13 +65,19 @@ class MainMenu(app.AppBase):
         tit = self.__frame.attach_text_node(text='Adfree Simple Solitaire',
                                             font_size=0.06, font=fnt,
                                             text_color=(255, 255, 255, 255))
-        tit.pos = -0.4, -0.4
+        tit.pos = -0.41, -0.3
         self.__buttons: MenuButtons = None
         self.__setup_menu_buttons()
         self.__root.hide()
 
     def enter_main_menu(self):
         """Enter state -> Setup."""
+        if self.config.getboolean('pyos', 'left_handed', fallback=False):
+            pos_x = -0.38
+        else:
+            pos_x = 0.38
+        self.__buttons.settings.pos = pos_x, 0.38
+        self.__buttons.quit.pos = pos_x, -0.38
         self.__root.show()
 
     def exit_main_menu(self):
@@ -87,38 +94,61 @@ class MainMenu(app.AppBase):
                   'corner_radius': 0.05, 'multi_sampling': 2,
                   'align': 'center', 'size': (0.8, 0.1)}
         offset = 0.125
-        pos_y = -0.2
+        pos_y = -0.14
+        txt = chr(0xf90b) + ' ' * 5 + 'Play' + ' ' * 5 + chr(0xf90b)
         play = button.Button(name='play button', pos=(0, pos_y),
-                             text=chr(0xf90b) + ' Play    ',
+                             text=txt,
                              **kwargs)
         play.origin = Origin.CENTER
         play.reparent_to(self.__frame)
         play.onclick(self.request, 'game')
         pos_y += offset
+        txt = chr(0xf274) + '  Daily Deal  ' + chr(0xf274)
         daydeal = button.Button(name='daydeal button', pos=(0, pos_y),
-                                text=chr(0xf274) + ' Daily Deal', **kwargs)
+                                text=txt,
+                                **kwargs)
         daydeal.origin = Origin.CENTER
         daydeal.reparent_to(self.__frame)
         daydeal.onclick(self.request, 'day_deal')
         pos_y += offset
+        txt = '' + chr(0xf201) + '  Statistics  ' + chr(0xf201)
         stats = button.Button(name='stats button', pos=(0, pos_y),
-                              text='' + chr(0xf201) + ' Statistics', **kwargs)
+                              text=txt,
+                              **kwargs)
         stats.origin = Origin.CENTER
         stats.reparent_to(self.__frame)
         stats.onclick(self.request, 'statistics')
         pos_y += offset
-        settings = button.Button(name='settings button', pos=(0, pos_y),
-                                 text=chr(0xf425) + ' Settings', **kwargs)
+        txt = chr(0xf6e6) + ' Multiplayer ' + chr(0xf6e6)
+        multiplayer = button.Button(name='Multiplayer', pos=(0, pos_y),
+                                    text=txt,
+                                    **kwargs)
+        multiplayer.origin = Origin.CENTER
+        multiplayer.reparent_to(self.__frame)
+        multiplayer.onclick(self.request, 'multiplayer_menu')
+        if self.config.getboolean('pyos', 'left_handed', fallback=False):
+            pos_x = -0.38
+        else:
+            pos_x = 0.38
+        kwargs.update({'text_color': (255, ) * 4, 'font_size': 0.09,
+                       'frame_color': (0, ) * 3,
+                       'border_color': (255, ) * 3,
+                       'down_text_color': (0, 0, 0, 255), 'alpha': 40,
+                       'align': 'center', 'size': (0.11, 0.11),
+                       'border_thickness': 0.003,
+                       'down_border_thickness': 0.004,})
+        settings = button.Button(name='settings button', pos=(pos_x, 0.38),
+                                 text=chr(0xf013), **kwargs)
         settings.origin = Origin.CENTER
         settings.reparent_to(self.__frame)
         settings.onclick(self.request, 'settings_menu')
-        pos_y += offset
-        quitb = button.Button(name='quit button', pos=(0, pos_y),
-                              text=chr(0xf705)+ ' Quit    ', **kwargs)
+        quitb = button.Button(name='quit button', pos=(pos_x, -0.38),
+                              text=chr(0xf705), **kwargs)
         quitb.origin = Origin.CENTER
         quitb.reparent_to(self.__frame)
         quitb.onclick(self.quit, blocking=False)
-        self.__buttons = MenuButtons(play, daydeal, stats, settings, quitb)
+        self.__buttons = MenuButtons(play, daydeal, stats, multiplayer,
+                                     settings, quitb)
 
 
 @dataclass
@@ -147,27 +177,36 @@ class SettingsMenu(app.AppBase):
         super().__init__(config_file=config_file)
         self.__root = self.ui.center.attach_node('SubMenu Root')
         self.__frame = frame.Frame('sub menu background', size=(0.9, 0.9),
-                                   frame_color=(160, 90, 40),
+                                   frame_color=(60, ) * 3,
                                    border_thickness=0.01, corner_radius=0.05,
                                    multi_sampling=2)
         self.__frame.reparent_to(self.__root)
         self.__frame.origin = Origin.CENTER
         fnt = self.config.get('font', 'bold')
-        tit = self.__frame.attach_text_node(text='Settings',
-                                            font_size=0.06, font=fnt,
-                                            text_color=(255, 255, 255, 255))
-        tit.pos = -0.15, -0.42
+        tit = label.Label(text='App Settings', align='center', size=(0.8, 0.1),
+                          pos=(0, -0.4), font_size=0.06, font=fnt,
+                          text_color=(255, 255, 255, 255), alpha=0)
+        tit.reparent_to(self.__frame)
+        tit.origin = Origin.CENTER
         self.__buttons: SettingsButtons = None
         self.__setup()
         self.__root.hide()
 
     def enter_settings_menu(self):
         """Enter state -> Setup."""
+        self.__update_button_pos()
         self.__root.show()
 
     def exit_settings_menu(self):
         """Exit state -> Setup."""
         self.__root.hide()
+
+    def __update_button_pos(self):
+        if self.config.getboolean('pyos', 'left_handed', fallback=False):
+            pos_x = -0.38
+        else:
+            pos_x = 0.38
+        self.__buttons.back.pos = pos_x, -0.38
 
     def __toggle(self, key: str, but: button.Button,
                  txts: Tuple[str, str] = ('On', 'Off')) -> None:
@@ -211,6 +250,7 @@ class SettingsMenu(app.AppBase):
             self.__toggle(task, self.__buttons.auto_flip)
         elif task == 'left_handed':
             self.__toggle(task, self.__buttons.left_handed, ('Left', 'Right'))
+            self.__update_button_pos()
             self.layout_refresh = True
         elif task == 'orientation':
             orient = self.config.get('pyos', 'orientation', fallback='auto')
@@ -233,7 +273,7 @@ class SettingsMenu(app.AppBase):
         # pylint: disable=too-many-statements
         tot_height = 0.77
         step_y = tot_height / 9
-        pos_y = -0.35
+        pos_y = -0.3
         height = step_y / 1.06
         kwargs = {'font': self.config.get('font', 'bold'),
                   'font_size': 0.0355, 'text_color': (0, 50, 0, 255),
@@ -241,7 +281,7 @@ class SettingsMenu(app.AppBase):
                   'border_thickness': height * 0.043,
                   'down_border_thickness': height * 0.06,
                   'disabled_border_thickness': height * 0.043,
-                  'border_color': (0, 50, 0),
+                  'border_color': (0, 0, 0),
                   'down_border_color': (255, 255, 255),
                   'disabled_text_color': (255, 255, 255, 255),
                   'disabled_frame_color': (160, 160, 160),
@@ -345,10 +385,22 @@ class SettingsMenu(app.AppBase):
         buttons.append(but)
         pos_y += step_y
 
-        kwargs['align'] = 'center'
-        but = self.__create_button(text='Back', size=(0.84, height),
-                                   pos=(-0.42, 0.43 - height), **kwargs)
-        but.onclick(self.__click, 'back')
+        if self.config.getboolean('pyos', 'left_handed', fallback=False):
+            pos_x = -0.38
+        else:
+            pos_x = 0.38
+        kwargs = {'font': self.config.get('font', 'bold'),
+                  'text_color': (255, ) * 4, 'font_size': 0.09,
+                  'frame_color': (0, ) * 3, 'border_color': (255, ) * 3,
+                  'down_text_color': (0, 0, 0, 255), 'alpha': 40,
+                  'align': 'center', 'size': (0.11, 0.11),
+                  'border_thickness': 0.003, 'corner_radius': 0.05,
+                  'down_border_thickness': 0.004,}
+        but = button.Button(name='back button', pos=(pos_x, -0.38),
+                            text=chr(0xf80c), **kwargs)
+        but.origin = Origin.CENTER
+        but.reparent_to(self.__frame)
+        but.onclick(self.request, 'main_menu')
         buttons.append(but)
         self.__buttons = SettingsButtons(*buttons)
 

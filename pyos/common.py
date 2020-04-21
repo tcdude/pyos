@@ -49,9 +49,11 @@ try:
     import android  # pylint: disable=unused-import
     CACHEDIR = '../cache'
     DATAFILE = '../gamedata.db'
+    MPDATAFILE = '../gamedata.db'
 except ImportError:
     CACHEDIR = 'cache/'
     DATAFILE = 'gamedata.db'
+    MPDATAFILE = 'gamedata.db'
 
 # Config
 DEFAULTCONFIG = {
@@ -73,12 +75,16 @@ DEFAULTCONFIG = {
                          ('auto_solve_delay', '0.25'), ('orientation', 'auto'),
                          ('datafile', DATAFILE),
                          ('dailyseeds', 'assets/other/dailyseeds.bin')]),
+    'mp': OrderedDict([('server', 'pyos.tizilogic.com'), ('port', '22864'),
+                       ('user', ''), ('password', ''), ('bufsize', '4096'),
+                       ('uds', './mp.sock'), ('datafile', 'mp.db')]),
     'font': OrderedDict([('normal', 'fonts/SpaceMono.ttf'),
                          ('bold', 'fonts/SpaceMonoBold.ttf')])
 }
 OVERWRITE_PYOS = ['card_ratio', 'padding', 'status_size', 'toolbar_size',
                   'click_threshold', 'auto_solve_delay',
                   'datafile', 'dailyseeds']
+OVERWRITE_MP = ['server', 'port', 'bufsize', 'uds', 'datafile']
 OVERWRITE_FONT = ['normal', 'bold']
 
 # Daily deal
