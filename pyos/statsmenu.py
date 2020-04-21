@@ -81,10 +81,11 @@ class Statistics(app.AppBase):
         self.__frame.reparent_to(self.__root)
         self.__frame.origin = Origin.CENTER
         fnt = self.config.get('font', 'bold')
-        tit = self.__frame.attach_text_node(text='Statistics',
-                                            font_size=0.06, font=fnt,
-                                            text_color=(255, 255, 255, 255))
-        tit.pos = -0.15, -0.42
+        tit = label.Label(text='Statistics', align='center', size=(0.8, 0.1),
+                          pos=(0, -0.4), font_size=0.06, font=fnt,
+                          text_color=(255, 255, 255, 255), alpha=0)
+        tit.reparent_to(self.__frame)
+        tit.origin = Origin.CENTER
         self.__labels: StatsLabel = None
         self.__setup()
         self.__root.hide()
@@ -128,7 +129,7 @@ class Statistics(app.AppBase):
         # pylint: disable=too-many-statements
         tot_height = 0.77
         step_y = tot_height / 11
-        pos_y = -0.32
+        pos_y = -0.25
         height = step_y / 1.06
         kwargs = {'font': self.config.get('font', 'bold'),
                   'font_size': 0.042, 'text_color': (0, 50, 0, 255),
@@ -158,12 +159,22 @@ class Statistics(app.AppBase):
                   'down_border_color': (255, 255, 255),
                   'corner_radius': 0.05, 'multi_sampling': 2,
                   'align': 'center', 'size': (0.8, 0.1)}
-        back = button.Button(name='back button', pos=(0, 0.375),
-                             text='Back',
-                             **kwargs)
-        back.origin = Origin.CENTER
-        back.reparent_to(self.__frame)
-        back.onclick(self.request, 'main_menu')
+        if self.config.getboolean('pyos', 'left_handed', fallback=False):
+            pos_x = -0.38
+        else:
+            pos_x = 0.38
+        kwargs = {'font': self.config.get('font', 'bold'),
+                  'text_color': (255, ) * 4, 'font_size': 0.09,
+                  'frame_color': (0, ) * 3, 'border_color': (255, ) * 3,
+                  'down_text_color': (0, 0, 0, 255), 'alpha': 40,
+                  'align': 'center', 'size': (0.11, 0.11),
+                  'border_thickness': 0.003, 'corner_radius': 0.05,
+                  'down_border_thickness': 0.004,}
+        but = button.Button(name='back button', pos=(pos_x, -0.38),
+                            text=chr(0xf80c), **kwargs)
+        but.origin = Origin.CENTER
+        but.reparent_to(self.__frame)
+        but.onclick(self.request, 'main_menu')
 
     def __create_label(self, size, pos, alt_font_size=None, **kwargs):
         fnt_size = alt_font_size or kwargs['font_size']

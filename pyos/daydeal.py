@@ -70,18 +70,18 @@ class DayDeal(app.AppBase):
         tit = self.__frame.attach_text_node(text='Daily Deal - Draw one',
                                             font_size=0.06, font=fnt,
                                             text_color=(255, 255, 255, 255))
-        tit.pos = -0.38, -0.42
+        tit.pos = -0.38, -0.3
         tit = self.__frame.attach_text_node(text='Daily Deal - Draw three',
                                             font_size=0.06, font=fnt,
                                             text_color=(255, 255, 255, 255))
-        tit.pos = -0.41, -0.05
+        tit.pos = -0.41, 0.07
 
         self.__grid_o = GridLayout(self.__frame, (0, 0, 0.8, 0.25), (2, ),
                                    (5,), (0.01, 0.01))
-        self.__grid_o._root.pos = -0.4, -0.35
+        self.__grid_o._root.pos = -0.4, -0.23
         self.__grid_t = GridLayout(self.__frame, (0, 0, 0.8, 0.25), (2, ),
                                    (5,), (0.01, 0.01))
-        self.__grid_t._root.pos = -0.4, 0.0
+        self.__grid_t._root.pos = -0.4, 0.12
         self.__buttons: Dict[int, List[button.Button]] = {1: [], 3: []}
         self.__dailyseeds = unpack_seeds(self.config.get('pyos', 'dailyseeds'))
         self.__dlg: Dialogue = None
@@ -189,20 +189,22 @@ class DayDeal(app.AppBase):
                     lbl = self.__create_button(parent.size, (0, 0), **kwargs)
                     lbl.reparent_to(parent)
                     self.__buttons[i].append(lbl)
+        if self.config.getboolean('pyos', 'left_handed', fallback=False):
+            pos_x = -0.38
+        else:
+            pos_x = 0.38
         kwargs = {'font': self.config.get('font', 'bold'),
-                  'text_color': (0, 50, 0, 255), 'frame_color': (200, 220, 200),
-                  'down_text_color': (255, 255, 255, 255),
-                  'border_thickness': 0.005, 'down_border_thickness': 0.008,
-                  'border_color': (0, 50, 0),
-                  'down_border_color': (255, 255, 255),
-                  'corner_radius': 0.05, 'multi_sampling': 2,
-                  'align': 'center', 'size': (0.8, 0.1)}
-        back = button.Button(name='back button', pos=(0, 0.375),
-                             text='Back',
-                             **kwargs)
-        back.origin = Origin.CENTER
-        back.reparent_to(self.__frame)
-        back.onclick(self.request, 'main_menu')
+                  'text_color': (255, ) * 4, 'font_size': 0.09,
+                  'frame_color': (0, ) * 3, 'border_color': (255, ) * 3,
+                  'down_text_color': (0, 0, 0, 255), 'alpha': 40,
+                  'align': 'center', 'size': (0.11, 0.11),
+                  'border_thickness': 0.003, 'corner_radius': 0.05,
+                  'down_border_thickness': 0.004,}
+        but = button.Button(name='back button', pos=(pos_x, -0.38),
+                            text=chr(0xf80c), **kwargs)
+        but.origin = Origin.CENTER
+        but.reparent_to(self.__frame)
+        but.onclick(self.request, 'main_menu')
 
     def __create_button(self, size, pos, alt_font_size=None, **kwargs):
         kwa = {}
