@@ -189,13 +189,9 @@ class TableLayout:
         )
 
         # Background
-        background = self._nodes.root.attach_node('BG Root')
+        background = node.ImageNode('Table BG', common.BACKGROUND, True)
+        background.reparent_to(self._nodes.root)
         background.depth = -500
-        offset = .1
-        for x_pos in range(26):
-            for y_pos in range(26):
-                tmp_node = background.attach_image_node(image=common.BACKGROUND)
-                tmp_node.pos = x_pos * offset, y_pos * offset
         self._v_offset = (0.0, self._cfg.card_size[1] / 3)
 
         # Cards
