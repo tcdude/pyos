@@ -255,7 +255,7 @@ class Table:
         else:
             res = self._shuffler.deal(random_seed)
         self._state.seed = res[0]
-        logger.debug(f'Random Seed: {self._state.seed}')
+        logger.info(f'Random Seed: {self._state.seed}')
         self._tableau.reset()
         for pile_pos, pile in enumerate(res[1]):
             for (suit, value), visible in pile:
