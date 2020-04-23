@@ -95,8 +95,11 @@ class Multiplayer:
     def handle(self, conn) -> bool:
         """Handle a request and return whether to keep listening."""
         data = conn.recv(self.cfg.getint('mp', 'bufsize', fallback=4096))
-        if data[0] == 255:      # Stop Service
+        if not data:
+            return True  # Client side probably disconnected
+        if data[0] == 255:  # Stop service
             conn.sendall(SUCCESS)
+            conn.close()
             return False
         if data[0] in self._handler_methods:
             if not self.mpc.connected and not self.mpc.connect():
