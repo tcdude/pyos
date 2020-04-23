@@ -224,9 +224,10 @@ class MPControl:
         drop = []
         for k in self._results:
             if k in self._pending:
-                if k in self._reload_cfg \
-                      and self._results[k] == self._reload_cfg[k]:
-                    self.cfg.reload()
+                if k in self._reload_cfg:
+                    if self._results[k] == self._reload_cfg[k]:
+                        self.cfg.reload()
+                    self._reload_cfg.pop(k)
                 self._pending.pop(k)
             if k in self._callbacks:
                 self._callbacks[k](self._results[k])
