@@ -31,7 +31,7 @@ try:
     import android  # pylint: disable=unused-import
     from jnius import autoclass
 except ImportError:
-    from subprocess import Popen, DEVNULL
+    from subprocess import Popen
 
 import common
 from service.solver import SOLUTION_PATH, STOP_FILE
@@ -94,8 +94,7 @@ class Shuffler:
             time.sleep(0.5)
             if os.path.exists(STOP_FILE):
                 os.remove(STOP_FILE)
-            self.__proc = Popen(['python', 'service/solver.py'],)
-                                # stdout=DEVNULL, stderr=DEVNULL)
+            self.__proc = Popen(['python', 'service/solver.py'])
 
     @staticmethod
     def stop():
