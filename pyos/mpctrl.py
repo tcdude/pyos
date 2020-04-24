@@ -5,6 +5,7 @@ Provides the control interface for the multiplayer service.
 from dataclasses import dataclass, field
 import selectors
 import socket
+import struct
 import time
 from typing import Callable, Dict
 
@@ -49,7 +50,8 @@ __version__ = '0.3'
 
 RESMAP = {SUCCESS: 0, FAILURE: 1, ILLEGAL_REQUEST: 2, WRONG_FORMAT: 3,
           NO_CONNECTION: 4, NOT_LOGGED_IN: 5}
-STOP = chr(255).encode('utf8')
+REQ = [struct.pack('<B', i) for i in range(256)]
+STOP = REQ[255]
 SEL = selectors.DefaultSelector()
 
 
@@ -79,7 +81,7 @@ class Request:
     def recv(self, sock: socket.socket) -> None:
         """Reads the request as soons as the socket becomes readable."""
         data = sock.recv(1024)
-        if data in RESMAP:
+        if data[0] in RESMAP:
             self.res_dict[self.reqid] = RESMAP[data]
         else:
             self.res_dict[self.reqid] = RESMAP[FAILURE]
@@ -126,80 +128,80 @@ class MPControl:
     def create_new_account(self, username: str, password: str) -> int:
         """Start a "Create a new account" request."""
         reqid = self._request(
-            f'{chr(0)}{username}{SEP}{password}'.encode('utf8'))
+            REQ[0] + f'{username}{SEP}{password}'.encode('utf8'))
         self._data.reload_cfg[reqid] = 0
         return reqid
 
     def change_username(self, username: str) -> int:
         """Start a "Change username" request."""
-        reqid = self._request(f'{chr(1)}{username}'.encode('utf8'))
+        reqid = self._request(REQ[1] +f'{username}'.encode('utf8'))
         self._data.reload_cfg[reqid] = 0
         return reqid
 
     def change_password(self, password: str) -> int:
         """Start a "Change password" request."""
-        reqid = self._request(f'{chr(2)}{password}'.encode('utf8'))
+        reqid = self._request(REQ[2] + f'{password}'.encode('utf8'))
         self._data.reload_cfg[reqid] = 0
         return reqid
 
     def sync_relationships(self) -> int:
         """Start a "Synchronize Relationships" request."""
-        return self._request(chr(3).encode('utf8'))
+        return self._request(REQ[3])
 
     def reply_friend_request(self, userid: int, decision: bool) -> int:
         """Start a "Reply Friend Request" request."""
         val = chr(1 if decision else 0)
-        return self._request(f'{chr(4)}{userid}{SEP}{val}'.encode('utf8'))
+        return self._request(REQ[4] + f'{userid}{SEP}{val}'.encode('utf8'))
 
     def unblock_user(self, userid: int, decision: bool) -> int:
         """Start a "Unblock User" request."""
         val = chr(1 if decision else 0)
-        return self._request(f'{chr(5)}{userid}{SEP}{val}'.encode('utf8'))
+        return self._request(REQ[5] + f'{userid}{SEP}{val}'.encode('utf8'))
 
     def block_user(self, userid: int) -> int:
         """Start a "Block User" request."""
-        return self._request(f'{chr(6)}{userid}'.encode('utf8'))
+        return self._request(REQ[6] + f'{userid}'.encode('utf8'))
 
     def remove_friend(self, userid: int) -> int:
         """Start a "Remove Friend" request."""
-        return self._request(f'{chr(7)}{userid}'.encode('utf8'))
+        return self._request(REQ[7] + f'{userid}'.encode('utf8'))
 
     def set_draw_count_pref(self, userid: int) -> int:
         """Start a "Set Draw Count Preference" request."""
-        return self._request(f'{chr(8)}{userid}'.encode('utf8'))
+        return self._request(REQ[8] + f'{userid}'.encode('utf8'))
 
     def update_dd_scores(self) -> int:
         """Start a "Update Daily Deal Best Scores" request."""
-        return self._request(chr(9).encode('utf8'))
+        return self._request(REQ[9])
 
     def update_leaderboard(self, start: int, end: int) -> int:
         """Start a "Update Challenge Leaderboard" request."""
-        return self._request(f'{chr(10)}{start}{SEP}{end}'.encode('utf8'))
+        return self._request(REQ[10] + f'{start}{SEP}{end}'.encode('utf8'))
 
     def update_user_ranking(self) -> int:
         """Start a "Update User Ranking" request."""
-        return self._request(chr(11).encode('utf8'))
+        return self._request(REQ[11])
 
     def submit_dd_score(self, draw: int, dayoffset: int, result: Result) -> int:
         """Start a "Submit Day Deal Score" request."""
         res = util.encode_result(result)
         return self._request(
-            f'{chr(12)}{draw}{SEP}{dayoffset}'.encode('utf8') + res)
+            REQ[12] + f'{draw}{SEP}{dayoffset}'.encode('utf8') + res)
 
     def start_challenge(self, userid: int, rounds: int) -> int:
         """Start a "Start Challenge" request."""
-        return self._request(f'{chr(13)}{userid}{SEP}{rounds}'.encode('utf8'))
+        return self._request(REQ[13] + f'{userid}{SEP}{rounds}'.encode('utf8'))
 
     def sync_challenges(self) -> int:
         """Start a "Synchronize Challenges" request."""
-        return self._request(chr(14).encode('utf8'))
+        return self._request(REQ[14])
 
     def submit_challenge_round_result(self, challenge_id: int, roundno: int,
                                       result: Result) -> int:
         """Start a "Submit Challenge Round Result" request."""
         res = util.encode_result(result)
         return self._request(
-            f'{chr(15)}{challenge_id}{SEP}{roundno}'.encode('utf8') + res)
+            REQ[15] + f'{challenge_id}{SEP}{roundno}'.encode('utf8') + res)
 
     # Other
 

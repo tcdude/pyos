@@ -5,6 +5,7 @@ Service that handles communication with the pyosserver and the app thread.
 import datetime
 import os
 import socket
+import struct
 import sys
 from typing import Callable, Dict, List, Tuple
 
@@ -42,13 +43,14 @@ SOFTWARE.
 __license__ = 'MIT'
 __version__ = '0.3'
 
+_BYTES = [struct.pack('<B', i) for i in range(256)]
 SEP = chr(0) * 3
-SUCCESS = chr(0).encode('utf8')
-FAILURE = chr(1).encode('utf8')
-ILLEGAL_REQUEST = chr(2).encode('utf8')
-WRONG_FORMAT = chr(3).encode('utf8')
-NO_CONNECTION = chr(4).encode('utf8')
-NOT_LOGGED_IN = chr(5).encode('utf8')
+SUCCESS = _BYTES[0]
+FAILURE = _BYTES[1]
+ILLEGAL_REQUEST = _BYTES[2]
+WRONG_FORMAT = _BYTES[3]
+NO_CONNECTION = _BYTES[4]
+NOT_LOGGED_IN = _BYTES[5]
 
 
 class Multiplayer:
@@ -103,7 +105,7 @@ class Multiplayer:
         if not data:
             logger.debug('No data')
             return True  # Client side probably disconnected
-        req = ord(data.decode('utf8')[0])
+        req = data[0]
         if req == 255:  # Stop service
             logger.debug('Received stop request')
             conn.settimeout(1)

@@ -38,9 +38,9 @@ SOFTWARE.
 __license__ = 'MIT'
 __version__ = '0.3'
 
-SUCCESS = chr(1)
-FAIL = chr(0)
-REQ = {i: chr(i) for i in range(256)}
+REQ = [struct.pack('<B', i) for i in range(256)]
+SUCCESS = REQ[1]
+FAIL = REQ[0]
 Result = Tuple[float, int, int]
 
 
@@ -120,14 +120,14 @@ class MultiplayerClient:
     def new_user(self, username: str, password: str) -> bool:
         """One time user setup to create an account."""
         self._verify_connected(need_login=False)
-        self._conn.sendall(f'{REQ[0]}{username}'.encode('utf8'))
+        self._conn.sendall(REQ[0] + f'{username}'.encode('utf8'))
         data = self._recv()
         if len(data) != util.HASHSIZE + 1:
             return False
         pwhash = util.generate_hash(password)
-        self._conn.sendall(REQ[0].encode('utf8') + pwhash)
+        self._conn.sendall(REQ[0] + pwhash)
         data = self._recv()
-        if data.decode('utf8') != REQ[0] + SUCCESS:
+        if data != REQ[0] + SUCCESS:
             return False
         self.cfg.set('mp', 'user', username)
         self.cfg.set('mp', 'password', util.encode_hash(pwhash))
@@ -137,7 +137,7 @@ class MultiplayerClient:
     def login(self) -> bool:
         """Login with locally stored username/password."""
         self._verify_connected(need_login=False)
-        self._conn.sendall(REQ[1].encode('utf8'))
+        self._conn.sendall(REQ[1])
         data = self._recv()
         if len(data) != util.HASHSIZE + 1:
             return False
@@ -147,102 +147,102 @@ class MultiplayerClient:
         username = util.generate_hash(username)
         password = util.parse_hash(self.cfg.get('mp', 'password'))
         password = util.generate_hash(password + data[1:])
-        self._conn.sendall(REQ[1].encode('utf8') + username + password)
+        self._conn.sendall(REQ[1] + username + password)
         data = self._recv()
-        if data.decode('utf8') != REQ[1] + SUCCESS:
+        if data != REQ[1] + SUCCESS:
             return False
         return True
 
     def friend_request(self, otheruser: str) -> bool:
         """Start a friend request."""
         self._verify_connected()
-        req = REQ[2].encode('utf8') + util.generate_hash(otheruser)
+        req = REQ[2] + util.generate_hash(otheruser)
         self._conn.sendall(req)
         data = self._recv()
-        if data.decode('utf8') != REQ[2] + SUCCESS:
+        if data != REQ[2] + SUCCESS:
             return False
         return True
 
     def pending_sent_friend_request(self, timestamp: int = 0) -> List[int]:
         """Retrieve pending sent friend requests."""
         self._verify_connected()
-        self._conn.sendall(REQ[3].encode('utf8') + util.encode_id(timestamp))
+        self._conn.sendall(REQ[3] + util.encode_id(timestamp))
         data = self._recv()
         return self._userid_list(data)
 
     def get_friend_list(self, timestamp: int = 0) -> List[int]:
         """Retrieve friend list."""
         self._verify_connected()
-        self._conn.sendall(REQ[4].encode('utf8') + util.encode_id(timestamp))
+        self._conn.sendall(REQ[4] + util.encode_id(timestamp))
         data = self._recv()
         return self._userid_list(data)
 
     def get_blocked_list(self, timestamp: int = 0) -> List[int]:
         """Retrieve blocked users list."""
         self._verify_connected()
-        self._conn.sendall(REQ[5].encode('utf8') + util.encode_id(timestamp))
+        self._conn.sendall(REQ[5] + util.encode_id(timestamp))
         data = self._recv()
         return self._userid_list(data)
 
     def reply_friend_request(self, userid: int, decision: bool) -> bool:
         """Reply to a pending friend request."""
         self._verify_connected()
-        req = REQ[6].encode('utf8')
+        req = REQ[6]
         req += util.encode_id(userid)
-        req += chr(0 if decision else 1).encode('utf8')
+        req += REQ[0 if decision else 1]
         self._conn.sendall(req)
         data = self._recv()
-        if data.decode('utf8') != REQ[6] + SUCCESS:
+        if data != REQ[6] + SUCCESS:
             return False
         return True
 
     def unblock_user(self, userid: int, decision: bool) -> bool:
         """Unblock a previously blocked user."""
         self._verify_connected()
-        req = REQ[7].encode('utf8')
+        req = REQ[7]
         req += util.encode_id(userid)
-        req += chr(0 if decision else 1).encode('utf8')
+        req += REQ[0 if decision else 1]
         self._conn.sendall(req)
         data = self._recv()
-        if data.decode('utf8') != REQ[7] + SUCCESS:
+        if data != REQ[7] + SUCCESS:
             return False
         return True
 
     def remove_friend(self, userid: int) -> bool:
         """Remove a friend."""
         self._verify_connected()
-        req = REQ[8].encode('utf8')
+        req = REQ[8]
         req += util.encode_id(userid)
         self._conn.sendall(req)
         data = self._recv()
-        if data.decode('utf8') != REQ[8] + SUCCESS:
+        if data != REQ[8] + SUCCESS:
             return False
         return True
 
     def block_user(self, userid: int) -> bool:
         """Block a user."""
         self._verify_connected()
-        req = REQ[9].encode('utf8')
+        req = REQ[9]
         req += util.encode_id(userid)
         self._conn.sendall(req)
         data = self._recv()
-        if data.decode('utf8') != REQ[9] + SUCCESS:
+        if data != REQ[9] + SUCCESS:
             return False
         return True
 
     def set_draw_count_pref(self, pref: int) -> bool:
         """Set own draw count preference."""
         self._verify_connected()
-        self._conn.sendall(REQ[10].encode('utf8') + struct.pack('<B', pref))
+        self._conn.sendall(REQ[10] + REQ[pref])
         data = self._recv()
-        if data.decode('utf8') != REQ[10] + SUCCESS:
+        if data != REQ[10] + SUCCESS:
             return False
         return True
 
     def get_draw_count_pref(self, userid: int = 0) -> int:
         """Get a users draw count preference. Returns `4` if unsuccessful."""
         self._verify_connected()
-        req = REQ[11].encode('utf8')
+        req = REQ[11]
         req += util.encode_id(userid)
         self._conn.sendall(req)
         data = self._recv()
@@ -254,19 +254,19 @@ class MultiplayerClient:
         """Change the users password."""
         self._verify_connected()
         password = util.parse_hash(self.cfg.get('mp', 'password'))
-        req = REQ[12].encode('utf8') + password + util.generate_hash(newpwd)
+        req = REQ[12] + password + util.generate_hash(newpwd)
         self._conn.sendall(req)
         data = self._recv()
-        if data.decode('utf8') != REQ[12] + SUCCESS:
+        if data != REQ[12] + SUCCESS:
             return False
         return True
 
     def change_username(self, newname: str) -> bool:
         """Change the users name."""
         self._verify_connected()
-        self._conn.sendall(f'{REQ[13]}{newname}'.encode('utf8'))
+        self._conn.sendall(REQ[13] + f'{newname}'.encode('utf8'))
         data = self._recv()
-        if data.decode('utf8') != REQ[13] + SUCCESS:
+        if data != REQ[13] + SUCCESS:
             return False
         return True
 
@@ -274,7 +274,7 @@ class MultiplayerClient:
         """Retrieve a username by userid."""
         ret = 'N/A'
         self._verify_connected()
-        self._conn.sendall(REQ[14].encode('utf8') + util.encode_id(userid))
+        self._conn.sendall(REQ[14] + util.encode_id(userid))
         data = self._recv()
         if len(data) > 3:
             ret = data[1:].decode('utf8')
@@ -283,17 +283,17 @@ class MultiplayerClient:
     def pending_recv_friend_request(self, timestamp: int = 0) -> List[int]:
         """Retrieve pending received friend requests."""
         self._verify_connected()
-        self._conn.sendall(REQ[15].encode('utf8') + util.encode_id(timestamp))
+        self._conn.sendall(REQ[15] + util.encode_id(timestamp))
         data = self._recv()
         return self._userid_list(data)
 
     def daily_best_score(self, draw: int, dayoffset: int) -> Result:
         """Retrieve best score for a daily deal."""
         self._verify_connected()
-        req = REQ[64].encode('utf8') + util.encode_daydeal(draw, dayoffset)
+        req = REQ[64] + util.encode_daydeal(draw, dayoffset)
         self._conn.sendall(req)
         data = self._recv()
-        if len(data) != 5:
+        if len(data) != 9:
             return 0.0, 0, 0
         return util.parse_result(data[1:])
 
@@ -302,7 +302,7 @@ class MultiplayerClient:
         Retrieve up to 10 entries from the leaderboard where rank > `offset`.
         """
         self._verify_connected()
-        req = REQ[65].encode('utf8') + util.encode_id(offset)
+        req = REQ[65] + util.encode_id(offset)
         self._conn.sendall(req)
         data = self._recv()
         if len(data) <= 1:
@@ -312,7 +312,7 @@ class MultiplayerClient:
     def userranking(self) -> Tuple[int, int]:
         """Retrieve the users current rank and points in the leaderboard."""
         self._verify_connected()
-        self._conn.sendall(REQ[66].encode('utf8'))
+        self._conn.sendall(REQ[66])
         data = self._recv()
         if len(data) != 9:
             return 0, 0
@@ -330,18 +330,17 @@ class MultiplayerClient:
         req += util.encode_result(result)
         self._conn.sendall(req)
         data = self._recv()
-        if data.decode('utf8') != REQ[67] + SUCCESS:
+        if data != REQ[67] + SUCCESS:
             return False
         return True
 
     def start_challenge(self, userid: int, rounds: int) -> bool:
         """Start a new challenge."""
         self._verify_connected()
-        req = REQ[128].encode('utf8') + util.encode_id(userid)
-        req += struct.pack('<B', rounds)
+        req = REQ[128] + util.encode_id(userid) + struct.pack('<B', rounds)
         self._conn.sendall(req)
         data = self._recv()
-        if data.decode('utf8') != REQ[128] + SUCCESS:
+        if data != REQ[128] + SUCCESS:
             return False
         return True
 
@@ -349,7 +348,7 @@ class MultiplayerClient:
                                  ) -> List[Tuple[int, int, int]]:
         """Retrieve pending incoming challenge requests."""
         self._verify_connected()
-        self._conn.sendall(REQ[129].encode('utf8') + util.encode_id(timestamp))
+        self._conn.sendall(REQ[129] + util.encode_id(timestamp))
         data = self._recv()
         dlen = len(data) - 1
         if dlen % 9:
@@ -367,7 +366,7 @@ class MultiplayerClient:
                                   ) -> List[Tuple[int, int, int]]:
         """Retrieve pending outgoing challenge requests."""
         self._verify_connected()
-        self._conn.sendall(REQ[136].encode('utf8') + util.encode_id(timestamp))
+        self._conn.sendall(REQ[136] + util.encode_id(timestamp))
         data = self._recv()
         dlen = len(data) - 1
         if dlen % 9:
@@ -390,7 +389,7 @@ class MultiplayerClient:
             List of Tuple: challenge_id, waiting, roundno, rounds, userid
         """
         self._verify_connected()
-        self._conn.sendall(REQ[130].encode('utf8') + util.encode_id(timestamp))
+        self._conn.sendall(REQ[130] + util.encode_id(timestamp))
         data = self._recv()
         dlen = len(data) - 1
         if dlen % 9:
@@ -411,7 +410,7 @@ class MultiplayerClient:
                         ) -> Union[Tuple[GameType, Result, Result], None]:
         """Retrieve information about a challenge round."""
         self._verify_connected()
-        req = REQ[131].encode('utf8') + util.encode_id(challenge_id)
+        req = REQ[131] + util.encode_id(challenge_id)
         try:
             req += struct.pack('<B', roundno)
         except struct.error as err:
@@ -430,8 +429,7 @@ class MultiplayerClient:
                          gamet: GameType = None) -> int:
         """Accept or decline a challenge request."""
         self._verify_connected()
-        req = REQ[132].encode('utf8')
-        req += util.encode_accept(challenge_id, decision)
+        req = REQ[132] + util.encode_accept(challenge_id, decision)
         req += util.encode_game_type(gamet.draw, gamet.score)
         self._conn.sendall(req)
         data = self._recv()
@@ -450,7 +448,7 @@ class MultiplayerClient:
                             result: Result) -> bool:
         """Submit the result of a challenge round."""
         self._verify_connected()
-        req = REQ[133].encode('utf8')
+        req = REQ[133]
         try:
             req += struct.pack('<IB', challenge_id, roundno)
         except struct.error as err:
@@ -459,14 +457,14 @@ class MultiplayerClient:
         req += util.encode_result(result)
         self._conn.sendall(req)
         data = self._recv()
-        if data.decode('utf8') != REQ[133] + SUCCESS:
+        if data != REQ[133] + SUCCESS:
             return False
         return True
 
     def new_round(self, challenge_id: int, gamet: GameType) -> int:
         """Start a new round in a challenge."""
         self._verify_connected()
-        req = REQ[134].encode('utf8') + util.encode_id(challenge_id)
+        req = REQ[134] + util.encode_id(challenge_id)
         req += util.encode_game_type(gamet.draw, gamet.score)
         self._conn.sendall(req)
         data = self._recv()
@@ -483,10 +481,10 @@ class MultiplayerClient:
         """Retrieve a final result of a challenge."""
         res = -1, -1
         self._verify_connected()
-        req = REQ[135].encode('utf8') + util.encode_id(challenge_id)
+        req = REQ[135] + util.encode_id(challenge_id)
         self._conn.sendall(req)
         data = self._recv()
-        if len(data) == 2 and data.decode('utf8') != REQ[135] + FAIL:
+        if len(data) == 2 and data != REQ[135] + FAIL:
             res = util.parse_challenge_result(data[1:])
         return res
 
@@ -494,7 +492,7 @@ class MultiplayerClient:
         """Retrieve the game seed for a given challenge round."""
         res = 0
         self._verify_connected()
-        req = REQ[137].encode('utf8') + util.encode_id(challenge_id)
+        req = REQ[137] + util.encode_id(challenge_id)
         try:
             req += struct.pack('<B', roundno)
         except struct.error as err:
@@ -514,16 +512,16 @@ class MultiplayerClient:
         """Retrieve a list of pending information to be retrieved."""
         ret = []
         self._verify_connected()
-        self._conn.sendall(REQ[192].encode('utf8') + util.encode_id(timestamp))
+        self._conn.sendall(REQ[192] + util.encode_id(timestamp))
         data = self._recv()
-        if len(data) > 1 and data.decode('utf8') != REQ[192] + FAIL:
+        if len(data) > 1 and data != REQ[192] + FAIL:
             ret = list(data[1:])
         return ret
 
     def ping_pong(self) -> bool:
         """Ping Pong mechanism to verify the connection is still alive."""
         self._verify_connected()
-        req = REQ[255].encode('utf8')
+        req = REQ[255]
         self._conn.sendall(req)
         return self._recv() == req
 
