@@ -71,6 +71,8 @@ class MultiplayerMenu(app.AppBase):
 
     def enter_multiplayer_menu(self):
         """Enter state -> Setup."""
+        if not self.mps.ctrl.active:
+            self.mps.ctrl.start_service()
         if self.config.getboolean('pyos', 'left_handed', fallback=False):
             pos_x = -0.38
         else:

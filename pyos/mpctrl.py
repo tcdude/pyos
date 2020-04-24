@@ -9,6 +9,7 @@ import time
 from typing import Callable, Dict
 
 from foolysh.tools import config
+from loguru import logger
 try:
     import android  # pylint: disable=unused-import
     from jnius import autoclass
@@ -89,9 +90,18 @@ class Request:
         """Cancels the event"""
         try:
             SEL.unregister(self.sock)
-        except KeyError:
+        except (KeyError, ValueError):
             pass
         self.sock.close()
+
+
+@dataclass
+class CtrlData:
+    """Holds the dicts for MPControl."""
+    pending: Dict[int, Request] = field(default_factory=dict)
+    results: Dict[int, int] = field(default_factory=dict)
+    callbacks: Dict[int, Callable[[int], None]] = field(default_factory=dict)
+    reload_cfg: Dict[int, int] = field(default_factory=dict)
 
 
 class MPControl:
@@ -107,10 +117,8 @@ class MPControl:
     def __init__(self, cfg: config.Config) -> None:
         self.cfg = cfg
         self._reqid = 0
-        self._pending: Dict[int, Request] = {}
-        self._results: Dict[int, int] = {}
-        self._callbacks: Dict[int, Callable[[int], None]] = {}
-        self._reload_cfg: Dict[int, int] = {}
+        self._data = CtrlData()
+        self._active = False
         self._proc = None
 
     # Requests
@@ -119,19 +127,19 @@ class MPControl:
         """Start a "Create a new account" request."""
         reqid = self._request(
             f'{chr(0)}{username}{SEP}{password}'.encode('utf8'))
-        self._reload_cfg[reqid] = 0
+        self._data.reload_cfg[reqid] = 0
         return reqid
 
     def change_username(self, username: str) -> int:
         """Start a "Change username" request."""
         reqid = self._request(f'{chr(1)}{username}'.encode('utf8'))
-        self._reload_cfg[reqid] = 0
+        self._data.reload_cfg[reqid] = 0
         return reqid
 
     def change_password(self, password: str) -> int:
         """Start a "Change password" request."""
         reqid = self._request(f'{chr(2)}{password}'.encode('utf8'))
-        self._reload_cfg[reqid] = 0
+        self._data.reload_cfg[reqid] = 0
         return reqid
 
     def sync_relationships(self) -> int:
@@ -207,8 +215,8 @@ class MPControl:
         Returns:
             Success as boolean.
         """
-        if reqid in self._pending or reqid in self._results:
-            self._callbacks[reqid] = callback
+        if reqid in self._data.pending or reqid in self._data.results:
+            self._data.callbacks[reqid] = callback
             return True
         return False
 
@@ -217,23 +225,25 @@ class MPControl:
         Method to call regularly to process pending jobs and execute registered
         callbacks.
         """
+        if not self._active:
+            return
         events = SEL.select(timeout=-1)
         for key, _ in events:
             callback = key.data
             callback(key.fileobj)
         drop = []
-        for k in self._results:
-            if k in self._pending:
-                if k in self._reload_cfg:
-                    if self._results[k] == self._reload_cfg[k]:
+        for k in self._data.results:
+            if k in self._data.pending:
+                if k in self._data.reload_cfg:
+                    if self._data.results[k] == self._data.reload_cfg[k]:
                         self.cfg.reload()
-                    self._reload_cfg.pop(k)
-                self._pending.pop(k)
-            if k in self._callbacks:
-                self._callbacks[k](self._results[k])
+                    self._data.reload_cfg.pop(k)
+                self._data.pending.pop(k)
+            if k in self._data.callbacks:
+                self._data.callbacks[k](self._data.results[k])
                 drop.append(k)
         for k in drop:
-            self._results.pop(k)
+            self._data.results.pop(k)
 
     def result(self, reqid: int) -> int:
         """
@@ -241,14 +251,18 @@ class MPControl:
             The result code if available, `-1` if the result is not yet ready or
             -2 for an unknown `reqid`.
         """
-        if reqid in self._results:
-            return self._results.pop(reqid)
-        if reqid in self._pending:
+        if reqid in self._data.results:
+            return self._data.results.pop(reqid)
+        if reqid in self._data.pending:
             return -1
         return -2
 
     def start_service(self) -> bool:
         """Start the solver service."""
+        if self._proc is not None:
+            return False
+        if self._active:
+            return True
         if 'autoclass' in globals():
             service = autoclass('com.tizilogic.pyos.ServiceMultiplayer')
             # pylint: disable=invalid-name
@@ -256,19 +270,24 @@ class MPControl:
             # pylint: enable=invalid-name
             service.start(mActivity, '')
         else:
-            self.stop()
-            self._proc = subprocess.Popen(['python', 'service/solver.py'])
-        for _ in range(5):
-            time.sleep(0.2)
+            self._proc = subprocess.Popen(['python', 'multiplayer.py'])
+        for _ in range(10):
+            time.sleep(0.1)
             reqid = self._request()
             if reqid > -1:
+                _ = self.result(reqid)
+                self._active = True
                 return True
         return False
 
     def stop(self):
         """Stop the service, if it is currently running."""
-        for k in self._pending:
-            self._pending[k].cancel()
+        if not self._active:
+            return
+        logger.debug('Cancel pending requests')
+        for k in self._data.pending:
+            self._data.pending[k].cancel()
+        logger.debug('Stopping Multiplayer Service')
         reqid = self._request(STOP)
         stop = time.time() + 5
         while self.result(reqid) == -1 and time.time() < stop:
@@ -283,13 +302,25 @@ class MPControl:
     def _request(self, req: bytes = None) -> int:
         for i in range(2):
             try:
-                self._pending[self._reqid] = Request(self._reqid,
-                                                     self.cfg.get('mp', 'uds'),
-                                                     req, self._results)
+                self._data.pending[self._reqid] = Request(
+                    self._reqid, self.cfg.get('mp', 'uds'), req,
+                    self._data.results)
             except (FileNotFoundError, ConnectionRefusedError):
                 if req == STOP or i > 0 or not self.start_service():
+                    self._active = False
                     return -1
             else:
                 break
         self._reqid += 1
         return self._reqid - 1
+
+    @property
+    def active(self) -> bool:
+        """Whether the service is running."""
+        reqid = self._request()
+        if reqid > -1:
+            _ = self.result(reqid)
+            self._active = True
+            return True
+        self._active = False
+        return False

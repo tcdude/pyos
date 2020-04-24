@@ -9,6 +9,7 @@ import sys
 from typing import Callable, Dict, List, Tuple
 
 from foolysh.tools import config
+from loguru import logger
 
 import common
 import mpclient
@@ -69,6 +70,7 @@ class Multiplayer:
             11: self._update_user_ranking, 12: self._submit_ddscore,
             13: self._start_challenge, 14: self._sync_challenges,
             15: self._submit_challenge_round_result}
+        logger.debug('Multiplayer initialized')
 
     def start(self):
         """Start listening."""
@@ -78,13 +80,16 @@ class Multiplayer:
         except OSError:
             if os.path.exists(uds):
                 raise
+        logger.debug('Start listening')
         self.sock.bind(uds)
         self.sock.listen()
         while True:
             conn, _ = self.sock.accept()
+            logger.debug('New connection')
             if not self.handle(conn):
                 break
             conn.close()
+        logger.debug('Stopping service')
         self.sock.close()
         try:
             os.unlink(uds)
@@ -96,17 +101,26 @@ class Multiplayer:
         """Handle a request and return whether to keep listening."""
         data = conn.recv(self.cfg.getint('mp', 'bufsize', fallback=4096))
         if not data:
+            logger.debug('No data')
             return True  # Client side probably disconnected
-        if data[0] == 255:  # Stop service
-            conn.sendall(SUCCESS)
+        req = ord(data.decode('utf8')[0])
+        if req == 255:  # Stop service
+            logger.debug('Received stop request')
+            conn.settimeout(1)
+            try:
+                conn.sendall(SUCCESS)
+            except socket.timeout:
+                logger.error('Unable to confirm stop request.')
             conn.close()
             return False
-        if data[0] in self._handler_methods:
+        if req in self._handler_methods:
+            logger.debug(f'Valid request {req}')
             if not self.mpc.connected and not self.mpc.connect():
                 conn.sendall(NO_CONNECTION)
             else:
-                conn.sendall(self._handler_methods[data[0]](data[1:]))
+                conn.sendall(self._handler_methods[req](data[1:]))
         else:
+            logger.warning(f'Invalid request {req}')
             conn.sendall(ILLEGAL_REQUEST)
         return True
 
@@ -451,3 +465,4 @@ if __name__ == '__main__':
         CFG = 'com.tizilogic.pyos/files/.foolysh/foolysh.ini'
     except ImportError:
         CFG = '.foolysh/foolysh.ini'
+    Multiplayer(CFG).start()

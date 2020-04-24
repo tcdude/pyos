@@ -52,7 +52,7 @@ class User(Base):
         3 = Blocked
     """
     __tablename__ = 'user'
-    user_id = Column(Integer, unique=True)
+    user_id = Column(Integer, primary_key=True)
     name = Column(Unicode(30), nullable=False)
     rtype = Column(SmallInteger)
     draw_count_preference = Column(SmallInteger)
@@ -64,7 +64,7 @@ class User(Base):
 class State(Base):
     """"Holds a single record with state information."""
     __tablename__ = 'state'
-    timestamp = Column(Integer)
+    timestamp = Column(Integer, primary_key=True)
 
     def __repr__(self):
         return f'State(timestamp={self.timestamp})'
@@ -82,7 +82,7 @@ class Challenge(Base):
         4 = Rejected
     """
     __tablename__ = 'challenge'
-    challenge_id = Column(Integer, unique=True)
+    challenge_id = Column(Integer, primary_key=True)
     status = Column(SmallInteger, default=0)
     otherid = Column(Integer, nullable=False)
     rounds = Column(SmallInteger, nullable=False)
@@ -96,8 +96,8 @@ class Challenge(Base):
 class ChallengeRound(Base):
     """Holds challenge round information."""
     __tablename__ = 'challenge_round'
-    challenge_id = Column(Integer)
-    roundno = Column(SmallInteger)
+    challenge_id = Column(Integer, primary_key=True)
+    roundno = Column(SmallInteger, primary_key=True)
     draw = Column(SmallInteger, nullable=False)
     chtype = Column(SmallInteger, nullable=False)
     seed = Column(Integer, default=0)
@@ -112,7 +112,7 @@ class ChallengeRound(Base):
 class Leaderboard(Base):
     """Holds the retrieved leaderboard ranks."""
     __tablename__ = 'leaderboard'
-    rank = Column(Integer, unique=True)
+    rank = Column(Integer, primary_key=True)
     points = Column(Integer)
     name = Column(Unicode(30))
 
@@ -120,6 +120,7 @@ class Leaderboard(Base):
 class UserData(Base):
     """Holds user related information."""
     __tablename__ = 'user_data'
+    id = Column(Integer, primary_key=True)
     draw_count_preference = Column(SmallInteger, default=0)
     rank = Column(Integer)
     points = Column(Integer)
@@ -128,8 +129,8 @@ class UserData(Base):
 class DDScore(Base):
     """Holds day deal best scores."""
     __tablename__ = 'dd_score'
-    draw = Column(SmallInteger)
-    dayoffset = Column(SmallInteger)
+    draw = Column(SmallInteger, primary_key=True)
+    dayoffset = Column(SmallInteger, primary_key=True)
     duration = Column(Float)
     points = Column(SmallInteger)
     moves = Column(SmallInteger)

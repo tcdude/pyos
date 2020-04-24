@@ -3,6 +3,7 @@ Provides the base class for all states and all attributes/methods that are
 shared with all the states.
 """
 
+from dataclasses import dataclass
 from typing import Tuple
 
 from loguru import logger
@@ -12,6 +13,8 @@ import plyer
 from foolysh import app
 
 import common
+import mpctrl
+import mpdb
 import stats
 import rules
 
@@ -42,6 +45,13 @@ __license__ = 'MIT'
 __version__ = '0.3'
 
 
+@dataclass
+class MPSystems:
+    """Holds multiplayer related systems."""
+    ctrl: mpctrl.MPControl
+    dbh: mpdb.MPDBHandler
+
+
 class AppBase(app.App):
     """
     Serves as base for all states registered through multiple inheritance. All
@@ -50,7 +60,6 @@ class AppBase(app.App):
     """
     def __init__(self, config_file):
         super().__init__(config_file=config_file)
-        self.__setup_events_tasks()
         self.layout_refresh = False
         self.need_new_game = False
         self.shuffler = rules.Shuffler()
@@ -60,7 +69,11 @@ class AppBase(app.App):
         self.config.save()
         self.stats.start_session()
         self.daydeal: Tuple[int, int] = None
+        self.mps = MPSystems(mpctrl.MPControl(self.config),
+                             mpdb.MPDBHandler(common.MPDATAFILE))
         self.__last_orientation: str = None
+        self.__setup_events_tasks()
+        logger.debug('AppBase initialized')
 
     def __setup_events_tasks(self):
         """Setup Events and Tasks."""
@@ -68,6 +81,7 @@ class AppBase(app.App):
         self.event_handler.listen('quit', sdl2.SDL_QUIT, self.quit,
                                   blocking=False)
         self.event_handler.listen('android_back', sdl2.SDL_KEYUP, self.__back)
+        self.task_manager.add_task('MPUPDATE', self.mps.ctrl.update, 0.1, False)
         if self.isandroid:
             plyer.gravity.enable()
             self.event_handler.listen('APP_TERMINATING',
@@ -161,6 +175,7 @@ class AppBase(app.App):
             plyer.gravity.disable()
         self.stats.end_session()
         self.stats.close()
+        self.mps.ctrl.stop()
         super().on_quit()
 
     def enter_app_base(self):
