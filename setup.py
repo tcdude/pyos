@@ -36,15 +36,17 @@ OPTIONS = {'apk': {'debug': None,
                                    'foolysh,pyjnius,sqlalchemy',
                    'package': 'com.tizilogic.pyos',
                    'android-api': 28,
-                   # 'arch': 'arm64-v8a',  # switch for builds
-                   # 'arch': 'armeabi-v7a',  # switch for builds
+                   # 'arch': 'arm64-v8a',    # Pass one on the cmd line
+                   # 'arch': 'armeabi-v7a',
                    'dist-name': 'pyos-beta',
                    'icon': 'pyos/assets/app-images/icon192.png',
                    'presplash': 'pyos/assets/app-images/splash.png',
                    'presplash-color': '#224422',
                    'local-recipes': './p4a-recipes',
                    'orientation': 'fullUser',
-                   'service': ['solver:service/solver.py', 'mp:multiplayer.py'],
+                   # Service args to be passed on the cmd line
+                   # --service=solver:service/solver.py
+                   # --service=multiplayer:multiplayer.py
                    }}
 
 setup(
