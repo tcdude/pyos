@@ -99,13 +99,11 @@ def main():
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.connect(UDS)
         sock.sendall(struct.pack('<B', cmd))
-        logfile = sock.recv(4096).decode('utf8')
-        print(f'Started build job for '
-              f'{"arm64-v8a" if arm64 else "armeabi-v7a"} using logfile '
-              f'{logfile}')
-        if len(jobs) > 1:
-            time.sleep(3)
-
+        envid = sock.recv(4096).decode('utf8')
+        envname = f'[{envid}]'
+        arch = 'arm64-v8a' if arm64 else 'armeabi-v7a'
+        print(f'Log output for {arch} build displayed in "{envname} {arch}"')
+        time.sleep(0.5)
 
 if __name__ == '__main__':
     main()
