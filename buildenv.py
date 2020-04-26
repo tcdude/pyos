@@ -8,6 +8,7 @@ import socket
 import struct
 from subprocess import Popen
 import sys
+import time
 from typing import Union
 
 __author__ = 'Tiziano Bettio'
@@ -45,10 +46,14 @@ def _cleanup(full: bool) -> bool:
         if proc.wait():
             return False
         return True
-    proc = Popen(['p4a', 'clean_recipe_build', 'foolysh'])
+    print('Cleaning Download Cache for foolysh')
+    proc = Popen(['p4a', 'clean_download_cache', 'foolysh'])
+    time.sleep(2)
     if proc.wait():
         return False
-    proc = Popen(['p4a', 'clean_download_cache', 'foolysh'])
+    print('Cleaning Recipe Build for foolysh')
+    proc = Popen(['p4a', 'clean_recipe_build', 'foolysh'])
+    time.sleep(2)
     if proc.wait():
         return False
     return True
@@ -142,8 +147,8 @@ class BuildEnv:
         if clean:
             print(f'Cleaning env full={full}')
             res = _cleanup(full)
-            if self._fresh and res:
-                self._fresh = False
+        if self._fresh and res:
+            self._fresh = False
         if res:
             print('Starting build')
             self._proc = _build(arch, release)
