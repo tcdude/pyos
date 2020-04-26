@@ -5,6 +5,7 @@ Provides a small server that runs build environments in subprocesses.
 from multiprocessing import Process, Queue
 import os
 import selectors
+import signal
 import socket
 import struct
 from subprocess import Popen, PIPE, STDOUT
@@ -155,10 +156,7 @@ class EnvManager:
         proc = Process(target=_env_thread, args=(cmd, title, self._cmdq),
                        daemon=True)
         proc.start()
-        # proc = Popen(cmd, stdout=PIPE, stderr=STDOUT, shell=True,
-        #              universal_newlines=True)
         logger.debug(f'Started Build Env with pid {proc.pid}')
-        # self._cmdq.put(('ADD', title, None))
         self._envs[self._envid] = EnvData(bitness, proc, title)
         self._envid += 1
         return self._envid - 1
@@ -198,7 +196,10 @@ class EnvManager:
             logger.debug('Keeping released env alive')
             self._free.append(envid)
             return
-        self._sel.unregister(self._envs[envid].conn)
+        try:
+            self._sel.unregister(self._envs[envid].conn)
+        except KeyError:
+            pass
         logger.debug(f'Sending stop signal to envid {envid}')
         self._envs[envid].conn.sendall(struct.pack('<B', 255))
         while self._envs[envid].alive:
@@ -371,9 +372,13 @@ def main() -> None:
     sel = selectors.DefaultSelector()
     logger.debug('Start Build Server')
     cmdq = Queue()
+    sigs = signal.SIGINT, signal.SIGTERM
+    old = [signal.getsignal(i) for i in sigs]
+    _ = [signal.signal(i, signal.SIG_IGN) for i in sigs]
     thread = Process(target=buildlog.log_thread,
                      args=('Build Server Log', cmdq))
     thread.start()
+    _ = [signal.signal(i, j) for i, j in zip(sigs, old)]
     srv = BuildServer(sel, cmdq)
     srv.start()
     try:
@@ -386,6 +391,8 @@ def main() -> None:
                 callback(key.fileobj, mask)
     finally:
         srv.stop()
+        if thread.is_alive():
+            thread.kill()
         sel.close()
 
 
