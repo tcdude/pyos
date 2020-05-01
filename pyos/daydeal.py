@@ -62,7 +62,7 @@ class DayDeal(app.AppBase):
         super().__init__(config_file=config_file)
         self.__root = self.ui.center.attach_node('daydeal root')
         self.__frame = frame.Frame('daydeal background', size=(0.9, 0.9),
-                                   frame_color=(40, 120, 20),
+                                   frame_color=common.FRAME_COLOR_STD,
                                    border_thickness=0.01, corner_radius=0.05,
                                    multi_sampling=2)
         self.__frame.reparent_to(self.__root)
@@ -70,11 +70,11 @@ class DayDeal(app.AppBase):
         fnt = self.config.get('font', 'bold')
         tit = self.__frame.attach_text_node(text='Daily Deal - Draw one',
                                             font_size=0.06, font=fnt,
-                                            text_color=(255, 255, 255, 255))
+                                            text_color=common.TITLE_TXT_COLOR)
         tit.pos = -0.38, -0.3
         tit = self.__frame.attach_text_node(text='Daily Deal - Draw three',
                                             font_size=0.06, font=fnt,
-                                            text_color=(255, 255, 255, 255))
+                                            text_color=common.TITLE_TXT_COLOR)
         tit.pos = -0.41, 0.07
 
         self.__grid_o = GridLayout(self.__frame, (0, 0, 0.8, 0.25), (2, ),
@@ -134,7 +134,8 @@ class DayDeal(app.AppBase):
                                       callback=self.__hide_dlg)]
             dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
                            size=(0.7, 0.7), font=fnt, align='center',
-                           frame_color=(40, 120, 20), border_thickness=0.01,
+                           frame_color=common.FRAME_COLOR_STD,
+                           border_thickness=0.01,
                            corner_radius=0.05, multi_sampling=2)
             dlg.pos = -0.35, -0.35
             dlg.reparent_to(self.ui.center)

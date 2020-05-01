@@ -53,9 +53,9 @@ class ToolBar:
         border = size[1] / 20
         radius = size[1] / 3
         self._frame = frame.Frame(name='toolbar background', size=size,
-                                  frame_color=(160, 160, 160),
+                                  frame_color=common.TOOLBAR_FRAME_COLOR,
                                   border_thickness=border,
-                                  border_color=(255, 255, 255),
+                                  border_color=common.TOOLBAR_BORDER_COLOR,
                                   corner_radius=radius, multi_sampling=2,
                                   alpha=180)
         self._frame.reparent_to(parent)

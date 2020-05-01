@@ -76,7 +76,7 @@ class Statistics(app.AppBase):
         super().__init__(config_file=config_file)
         self.__root = self.ui.center.attach_node('statistics root')
         self.__frame = frame.Frame('statistics background', size=(0.9, 0.9),
-                                   frame_color=(40, 120, 20),
+                                   frame_color=common.FRAME_COLOR_STD,
                                    border_thickness=0.01, corner_radius=0.05,
                                    multi_sampling=2)
         self.__frame.reparent_to(self.__root)
@@ -84,7 +84,7 @@ class Statistics(app.AppBase):
         fnt = self.config.get('font', 'bold')
         tit = label.Label(text='Statistics', align='center', size=(0.8, 0.1),
                           pos=(0, -0.4), font_size=0.06, font=fnt,
-                          text_color=(255, 255, 255, 255), alpha=0)
+                          text_color=common.TITLE_TXT_COLOR, alpha=0)
         tit.reparent_to(self.__frame)
         tit.origin = Origin.CENTER
         self.__labels: StatsLabel = None

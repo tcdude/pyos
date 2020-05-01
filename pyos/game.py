@@ -549,7 +549,8 @@ class Game(app.AppBase):
                                       callback=self.__new_deal)]
             dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
                            size=(0.7, 0.7), font=fnt, align='center',
-                           frame_color=(40, 120, 20), border_thickness=0.01,
+                           frame_color=common.FRAME_COLOR_STD,
+                           border_thickness=0.01,
                            corner_radius=0.05, multi_sampling=2)
             dlg.pos = -0.35, -0.35
             dlg.reparent_to(self.ui.center)

@@ -57,7 +57,7 @@ class MainMenu(app.AppBase):
         super().__init__(config_file=config_file)
         self.__root = self.ui.center.attach_node('Menu Root')
         self.__frame = frame.Frame('main menu background', size=(0.9, 0.9),
-                                   frame_color=(40, 120, 20),
+                                   frame_color=common.FRAME_COLOR_STD,
                                    border_thickness=0.01, corner_radius=0.05,
                                    multi_sampling=2)
         self.__frame.reparent_to(self.__root)
@@ -65,7 +65,7 @@ class MainMenu(app.AppBase):
         fnt = self.config.get('font', 'bold')
         tit = self.__frame.attach_text_node(text='Adfree Simple Solitaire',
                                             font_size=0.06, font=fnt,
-                                            text_color=(255, 255, 255, 255))
+                                            text_color=common.TITLE_TXT_COLOR)
         tit.pos = -0.41, -0.3
         self.__buttons: MenuButtons = None
         self.__setup_menu_buttons()
@@ -165,7 +165,7 @@ class SettingsMenu(app.AppBase):
         super().__init__(config_file=config_file)
         self.__root = self.ui.center.attach_node('SubMenu Root')
         self.__frame = frame.Frame('sub menu background', size=(0.9, 0.9),
-                                   frame_color=(60, ) * 3,
+                                   frame_color=common.SETTINGS_FRAME_COLOR,
                                    border_thickness=0.01, corner_radius=0.05,
                                    multi_sampling=2)
         self.__frame.reparent_to(self.__root)
@@ -173,7 +173,7 @@ class SettingsMenu(app.AppBase):
         fnt = self.config.get('font', 'bold')
         tit = label.Label(text='App Settings', align='center', size=(0.8, 0.1),
                           pos=(0, -0.4), font_size=0.06, font=fnt,
-                          text_color=(255, 255, 255, 255), alpha=0)
+                          text_color=common.TITLE_TXT_COLOR, alpha=0)
         tit.reparent_to(self.__frame)
         tit.origin = Origin.CENTER
         self.__buttons: SettingsButtons = None

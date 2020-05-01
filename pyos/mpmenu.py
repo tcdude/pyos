@@ -3,7 +3,7 @@ Provides the different menus in the app.
 """
 
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Tuple
+from typing import Callable, List, Tuple
 
 from foolysh.scene.node import Origin
 from foolysh.ui import button, frame, entry, label
@@ -66,7 +66,7 @@ class MultiplayerMenu(app.AppBase):
         super().__init__(config_file=config_file)
         self.__root = self.ui.center.attach_node('MP Menu Root')
         self.__frame = frame.Frame('multiplayer background', size=(0.9, 0.9),
-                                   frame_color=(40, 120, 20),
+                                   frame_color=common.FRAME_COLOR_STD,
                                    border_thickness=0.01, corner_radius=0.05,
                                    multi_sampling=2)
         self.__frame.reparent_to(self.__root)
@@ -74,7 +74,7 @@ class MultiplayerMenu(app.AppBase):
         fnt = self.config.get('font', 'bold')
         tit = label.Label(text='Multiplayer', align='center', size=(0.8, 0.1),
                           pos=(0, -0.4), font_size=0.06, font=fnt,
-                          text_color=(255, 255, 255, 255), alpha=0)
+                          text_color=common.TITLE_TXT_COLOR, alpha=0)
         tit.reparent_to(self.__frame)
         tit.origin = Origin.CENTER
         self.__buttons: MenuButtons = None
@@ -122,7 +122,8 @@ class MultiplayerMenu(app.AppBase):
                                       callback=self.__hide_dlg)]
             dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
                            size=(0.7, 0.7), font=fnt, align='left',
-                           frame_color=(40, 120, 20), border_thickness=0.01,
+                           frame_color=common.FRAME_COLOR_STD,
+                           border_thickness=0.01,
                            corner_radius=0.05, multi_sampling=2)
             dlg.pos = -0.35, -0.35
             dlg.reparent_to(self.ui.center)
@@ -196,9 +197,10 @@ def _gen_btnlist(item_font: str, filter_font: str, data: List[str],
     fkwargs['border_color'] = (200, ) * 3
     return buttonlist.ButtonList(data, cbs[0], itpp, kwargs, parent, filters,
                                  cbs[1], fkwargs, (0, 50, 0), size=size,
-                                 frame_color=(255, 255, 255),
-                                 border_color=(0,) * 3, border_thickness=0.005,
-                                 corner_radius=0.03, multi_sampling=2)
+                                 frame_color=common.BTNLIST_FRAME_COLOR,
+                                 border_color=common.BTNLIST_BORDER_COLOR,
+                                 border_thickness=0.005, corner_radius=0.03,
+                                 multi_sampling=2)
 
 
 class Challenges(app.AppBase):
@@ -207,7 +209,7 @@ class Challenges(app.AppBase):
         super().__init__(config_file=config_file)
         self.__root = self.ui.center.attach_node('MP Challenges Root')
         self.__frame = frame.Frame('challenges background', size=(0.9, 0.9),
-                                   frame_color=(142, 55, 22),
+                                   frame_color=common.CHALLENGES_FRAME_COLOR,
                                    border_thickness=0.01, corner_radius=0.05,
                                    multi_sampling=2)
         self.__frame.reparent_to(self.__root)
@@ -215,7 +217,7 @@ class Challenges(app.AppBase):
         fnt = self.config.get('font', 'bold')
         tit = label.Label(text='Challenges', align='center', size=(0.8, 0.1),
                           pos=(0, -0.4), font_size=0.06, font=fnt,
-                          text_color=(255, 255, 255, 255), alpha=0)
+                          text_color=common.TITLE_TXT_COLOR, alpha=0)
         tit.reparent_to(self.__frame)
         tit.origin = Origin.CENTER
         self.__data: List[str] = []
@@ -288,7 +290,7 @@ class Friends(app.AppBase):
         super().__init__(config_file=config_file)
         self.__root = self.ui.center.attach_node('MP Friends Root')
         self.__frame = frame.Frame('friends background', size=(0.9, 0.9),
-                                   frame_color=(218, 165, 32),
+                                   frame_color=common.FRIENDS_FRAME_COLOR,
                                    border_thickness=0.01, corner_radius=0.05,
                                    multi_sampling=2)
         self.__frame.reparent_to(self.__root)
@@ -296,7 +298,7 @@ class Friends(app.AppBase):
         fnt = self.config.get('font', 'bold')
         tit = label.Label(text='Friends', align='center', size=(0.8, 0.1),
                           pos=(0, -0.4), font_size=0.06, font=fnt,
-                          text_color=(255, 255, 255, 255), alpha=0)
+                          text_color=common.TITLE_TXT_COLOR, alpha=0)
         tit.reparent_to(self.__frame)
         tit.origin = Origin.CENTER
         self.__data: List[str] = []
@@ -370,7 +372,7 @@ class Leaderboard(app.AppBase):
         super().__init__(config_file=config_file)
         self.__root = self.ui.center.attach_node('MP Leaderboard Root')
         self.__frame = frame.Frame('leaderboard background', size=(0.9, 0.9),
-                                   frame_color=(105, 161, 0),
+                                   frame_color=common.LEADERBOARD_FRAME_COLOR,
                                    border_thickness=0.01, corner_radius=0.05,
                                    multi_sampling=2)
         self.__frame.reparent_to(self.__root)
@@ -378,7 +380,7 @@ class Leaderboard(app.AppBase):
         fnt = self.config.get('font', 'bold')
         tit = label.Label(text='Leaderboard', align='center', size=(0.8, 0.1),
                           pos=(0, -0.4), font_size=0.06, font=fnt,
-                          text_color=(255, 255, 255, 255), alpha=0)
+                          text_color=common.TITLE_TXT_COLOR, alpha=0)
         tit.reparent_to(self.__frame)
         tit.origin = Origin.CENTER
         self.__data: List[str] = []
@@ -420,8 +422,8 @@ class Leaderboard(app.AppBase):
         self.__back.reparent_to(self.__frame)
         self.__back.onclick(self.request, 'multiplayer_menu')
 
-    def __listclick(self, entry: int) -> None:
-        print(f'clicked on "{self.__data[entry]}"')
+    def __listclick(self, pos: int) -> None:
+        print(f'clicked on "{self.__data[pos]}"')
         # TODO: Open Challenge Dialogue
 
 
@@ -431,7 +433,7 @@ class MultiplayerSettings(app.AppBase):
         super().__init__(config_file=config_file)
         self.__root = self.ui.center.attach_node('MP Settings Root')
         self.__frame = frame.Frame('mp settings background', size=(0.9, 0.9),
-                                   frame_color=(60, ) * 3,
+                                   frame_color=common.SETTINGS_FRAME_COLOR,
                                    border_thickness=0.01, corner_radius=0.05,
                                    multi_sampling=2)
         self.__frame.reparent_to(self.__root)
@@ -439,7 +441,7 @@ class MultiplayerSettings(app.AppBase):
         fnt = self.config.get('font', 'bold')
         tit = label.Label(text='Multiplayer Setup', align='center',
                           size=(0.8, 0.1), pos=(0, -0.4), font_size=0.06,
-                          font=fnt, text_color=(255, 255, 255, 255), alpha=0)
+                          font=fnt, text_color=common.TITLE_TXT_COLOR, alpha=0)
         tit.reparent_to(self.__frame)
         tit.origin = Origin.CENTER
         self.__back: button.Button = None
@@ -477,28 +479,16 @@ class MultiplayerSettings(app.AppBase):
                           pos=(-0.42, -0.195), **kwargs)
         lbl.reparent_to(self.__frame)
         user = entry.Entry(name='username entry', size=(0.7, 0.1),
-                           pos=(-0.29, -0.195), margin=0.01,
-                           hint_text='Username',
-                           hint_text_color=(10, 10, 10, 180),
-                           font=self.config.get('font', 'bold'), font_size=0.05,
-                           text_color=(10, 10, 10, 255),
-                           align='left', frame_color=(255, 255, 255),
-                           border_thickness=0.001, border_color=(0, 0, 0),
-                           corner_radius=0.02, alpha=255)
+                           pos=(-0.29, -0.195), hint_text='Username',
+                           **common.get_entry_kw())
         user.reparent_to(self.__frame)
 
         lbl = label.Label(name='username label', text=chr(0xfcf3),
                           pos=(-0.42, -0.075), **kwargs)
         lbl.reparent_to(self.__frame)
         password = entry.Entry(name='password entry', size=(0.7, 0.1),
-                               pos=(-0.29, -0.075), margin=0.01,
-                               hint_text='Password',
-                               hint_text_color=(10, 10, 10, 180),
-                               font=self.config.get('font', 'bold'),
-                               font_size=0.05, text_color=(10, 10, 10, 255),
-                               align='left', frame_color=(255, 255, 255),
-                               border_thickness=0.001, border_color=(0, 0, 0),
-                               corner_radius=0.02, alpha=255)
+                               pos=(-0.29, -0.075), hint_text='Password',
+                               **common.get_entry_kw())
         password.reparent_to(self.__frame)
 
         kwargs['size'] = 0.8, 0.1
