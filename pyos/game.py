@@ -545,19 +545,7 @@ class Game(app.AppBase):
         if self.__systems.windlg is None:
             fnt = self.config.get('font', 'bold')
             buttons = [DialogueButton(text='New Game',
-                                      fmtkwargs={'size': (0.35, 0.1),
-                                                 'font': fnt,
-                                                 'text_color': (0, 50, 0, 255),
-                                                 'down_text_color': (255, 255,
-                                                                     255, 255),
-                                                 'border_thickness': 0.005,
-                                                 'down_border_thickness': 0.008,
-                                                 'border_color': (0, 50, 0),
-                                                 'down_border_color': (255, 255,
-                                                                       255),
-                                                 'corner_radius': 0.05,
-                                                 'multi_sampling': 2,
-                                                 'align': 'center'},
+                                      fmtkwargs=common.get_dialogue_btn_kw(),
                                       callback=self.__new_deal)]
             dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
                            size=(0.7, 0.7), font=fnt, align='center',

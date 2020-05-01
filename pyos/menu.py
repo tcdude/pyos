@@ -9,6 +9,7 @@ from foolysh.scene.node import Origin
 from foolysh.ui import button, frame, label
 
 import app
+import common
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = """
@@ -85,14 +86,7 @@ class MainMenu(app.AppBase):
         self.__root.hide()
 
     def __setup_menu_buttons(self):
-        kwargs = {'font': self.config.get('font', 'bold'),
-                  'text_color': (0, 50, 0, 255), 'frame_color': (200, 220, 200),
-                  'down_text_color': (255, 255, 255, 255),
-                  'border_thickness': 0.005, 'down_border_thickness': 0.008,
-                  'border_color': (0, 50, 0),
-                  'down_border_color': (255, 255, 255),
-                  'corner_radius': 0.05, 'multi_sampling': 2,
-                  'align': 'center', 'size': (0.8, 0.1)}
+        kwargs = common.get_menu_txt_btn_kw(size=(0.8, 0.1))
         offset = 0.125
         pos_y = -0.14
         txt = chr(0xf90b) + ' ' * 5 + 'Play' + ' ' * 5 + chr(0xf90b)
@@ -130,13 +124,7 @@ class MainMenu(app.AppBase):
             pos_x = -0.38
         else:
             pos_x = 0.38
-        kwargs.update({'text_color': (255, ) * 4, 'font_size': 0.09,
-                       'frame_color': (0, ) * 3,
-                       'border_color': (255, ) * 3,
-                       'down_text_color': (0, 0, 0, 255), 'alpha': 40,
-                       'align': 'center', 'size': (0.11, 0.11),
-                       'border_thickness': 0.003,
-                       'down_border_thickness': 0.004,})
+        kwargs.update(common.MENU_SYM_BTN_KW)
         settings = button.Button(name='settings button', pos=(pos_x, 0.38),
                                  text=chr(0xf013), **kwargs)
         settings.origin = Origin.CENTER
@@ -275,20 +263,12 @@ class SettingsMenu(app.AppBase):
         step_y = tot_height / 8.5
         pos_y = -0.32
         height = step_y / 1.1
-        kwargs = {'font': self.config.get('font', 'bold'),
-                  'font_size': 0.0355, 'text_color': (0, 0, 0, 255),
-                  'down_text_color': (255, 255, 255, 255),
-                  'border_thickness': height * 0.043,
-                  'down_border_thickness': height * 0.06,
-                  'disabled_border_thickness': height * 0.043,
-                  'border_color': (0, 0, 0),
-                  'down_border_color': (255, 255, 255),
-                  'disabled_text_color': (255, 255, 255, 255),
-                  'disabled_frame_color': (160, 160, 160),
-                  'disabled_border_color': (255, 255, 255),
-                  'corner_radius': height / 2, 'multi_sampling': 2,
-                  'align': 'center', 'margin': 0.01}
-
+        kwargs = common \
+            .get_settings_btn_kw(font_size=0.0355,
+                                 border_thickness=height * 0.043,
+                                 down_border_thickness=height * 0.06,
+                                 disabled_border_thickness=height * 0.043,
+                                 corner_radius=height / 2)
         buttons = []
         self.__create_label(text='Winner Deal:', size=(0.34, height),
                             pos=(-0.42, pos_y), **kwargs)
@@ -389,13 +369,7 @@ class SettingsMenu(app.AppBase):
             pos_x = -0.38
         else:
             pos_x = 0.38
-        kwargs = {'font': self.config.get('font', 'bold'),
-                  'text_color': (255, ) * 4, 'font_size': 0.09,
-                  'frame_color': (0, ) * 3, 'border_color': (255, ) * 3,
-                  'down_text_color': (0, 0, 0, 255), 'alpha': 40,
-                  'align': 'center', 'size': (0.11, 0.11),
-                  'border_thickness': 0.003, 'corner_radius': 0.05,
-                  'down_border_thickness': 0.004,}
+        kwargs = common.get_menu_sym_btn_kw()
         but = button.Button(name='back button', pos=(pos_x, -0.38),
                             text=chr(0xf80c), **kwargs)
         but.origin = Origin.CENTER

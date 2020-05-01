@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import Callable, Tuple, Type, Union
 
 from foolysh.scene import node
-from foolysh.tools import vec2
 from foolysh.ui import frame, button
 
 import common
@@ -79,16 +78,11 @@ class ToolBar:
         unit_width = (size[0] - 2 * offset) / 10.6
         height = size[1] - border * 6
         font_size = (height - border * 2) * 0.58
-        kwargs = {'font': font, 'font_size': font_size,
-                  'text_color': (0, 0, 0, 255),
-                  'down_text_color': (255, 255, 255, 255),
-                  'frame_color': (180, 180, 180),
-                  'border_thickness': height / 20,
-                  'down_border_thickness': border * 1.1,
-                  'border_color': (0, 0, 0),
-                  'down_border_color': (255, 255, 255),
-                  'corner_radius': min(height, unit_width) / 2,
-                  'multi_sampling': 2, 'align': 'center', 'alpha': 230}
+        kwargs = common \
+            .get_toolbar_btn_kw(font=font, font_size=font_size,
+                                border_thickness=height / 20,
+                                down_border_thickness=border * 1.1,
+                                corner_radius=min(height, unit_width) / 2)
         newb = button.Button(name='new but', size=(unit_width * 3, height),
                              text=chr(0xf893) + ' Deal', **kwargs)
         newb.reparent_to(self._frame)

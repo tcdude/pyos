@@ -10,6 +10,8 @@ from foolysh.ui import button, frame, entry, label
 
 import app
 import buttonlist
+import common
+from dialogue import Dialogue, DialogueButton
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = """
@@ -36,6 +38,16 @@ SOFTWARE.
 
 __license__ = 'MIT'
 __version__ = '0.3'
+
+NOACCTXT = """No online account
+configured.
+Go to settings """ + chr(0xf178) + ' ' + chr(0xf013) + """
+in the multiplayer
+menu and enter your
+account info.
+
+
+"""
 
 
 @dataclass
@@ -67,6 +79,7 @@ class MultiplayerMenu(app.AppBase):
         tit.origin = Origin.CENTER
         self.__buttons: MenuButtons = None
         self.__setup_menu_buttons()
+        self.__dlg: Dialogue = None
         self.__root.hide()
 
     def enter_multiplayer_menu(self):
@@ -79,21 +92,49 @@ class MultiplayerMenu(app.AppBase):
             pos_x = 0.38
         self.__buttons.settings.pos = pos_x, 0.38
         self.__buttons.back.pos = pos_x, -0.38
+        if self.mps.ctrl.noaccount:
+            if self.previous_state == 'main_menu':
+                self.__gen_dlg(NOACCTXT)
+            self.__buttons.challenges.enabled = False
+            self.__buttons.friends.enabled = False
+            self.__buttons.leaderboard.enabled = False
+        else:
+            self.__buttons.challenges.enabled = True
+            self.__buttons.friends.enabled = True
+            self.__buttons.leaderboard.enabled = True
         self.__root.show()
 
     def exit_multiplayer_menu(self):
         """Exit state -> Setup."""
         self.__root.hide()
+        if self.__dlg is not None:
+            self.__dlg.hide()
+
+    def __hide_dlg(self):
+        self.__dlg.hide()
+        self.__frame.show()
+
+    def __gen_dlg(self, txt: str):
+        if self.__dlg is None:
+            fnt = self.config.get('font', 'bold')
+            buttons = [DialogueButton(text='Ok',
+                                      fmtkwargs=common.get_dialogue_btn_kw(),
+                                      callback=self.__hide_dlg)]
+            dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
+                           size=(0.7, 0.7), font=fnt, align='left',
+                           frame_color=(40, 120, 20), border_thickness=0.01,
+                           corner_radius=0.05, multi_sampling=2)
+            dlg.pos = -0.35, -0.35
+            dlg.reparent_to(self.ui.center)
+            dlg.depth = 1000
+            self.__dlg = dlg
+        else:
+            self.__dlg.text = txt
+            self.__dlg.show()
+        self.__frame.hide()
 
     def __setup_menu_buttons(self):
-        kwargs = {'font': self.config.get('font', 'bold'),
-                  'text_color': (0, 50, 0, 255), 'frame_color': (200, 220, 200),
-                  'down_text_color': (255, 255, 255, 255),
-                  'border_thickness': 0.005, 'down_border_thickness': 0.008,
-                  'border_color': (0, 50, 0),
-                  'down_border_color': (255, 255, 255),
-                  'corner_radius': 0.05, 'multi_sampling': 2,
-                  'align': 'center', 'size': (0.8, 0.1)}
+        kwargs = common.get_menu_txt_btn_kw(size=(0.8, 0.1))
         offset = 0.125
         pos_y = -0.1
         txt = chr(0xf9e4) + '  Challenges  ' + chr(0xf9e4)
@@ -122,13 +163,7 @@ class MultiplayerMenu(app.AppBase):
             pos_x = -0.38
         else:
             pos_x = 0.38
-        kwargs.update({'text_color': (255, ) * 4, 'font_size': 0.09,
-                       'frame_color': (0, ) * 3,
-                       'border_color': (255, ) * 3,
-                       'down_text_color': (0, 0, 0, 255), 'alpha': 40,
-                       'align': 'center', 'size': (0.11, 0.11),
-                       'border_thickness': 0.003,
-                       'down_border_thickness': 0.004,})
+        kwargs = common.get_menu_sym_btn_kw()
         settings = button.Button(name='settings button', pos=(pos_x, 0.38),
                                  text=chr(0xf013), **kwargs)
         settings.origin = Origin.CENTER
@@ -166,16 +201,6 @@ def _gen_btnlist(item_font: str, filter_font: str, data: List[str],
                                  corner_radius=0.03, multi_sampling=2)
 
 
-@dataclass
-class FilterButtons:
-    """Holds filter buttons. Expects a Dict[str, button.Button]."""
-    buttons: Dict[str, button.Button]
-
-    def __post_init__(self):
-        for k in self.buttons:
-            setattr(self, k, self.buttons[k])
-
-
 class Challenges(app.AppBase):
     """Challenges view."""
     def __init__(self, config_file):
@@ -196,7 +221,8 @@ class Challenges(app.AppBase):
         self.__data: List[str] = []
         self.__fltr: int = None
         self.__btnlist: buttonlist.ButtonList = None
-        self.__chbtns: FilterButtons = None
+        self.__back: button.Button = None
+        self.__new: button.Button = None
         self.__setup_menu_buttons()
         self.__root.hide()
 
@@ -206,10 +232,8 @@ class Challenges(app.AppBase):
             pos_x = -0.38
         else:
             pos_x = 0.38
-        # pylint: disable=no-member
-        self.__chbtns.back.pos = pos_x, -0.38
-        self.__chbtns.new.pos = pos_x, 0.38
-        # pylint: enable=no-member
+        self.__back.pos = pos_x, -0.38
+        self.__new.pos = pos_x, 0.38
         self.__filter(self.__fltr)
         self.__btnlist.update_content()
         self.__root.show()
@@ -231,13 +255,7 @@ class Challenges(app.AppBase):
             pos_x = -0.38
         else:
             pos_x = 0.38
-        kwargs = {'font': self.config.get('font', 'bold'),
-                  'text_color': (255, ) * 4, 'font_size': 0.09,
-                  'frame_color': (0, ) * 3, 'border_color': (255, ) * 3,
-                  'down_text_color': (0, 0, 0, 255), 'alpha': 40,
-                  'align': 'center', 'size': (0.11, 0.11),
-                  'border_thickness': 0.003, 'corner_radius': 0.05,
-                  'down_border_thickness': 0.004,}
+        kwargs = common.get_menu_sym_btn_kw()
         newb = button.Button(name='new button', pos=(pos_x, 0.38),
                              text=chr(0xf893), **kwargs)
         newb.origin = Origin.CENTER
@@ -248,7 +266,8 @@ class Challenges(app.AppBase):
         back.origin = Origin.CENTER
         back.reparent_to(self.__frame)
         back.onclick(self.request, 'multiplayer_menu')
-        self.__chbtns = FilterButtons({'new': newb, 'back': back})
+        self.__back = back
+        self.__new = newb
 
     def __new_challenge(self):
         # TODO: Open New Challenge Dialogue
@@ -258,8 +277,8 @@ class Challenges(app.AppBase):
         # TODO: Update the content of the data list
         pass
 
-    def __listclick(self, entry: int) -> None:
-        print(f'clicked on "{self.__data[entry]}"')
+    def __listclick(self, pos: int) -> None:
+        print(f'clicked on "{self.__data[pos]}"')
         # TODO: Open Challenge Dialogue
 
 
@@ -282,7 +301,8 @@ class Friends(app.AppBase):
         tit.origin = Origin.CENTER
         self.__data: List[str] = []
         self.__btnlist: buttonlist.ButtonList = None
-        self.__chbtns: FilterButtons = None
+        self.__back: button.Button = None
+        self.__new: button.Button = None
         self.__fltr: int = None
         self.__setup_menu_buttons()
         self.__root.hide()
@@ -293,10 +313,8 @@ class Friends(app.AppBase):
             pos_x = -0.38
         else:
             pos_x = 0.38
-        # pylint: disable=no-member
-        self.__chbtns.back.pos = pos_x, -0.38
-        self.__chbtns.new.pos = pos_x, 0.38
-        # pylint: enable=no-member
+        self.__back.pos = pos_x, -0.38
+        self.__new.pos = pos_x, 0.38
         self.__filter(self.__fltr)
         self.__btnlist.update_content()
         self.__root.show()
@@ -318,13 +336,7 @@ class Friends(app.AppBase):
             pos_x = -0.38
         else:
             pos_x = 0.38
-        kwargs = {'font': self.config.get('font', 'bold'),
-                  'text_color': (255, ) * 4, 'font_size': 0.09,
-                  'frame_color': (0, ) * 3, 'border_color': (255, ) * 3,
-                  'down_text_color': (0, 0, 0, 255), 'alpha': 40,
-                  'align': 'center', 'size': (0.11, 0.11),
-                  'border_thickness': 0.003, 'corner_radius': 0.05,
-                  'down_border_thickness': 0.004,}
+        kwargs = common.get_menu_sym_btn_kw()
         newb = button.Button(name='new button', pos=(pos_x, 0.38),
                              text=chr(0xf893), **kwargs)
         newb.origin = Origin.CENTER
@@ -335,7 +347,8 @@ class Friends(app.AppBase):
         back.origin = Origin.CENTER
         back.reparent_to(self.__frame)
         back.onclick(self.request, 'multiplayer_menu')
-        self.__chbtns = FilterButtons({'new': newb, 'back': back})
+        self.__new = newb
+        self.__back = back
 
     def __new_friend(self):
         # TODO: Open New Friend Dialogue
@@ -346,8 +359,8 @@ class Friends(app.AppBase):
         # TODO: Update the content of the data list
         pass
 
-    def __listclick(self, entry: int) -> None:
-        print(f'clicked on "{self.__data[entry]}"')
+    def __listclick(self, pos: int) -> None:
+        print(f'clicked on "{self.__data[pos]}"')
         # TODO: Open Challenge Dialogue
 
 
@@ -380,9 +393,7 @@ class Leaderboard(app.AppBase):
             pos_x = -0.38
         else:
             pos_x = 0.38
-        # pylint: disable=no-member
         self.__back.pos = pos_x, -0.38
-        # pylint: enable=no-member
         self.__btnlist.update_content()
         self.__root.show()
 
@@ -402,13 +413,7 @@ class Leaderboard(app.AppBase):
             pos_x = -0.38
         else:
             pos_x = 0.38
-        kwargs = {'font': self.config.get('font', 'bold'),
-                  'text_color': (255, ) * 4, 'font_size': 0.09,
-                  'frame_color': (0, ) * 3, 'border_color': (255, ) * 3,
-                  'down_text_color': (0, 0, 0, 255), 'alpha': 40,
-                  'align': 'center', 'size': (0.11, 0.11),
-                  'border_thickness': 0.003, 'corner_radius': 0.05,
-                  'down_border_thickness': 0.004,}
+        kwargs = common.get_menu_sym_btn_kw()
         self.__back = button.Button(name='back button', pos=(pos_x, -0.38),
                                     text=chr(0xf80c), **kwargs)
         self.__back.origin = Origin.CENTER
@@ -461,13 +466,7 @@ class MultiplayerSettings(app.AppBase):
             pos_x = -0.38
         else:
             pos_x = 0.38
-        kwargs = {'font': self.config.get('font', 'bold'),
-                  'text_color': (255, ) * 4, 'font_size': 0.09,
-                  'frame_color': (0, ) * 3, 'border_color': (255, ) * 3,
-                  'down_text_color': (0, 0, 0, 255), 'alpha': 40,
-                  'align': 'center', 'size': (0.11, 0.11),
-                  'border_thickness': 0.003, 'corner_radius': 0.05,
-                  'down_border_thickness': 0.004,}
+        kwargs = common.get_menu_sym_btn_kw()
         self.__back = button.Button(name='back button', pos=(pos_x, -0.38),
                                     text=chr(0xf80c), **kwargs)
         self.__back.origin = Origin.CENTER
@@ -475,10 +474,10 @@ class MultiplayerSettings(app.AppBase):
         self.__back.onclick(self.request, 'multiplayer_menu')
 
         lbl = label.Label(name='username label', text=chr(0xf007),
-                          pos=(-0.42, -0.17), **kwargs)
+                          pos=(-0.42, -0.195), **kwargs)
         lbl.reparent_to(self.__frame)
         user = entry.Entry(name='username entry', size=(0.7, 0.1),
-                           pos=(-0.29, -0.17), margin=0.01,
+                           pos=(-0.29, -0.195), margin=0.01,
                            hint_text='Username',
                            hint_text_color=(10, 10, 10, 180),
                            font=self.config.get('font', 'bold'), font_size=0.05,
@@ -489,10 +488,10 @@ class MultiplayerSettings(app.AppBase):
         user.reparent_to(self.__frame)
 
         lbl = label.Label(name='username label', text=chr(0xfcf3),
-                          pos=(-0.42, -0.05), **kwargs)
+                          pos=(-0.42, -0.075), **kwargs)
         lbl.reparent_to(self.__frame)
         password = entry.Entry(name='password entry', size=(0.7, 0.1),
-                               pos=(-0.29, -0.05), margin=0.01,
+                               pos=(-0.29, -0.075), margin=0.01,
                                hint_text='Password',
                                hint_text_color=(10, 10, 10, 180),
                                font=self.config.get('font', 'bold'),
@@ -502,10 +501,11 @@ class MultiplayerSettings(app.AppBase):
                                corner_radius=0.02, alpha=255)
         password.reparent_to(self.__frame)
 
-        kwargs['size'] = 0.8, 0.11
+        kwargs['size'] = 0.8, 0.1
         kwargs['font_size'] = 0.045
+        kwargs['corner_radius'] = 0.045
         lbl = label.Label(name='account label',
-                          text='User account', pos=(0, -0.25),
+                          text='User account', pos=(0, -0.27),
                           **kwargs)
         lbl.origin = Origin.CENTER
         lbl.reparent_to(self.__frame)
@@ -516,20 +516,18 @@ class MultiplayerSettings(app.AppBase):
         lbl.origin = Origin.CENTER
         lbl.reparent_to(self.__frame)
 
-        kwargs = {'font': self.config.get('font', 'bold'),
-                  'font_size': 0.0315, 'text_color': (0, 0, 0, 255),
-                  'down_text_color': (255, 255, 255, 255),
-                  'border_thickness': 0.005,
-                  'down_border_thickness': 0.007,
-                  'disabled_border_thickness': 0.006,
-                  'border_color': (0, 0, 0),
-                  'down_border_color': (255, 255, 255),
-                  'disabled_text_color': (255, 255, 255, 255),
-                  'disabled_frame_color': (160, 160, 160),
-                  'disabled_border_color': (255, 255, 255),
-                  'corner_radius': 0.015, 'multi_sampling': 2,
-                  'align': 'center', 'margin': 0.01}
+        kwargs = common \
+            .get_settings_btn_kw(font_size=0.05,
+                                 border_thickness=0.005,
+                                 down_border_thickness=0.007,
+                                 disabled_border_thickness=0.006,
+                                 corner_radius=0.045)
         buttons = []
+        btn = button.Button(name='account action btn', size=(0.7, 0.1),
+                            text='Login / New Account', pos=(-0.29, 0.038),
+                            **kwargs)
+        btn.reparent_to(self.__frame)
+        kwargs['font_size'] = 0.0315
         btn = button.Button(name='both button', text='Both', size=(0.12, 0.1),
                             pos=(-0.425, 0.3), **kwargs)
         btn.reparent_to(self.__frame)

@@ -9,6 +9,7 @@ from foolysh.scene.node import Origin
 from foolysh.ui import button, frame, label
 
 import app
+import common
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = """
@@ -163,13 +164,7 @@ class Statistics(app.AppBase):
             pos_x = -0.38
         else:
             pos_x = 0.38
-        kwargs = {'font': self.config.get('font', 'bold'),
-                  'text_color': (255, ) * 4, 'font_size': 0.09,
-                  'frame_color': (0, ) * 3, 'border_color': (255, ) * 3,
-                  'down_text_color': (0, 0, 0, 255), 'alpha': 40,
-                  'align': 'center', 'size': (0.11, 0.11),
-                  'border_thickness': 0.003, 'corner_radius': 0.05,
-                  'down_border_thickness': 0.004,}
+        kwargs = common.get_menu_sym_btn_kw()
         but = button.Button(name='back button', pos=(pos_x, -0.38),
                             text=chr(0xf80c), **kwargs)
         but.origin = Origin.CENTER

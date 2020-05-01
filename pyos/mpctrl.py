@@ -326,3 +326,10 @@ class MPControl:
             return True
         self._active = False
         return False
+
+    @property
+    def noaccount(self) -> bool:
+        """Whether account setup is necessary."""
+        if self.cfg.get('mp', 'user', fallback=''):
+            return False
+        return True

@@ -8,10 +8,10 @@ from typing import Dict, List
 
 from foolysh.scene.layout import GridLayout
 from foolysh.scene.node import Origin
-from foolysh.ui import button, frame, label, UIState
+from foolysh.ui import button, frame, UIState
 
 import app
-from common import START_DATE
+import common
 from dialogue import Dialogue, DialogueButton
 
 __author__ = 'Tiziano Bettio'
@@ -57,6 +57,7 @@ def unpack_seeds(fpath: str) -> Dict[int, List[int]]:
 
 class DayDeal(app.AppBase):
     """Daily deal menu."""
+    # pylint: disable=too-many-instance-attributes
     def __init__(self, config_file):
         super().__init__(config_file=config_file)
         self.__root = self.ui.center.attach_node('daydeal root')
@@ -96,6 +97,8 @@ class DayDeal(app.AppBase):
     def exit_day_deal(self):
         """Exit state -> Setup."""
         self.__root.hide()
+        if self.__dlg is not None:
+            self.__hide_dlg()
 
     def __click(self, draw: int, seed: int, score: bool = False,
                 day: str = '') -> None:
@@ -127,19 +130,7 @@ class DayDeal(app.AppBase):
         if self.__dlg is None:
             fnt = self.config.get('font', 'bold')
             buttons = [DialogueButton(text='Close',
-                                      fmtkwargs={'size': (0.35, 0.1),
-                                                 'font': fnt,
-                                                 'text_color': (0, 50, 0, 255),
-                                                 'down_text_color': (255, 255,
-                                                                     255, 255),
-                                                 'border_thickness': 0.005,
-                                                 'down_border_thickness': 0.008,
-                                                 'border_color': (0, 50, 0),
-                                                 'down_border_color': (255, 255,
-                                                                       255),
-                                                 'corner_radius': 0.05,
-                                                 'multi_sampling': 2,
-                                                 'align': 'center'},
+                                      fmtkwargs=common.get_dialogue_btn_kw(),
                                       callback=self.__hide_dlg)]
             dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
                            size=(0.7, 0.7), font=fnt, align='center',
@@ -156,7 +147,7 @@ class DayDeal(app.AppBase):
 
     def __update(self):
         today = datetime.datetime.utcnow()
-        start_i = today - START_DATE - datetime.timedelta(days=9)
+        start_i = today - common.START_DATE - datetime.timedelta(days=9)
         for i in range(10):
             day = today + datetime.timedelta(days=i - 9)
             sday = f'{day.month}/{day.day}'
@@ -174,14 +165,7 @@ class DayDeal(app.AppBase):
 
 
     def __setup(self):
-        # pylint: disable=too-many-statements
-        kwargs = {'font': self.config.get('font', 'bold'),
-                  'font_size': 0.045, 'text_color': (255, 255, 255, 225),
-                  'down_text_color': (255, 255, 255, 255),
-                  'border_thickness': 0.005,
-                  'border_color': (0, 50, 0),
-                  'corner_radius': 0.01, 'multi_sampling': 2,
-                  'align': 'center', 'margin': 0.01}
+        kwargs = common.get_daydeal_cell_btn_kw()
         for row in range(2):
             for col in range(5):
                 for i, grid in ((1, self.__grid_o), (3, self.__grid_t)):
@@ -193,13 +177,7 @@ class DayDeal(app.AppBase):
             pos_x = -0.38
         else:
             pos_x = 0.38
-        kwargs = {'font': self.config.get('font', 'bold'),
-                  'text_color': (255, ) * 4, 'font_size': 0.09,
-                  'frame_color': (0, ) * 3, 'border_color': (255, ) * 3,
-                  'down_text_color': (0, 0, 0, 255), 'alpha': 40,
-                  'align': 'center', 'size': (0.11, 0.11),
-                  'border_thickness': 0.003, 'corner_radius': 0.05,
-                  'down_border_thickness': 0.004,}
+        kwargs = common.get_menu_sym_btn_kw()
         but = button.Button(name='back button', pos=(pos_x, -0.38),
                             text=chr(0xf80c), **kwargs)
         but.origin = Origin.CENTER
