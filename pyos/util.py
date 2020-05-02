@@ -47,7 +47,7 @@ def generate_hash(value: Union[str, bytes]) -> bytes:
 
 def timestamp():
     """Returns the number of seconds passed since STARTDT."""
-    return int((datetime.datetime.utcnow() - STARTDT).total_seconds + 0.5)
+    return int((datetime.datetime.utcnow() - STARTDT).total_seconds() + 0.5)
 
 
 def encode_id(idx: int) -> bytes:
@@ -238,7 +238,7 @@ def encode_challenge_result(result: Tuple[int, int]) -> bytes:
 
 def parse_hash(data: str) -> bytes:
     """Parse hash string to bytes digest."""
-    values = data.split(',')
+    values = [int(i) for i in data.split(',')]
     if len(values) != HASHSIZE // 4:
         raise ValueError('Wrong length of csv list')
     try:
