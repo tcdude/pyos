@@ -60,6 +60,9 @@ class User(Base):
     draw_count_preference = Column(SmallInteger)
     rank = Column(Integer, default=0)
     points = Column(Integer, default=0)
+    won = Column(Integer, default=0)
+    lost = Column(Integer, default=0)
+    draw = Column(Integer, default=0)
 
     def __repr__(self):
         return f'User(id={self.id}, name={self.name}, rtype={self.rtype})'
@@ -193,7 +196,8 @@ class MPDBHandler:
 
     def update_user(self, userid: int, username: str = None, rtype: int = None,
                     draw_count_preference: int = None, rank: int = None,
-                    points: int = None) -> bool:
+                    points: int = None, stats: Tuple[int, int, int] = None
+                    ) -> bool:
         """Update user."""
         # pylint: disable=too-many-arguments
         user = self._session.query(User).filter(User.user_id == userid).first()
@@ -212,6 +216,8 @@ class MPDBHandler:
         user.draw_count_preference = draw_count_preference or dpref
         user.rank = rank or user.rank
         user.points = points or user.points
+        if stats is not None:
+            user.won, user.lost, user.draw = stats
         self._session.commit()
         return True
 
@@ -352,57 +358,18 @@ class MPDBHandler:
         return True
 
     def userstats(self, userid: int) -> Tuple[int, int, int, int, int]:
-        """Returns the stats for a user (rank, points, win, lose, draw)."""
+        """Returns the stats for a user (rank, points, won, lost, draw)."""
         user = self._session.query(User).filter(User.user_id == userid).first()
         if user is None:
             logger.error('Unknown user')
             return (0, ) * 5
-        win, lose, draw = 0, 0, 0
-        for i in self._session.query(Challenge) \
-              .filter(Challenge.otherid == userid).all():
-            rwin, rlose, rdraw = self._challenge_result(i.challenge_id)
-            win += rwin
-            lose += rlose
-            draw += rdraw
-        return user.rank, user.points, win, lose, draw
+        return user.rank, user.points, user.won, user.lost, user.draw
 
     def canchallenge(self, userid: int) -> bool:
         """Returns `True` when the user can be sent a challenge request."""
         return self._session.query(Challenge) \
             .filter(Challenge.active == true(),
                     Challenge.otherid == userid).count() == 0
-
-    def _challenge_result(self, challenge_id: int) -> Tuple[int, int, int]:
-        # pylint: disable=too-many-branches
-        win, lose, draw = 0, 0, 0
-        for i in self._session.query(ChallengeRound) \
-              .filter(ChallengeRound.challenge_id == challenge_id,
-                      ChallengeRound.user_duration > -1.0,
-                      ChallengeRound.other_duration > -1.0).all():
-            if i.chtype == 0:  # duration
-                if i.user_duration < i.other_duration:
-                    win += 1
-                elif i.user_duration > i.other_duration:
-                    lose += 1
-                else:
-                    draw += 1
-            elif i.chtype == 1:  # moves
-                if i.user_moves < i.other_moves:
-                    win += 1
-                elif i.user_moves > i.other_moves:
-                    lose += 1
-                else:
-                    draw += 1
-            elif i.chtype == 2:  # points
-                if i.user_points > i.other_points:
-                    win += 1
-                elif i.user_points < i.other_points:
-                    lose += 1
-                else:
-                    draw += 1
-            else:
-                logger.warning(f'Unknown score type {i.chtype}')
-        return win, lose, draw
 
     def _check_challenge_complete(self, challenge_id: int) -> None:
         """Finalizes a challenge if all rounds have been played."""

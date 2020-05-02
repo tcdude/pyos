@@ -73,7 +73,8 @@ class Multiplayer:
             11: self._update_user_ranking, 12: self._submit_ddscore,
             13: self._start_challenge, 14: self._sync_challenges,
             15: self._submit_challenge_round_result,
-            16: self._friend_request}
+            16: self._friend_request,
+            17: self._challenge_stats,}
         logger.debug('Multiplayer initialized')
 
     def start(self):
@@ -373,6 +374,20 @@ class Multiplayer:
             return NOT_LOGGED_IN
         username = data.decode('utf8')
         if self.mpc.friend_request(username):
+            return SUCCESS
+        return FAILURE
+
+    def _challenge_stats(self, data: bytes) -> bytes:
+        if not self._check_login():
+            return NOT_LOGGED_IN
+        try:
+            otherid = int(data.decode('utf8'))
+        except ValueError:
+            return WRONG_FORMAT
+        won, lost, draw = self.mpc.challenge_stats(otherid)
+        if won == lost == draw == 0:
+            return FAILURE
+        if self.mpdbh.update_user(otherid, stats=(won, lost, draw)):
             return SUCCESS
         return FAILURE
 

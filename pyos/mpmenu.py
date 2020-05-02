@@ -278,7 +278,6 @@ class Challenges(app.AppBase):
                                                     self.__filter), 4,
                                       (0.85, 0.625), self.__frame,
                                       ['My Turn', 'Waiting', 'Finished'])
-        self.__data += [chr(i) * 32 for i in range(65, 101)]
         self.__btnlist.pos = 0, 0
         if self.config.getboolean('pyos', 'left_handed', fallback=False):
             pos_x = -0.38
@@ -664,15 +663,16 @@ class Friends(app.AppBase):
                 txt = 'Remove pending\nfriendrequest?\n\n'
                 self.__gen_dlg('remove', txt)
             return
-        self.__nodes.listview.hide()
-        self.__nodes.userview.show()
         self.__nodes.usertitle.text = self.__data.data[pos]
         userid = self.__data.idmap[pos]
         if self.mps.dbh.canchallenge(userid):
             self.__nodes.userchallenge.enabled = True
         else:
             self.__nodes.userchallenge.enabled = False
-        self.__gen_userstat(self.__data.active)
+        req = self.mps.ctrl.challenge_stats(userid)
+        self.mps.ctrl.register_callback(req, self.__gen_userstat)
+        self.statuslbl.show()
+        self.statuslbl.text = 'Loading user stats...'
 
     def __start_challenge(self) -> None:
         # TODO: Launch start challenge dialogue from Challenges state
@@ -682,9 +682,12 @@ class Friends(app.AppBase):
         username = self.__data.data[self.__data.active]
         self.__gen_dlg('remove', f'Remove friend\n{username} ?\n\n')
 
-    def __gen_userstat(self, pos) -> None:
+    def __gen_userstat(self, unused_rescode: int) -> None:
+        self.statuslbl.hide()
+        self.__nodes.listview.hide()
+        self.__nodes.userview.show()
         values = self.mps.dbh \
-            .userstats(self.__data.idmap[pos])
+            .userstats(self.__data.idmap[self.__data.active])
         txt = ['Rank ', 'Points ', 'Rounds won ', 'Rounds lost ',
                'Rounds draw ']
         numlen = len(str(max(values)))

@@ -537,6 +537,31 @@ class MultiplayerClient:
             logger.error(f'Unable to unpack seed: {err}')
         return res
 
+    def challenge_active(self, challenge_id: int) -> bool:
+        """Check if a challenge is marked active."""
+        self._verify_connected()
+        req = REQ[138] + util.encode_id(challenge_id)
+        self._conn.sendall(req)
+        data = self._recv()
+        if data != REQ[138] + SUCCESS:
+            return False
+        return True
+
+    def challenge_stats(self, otherid: int) -> Tuple[int, int, int]:
+        """Retrieve challenge stats against another user (won, lost, draw)."""
+        self._verify_connected()
+        req = REQ[139] + util.encode_id(otherid)
+        self._conn.sendall(req)
+        data = self._recv()
+        if len(data) != 13:
+            return 0, 0, 0
+        try:
+            won, lost, draw = struct.unpack('<III', data[1:])
+        except struct.error as err:
+            logger.error(f'Unable to unpack data: {err}')
+            return 0, 0, 0
+        return won, lost, draw
+
     def pending(self, timestamp: int = 0) -> List[int]:
         """Retrieve a list of pending information to be retrieved."""
         ret = []
