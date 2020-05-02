@@ -201,7 +201,7 @@ class ButtonList(frame.Frame):
             self._data.page = 0
         num_pages = int(ceil(len(self._data.data) / self._data.itpp))
         if self._data.page + 1 > num_pages:
-            self._data.page = num_pages - 1
+            self._data.page = max(num_pages - 1, 0)
         page_offset = self._data.page * self._data.itpp
         for i in range(self._data.itpp):
             idx = page_offset + i
