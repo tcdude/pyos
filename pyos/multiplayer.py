@@ -71,7 +71,8 @@ class Multiplayer:
             10: self._update_challenge_leaderboard,
             11: self._update_user_ranking, 12: self._submit_ddscore,
             13: self._start_challenge, 14: self._sync_challenges,
-            15: self._submit_challenge_round_result}
+            15: self._submit_challenge_round_result,
+            16: self._friend_request}
         logger.debug('Multiplayer initialized')
 
     def start(self):
@@ -163,7 +164,7 @@ class Multiplayer:
             return NOT_LOGGED_IN
         try:
             userid, decision = data.decode('utf8').split(SEP, 1)
-            userid, decision = int(userid), ord(decision) > 0
+            userid, decision = int(userid), int(decision) > 0
         except (ValueError, TypeError):
             return WRONG_FORMAT
         try:
@@ -362,6 +363,14 @@ class Multiplayer:
             return NOT_LOGGED_IN
         return SUCCESS
 
+    def _friend_request(self, data: bytes) -> bytes:
+        if not self._check_login():
+            return NOT_LOGGED_IN
+        username = data.decode('utf8')
+        if self.mpc.friend_request(username):
+            return SUCCESS
+        return FAILURE
+
     def _check_login(self) -> bool:
         if self._login and self.mpc.connected:
             return True
@@ -379,12 +388,13 @@ class Multiplayer:
         ret = SUCCESS
         try:
             reqs = self.mpc.pending(timestamp)
+            self._prune_user()
         except mpclient.NotConnectedError:
             ret = NO_CONNECTION
         except mpclient.CouldNotLoginError:
             ret = NOT_LOGGED_IN
         if ret == SUCCESS and sum([i in reqs for i in (3, 4, 5, 14, 15)]) > 0:
-            if not self._update_user(timestamp):
+            if not self._update_user(timestamp, 14 in reqs):
                 ret = FAILURE
         if ret == SUCCESS and 129 in reqs or 130 in reqs:
             if not self._update_challenges(timestamp):
@@ -400,25 +410,49 @@ class Multiplayer:
             self.mpdbh.update_timestamp(now)
         return ret
 
-    def _update_user(self, timestamp) -> bool:
+    def _update_user(self, timestamp, update_names: bool) -> bool:
         check = ((0, self.mpc.pending_sent_friend_request),
                  (1, self.mpc.pending_recv_friend_request),
                  (2, self.mpc.get_friend_list), (3, self.mpc.get_blocked_list))
+        skip = []
         for rtype, meth in check:
             try:
                 res = meth(timestamp)
             except (mpclient.NotConnectedError, mpclient.CouldNotLoginError):
                 return False
             for i in res:
-                username = self.mpc.get_username(i)
+                logger.debug(f'Updating user with id {i} rtype {rtype}')
                 try:
+                    username = self.mpc.get_username(i)
                     draw_count_preference = self.mpc.get_draw_count_pref(i)
+                    rank, points = self.mpc.userranking(i)
                 except (mpclient.NotConnectedError,
                         mpclient.CouldNotLoginError):
                     return False
                 self.mpdbh.update_user(i, username, rtype,
-                                       draw_count_preference)
+                                       draw_count_preference, rank, points)
+        for i in self.mpdbh.userids:
+            if i in skip:
+                continue
+            if update_names:
+                try:
+                    username = self.mpc.get_username(i)
+                    dpref = self.mpc.get_draw_count_pref(i)
+                    rank, points = self.mpc.userranking(i)
+                except (mpclient.NotConnectedError,
+                        mpclient.CouldNotLoginError):
+                    return False
+                self.mpdbh \
+                    .update_user(i, username, draw_count_preference=dpref,
+                                 rank=rank, points=points)
         return True
+
+    def _prune_user(self) -> None:
+        for i in self.mpdbh.userids:
+            if not self.mpc.active_relation(i):
+                logger.debug(f'Relation became inactive {i}')
+                if not self.mpdbh.delete_user(i):
+                    logger.warning(f'Unable to delete inactive user {i}')
 
     def _update_challenges(self, timestamp) -> bool:
         check = ((0, self.mpc.pending_challenge_req_out),
