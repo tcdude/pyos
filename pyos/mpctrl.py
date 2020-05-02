@@ -65,6 +65,7 @@ class Request:
     req: bytes
     res_dict: Dict[int, int]
     sock: socket.socket = field(init=False)
+    retry: int = 3
 
     def __post_init__(self) -> None:
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -83,7 +84,8 @@ class Request:
     def recv(self, sock: socket.socket) -> None:
         """Reads the request as soons as the socket becomes readable."""
         data = sock.recv(1024)
-        if not data:
+        if not data and self.retry > 0:
+            self.retry -= 1
             return
         if data[:1] in RESMAP:
             self.res_dict[self.reqid] = RESMAP[data]
@@ -138,7 +140,7 @@ class MPControl:
 
     def change_username(self, username: str) -> int:
         """Start a "Change username" request."""
-        reqid = self._request(REQ[1] +f'{username}'.encode('utf8'))
+        reqid = self._request(REQ[1] + f'{username}'.encode('utf8'))
         self._data.reload_cfg[reqid] = 0
         return reqid
 
@@ -148,13 +150,17 @@ class MPControl:
         self._data.reload_cfg[reqid] = 0
         return reqid
 
+    def friend_request(self, username: str) -> int:
+        """Start a "Friend Request" request."""
+        return self._request(REQ[16] + username.encode('utf8'))
+
     def sync_relationships(self) -> int:
         """Start a "Synchronize Relationships" request."""
         return self._request(REQ[3])
 
     def reply_friend_request(self, userid: int, decision: bool) -> int:
         """Start a "Reply Friend Request" request."""
-        val = chr(1 if decision else 0)
+        val = 1 if decision else 0
         return self._request(REQ[4] + f'{userid}{SEP}{val}'.encode('utf8'))
 
     def unblock_user(self, userid: int, decision: bool) -> int:
