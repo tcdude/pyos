@@ -268,6 +268,9 @@ class MultiplayerClient:
         data = self._recv()
         if data != REQ[12] + SUCCESS:
             return False
+        pwhash = util.generate_hash(newpwd)
+        self.cfg.set('mp', 'password', util.encode_hash(pwhash))
+        self.cfg.save()
         return True
 
     def change_username(self, newname: str) -> bool:
@@ -277,6 +280,8 @@ class MultiplayerClient:
         data = self._recv()
         if data != REQ[13] + SUCCESS:
             return False
+        self.cfg.set('mp', 'user', newname)
+        self.cfg.save()
         return True
 
     def get_username(self, userid: int) -> str:
