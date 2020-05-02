@@ -7,11 +7,14 @@ from typing import Callable, List, Tuple
 
 from foolysh.scene.node import Origin
 from foolysh.ui import button, frame, entry, label
+from loguru import logger
 
 import app
 import buttonlist
 import common
 from dialogue import Dialogue, DialogueButton
+import mpctrl
+import util
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = """
@@ -48,6 +51,8 @@ account info.
 
 
 """
+
+UNCHANGED = chr(255) * 8
 
 
 @dataclass
@@ -92,9 +97,13 @@ class MultiplayerMenu(app.AppBase):
             pos_x = 0.38
         self.__buttons.settings.pos = pos_x, 0.38
         self.__buttons.back.pos = pos_x, -0.38
-        if self.mps.ctrl.noaccount:
-            if self.previous_state == 'main_menu':
+        if self.mps.login != 0:
+            if 'dlg_shown' not in self.fsm_data and self.mps.ctrl.noaccount:
                 self.__gen_dlg(NOACCTXT)
+                self.fsm_data['dlg_shown'] = True
+            elif self.mps.login > 0:
+                self.__gen_dlg(f'Unable to connect\n\n'
+                               f'{mpctrl.RESTXT[self.mps.login]}\n\n\n')
             self.__buttons.challenges.enabled = False
             self.__buttons.friends.enabled = False
             self.__buttons.leaderboard.enabled = False
@@ -114,14 +123,14 @@ class MultiplayerMenu(app.AppBase):
         self.__dlg.hide()
         self.__frame.show()
 
-    def __gen_dlg(self, txt: str):
+    def __gen_dlg(self, txt: str, align: str = 'center'):
         if self.__dlg is None:
             fnt = self.config.get('font', 'bold')
             buttons = [DialogueButton(text='Ok',
                                       fmtkwargs=common.get_dialogue_btn_kw(),
                                       callback=self.__hide_dlg)]
             dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
-                           size=(0.7, 0.7), font=fnt, align='left',
+                           size=(0.7, 0.7), font=fnt, align=align,
                            frame_color=common.FRAME_COLOR_STD,
                            border_thickness=0.01,
                            corner_radius=0.05, multi_sampling=2)
@@ -131,6 +140,7 @@ class MultiplayerMenu(app.AppBase):
             self.__dlg = dlg
         else:
             self.__dlg.text = txt
+            self.__dlg.align = align
             self.__dlg.show()
         self.__frame.hide()
 
@@ -445,6 +455,12 @@ class MultiplayerSettings(app.AppBase):
         tit.reparent_to(self.__frame)
         tit.origin = Origin.CENTER
         self.__back: button.Button = None
+        self.__drawpref: List[button.Button] = None
+        self.__username: entry.Entry = None
+        self.__password: entry.Entry = None
+        self.__useraction: button.Button = None
+        self.__dlg: Dialogue = None
+        self.__update_data = {}
         self.__setup_menu_buttons()
         self.__root.hide()
 
@@ -454,22 +470,59 @@ class MultiplayerSettings(app.AppBase):
             pos_x = -0.38
         else:
             pos_x = 0.38
-        # pylint: disable=no-member
         self.__back.pos = pos_x, -0.38
-        # pylint: enable=no-member
+        if not self.mps.ctrl.noaccount:
+            self.__useraction.change_text('Update')
+        self.__update_drawpref()
         self.__root.show()
 
     def exit_multiplayer_settings(self):
         """Exit state -> Setup."""
         self.__root.hide()
+        if self.__dlg is not None:
+            self.__hide_dlg()
+
+    def __update_drawpref(self, option: int = None):
+        if option is not None:
+            drawpref = option
+        else:
+            drawpref = self.mps.dbh.draw_count_preference
+        for i in range(4):
+            if drawpref == 4:
+                self.__drawpref[i].enabled = False
+                continue
+            if i == drawpref:
+                self.__drawpref[i].enabled = False
+            else:
+                self.__drawpref[i].enabled = True
+
+    def __hide_dlg(self):
+        self.__dlg.hide()
+        self.__frame.show()
+
+    def __gen_dlg(self, txt: str):
+        if self.__dlg is None:
+            fnt = self.config.get('font', 'bold')
+            buttons = [DialogueButton(text='Ok',
+                                      fmtkwargs=common.get_dialogue_btn_kw(),
+                                      callback=self.__hide_dlg)]
+            dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
+                           size=(0.7, 0.7), font=fnt, align='center',
+                           frame_color=common.FRAME_COLOR_STD,
+                           border_thickness=0.01,
+                           corner_radius=0.05, multi_sampling=2)
+            dlg.pos = -0.35, -0.35
+            dlg.reparent_to(self.ui.center)
+            dlg.depth = 1000
+            self.__dlg = dlg
+        else:
+            self.__dlg.text = txt
+            self.__dlg.show()
+        self.__frame.hide()
 
     def __setup_menu_buttons(self):
-        if self.config.getboolean('pyos', 'left_handed', fallback=False):
-            pos_x = -0.38
-        else:
-            pos_x = 0.38
         kwargs = common.get_menu_sym_btn_kw()
-        self.__back = button.Button(name='back button', pos=(pos_x, -0.38),
+        self.__back = button.Button(name='back button', pos=(0, -0.38),
                                     text=chr(0xf80c), **kwargs)
         self.__back.origin = Origin.CENTER
         self.__back.reparent_to(self.__frame)
@@ -478,18 +531,23 @@ class MultiplayerSettings(app.AppBase):
         lbl = label.Label(name='username label', text=chr(0xf007),
                           pos=(-0.42, -0.195), **kwargs)
         lbl.reparent_to(self.__frame)
-        user = entry.Entry(name='username entry', size=(0.7, 0.1),
-                           pos=(-0.29, -0.195), hint_text='Username',
-                           **common.get_entry_kw())
-        user.reparent_to(self.__frame)
+        self.__username = entry.Entry(name='username entry', size=(0.7, 0.1),
+                                      pos=(-0.29, -0.195), hint_text='Username',
+                                      **common.get_entry_kw())
+        self.__username.reparent_to(self.__frame)
+        self.__username.text = self.config.get('mp', 'user', fallback='')
 
         lbl = label.Label(name='username label', text=chr(0xfcf3),
                           pos=(-0.42, -0.075), **kwargs)
         lbl.reparent_to(self.__frame)
-        password = entry.Entry(name='password entry', size=(0.7, 0.1),
-                               pos=(-0.29, -0.075), hint_text='Password',
-                               **common.get_entry_kw())
-        password.reparent_to(self.__frame)
+        self.__password = entry.Entry(name='password entry', size=(0.7, 0.1),
+                                      pos=(-0.29, -0.075), hint_text='Password',
+                                      masked=chr(0xf444),
+                                      **common.get_entry_kw())
+        self.__password.reparent_to(self.__frame)
+        self.__password.onenterfocus(self.__clearpw)
+        if self.config.get('mp', 'password', fallback=''):
+            self.__password.text = UNCHANGED
 
         kwargs['size'] = 0.8, 0.1
         kwargs['font_size'] = 0.045
@@ -512,25 +570,180 @@ class MultiplayerSettings(app.AppBase):
                                  down_border_thickness=0.007,
                                  disabled_border_thickness=0.006,
                                  corner_radius=0.045)
-        buttons = []
-        btn = button.Button(name='account action btn', size=(0.7, 0.1),
-                            text='Login / New Account', pos=(-0.29, 0.038),
-                            **kwargs)
-        btn.reparent_to(self.__frame)
+        self.__useraction = button.Button(name='account action btn',
+                                          size=(0.7, 0.1),
+                                          text='Login / New Account',
+                                          pos=(-0.29, 0.038), **kwargs)
+        self.__useraction.reparent_to(self.__frame)
+        self.__useraction.onclick(self.__useractioncb)
+
+        # Draw Preference
+        self.__drawpref = []
         kwargs['font_size'] = 0.0315
         btn = button.Button(name='both button', text='Both', size=(0.12, 0.1),
                             pos=(-0.425, 0.3), **kwargs)
         btn.reparent_to(self.__frame)
-        buttons.append(btn)
+        btn.onclick(self.__set_drawpref, 0)
+        self.__drawpref.append(btn)
         btn = button.Button(name='one button', text='One only',
                             size=(0.175, 0.1), pos=(-0.29, 0.3), **kwargs)
         btn.reparent_to(self.__frame)
-        buttons.append(btn)
+        btn.onclick(self.__set_drawpref, 1)
+        self.__drawpref.append(btn)
         btn = button.Button(name='three button', text='Three only',
                             size=(0.22, 0.1), pos=(-0.1, 0.3), **kwargs)
         btn.reparent_to(self.__frame)
-        buttons.append(btn)
+        btn.onclick(self.__set_drawpref, 2)
+        self.__drawpref.append(btn)
         btn = button.Button(name='no mp button', text='No Multiplayer',
                             size=(0.29, 0.1), pos=(0.135, 0.3), **kwargs)
         btn.reparent_to(self.__frame)
-        buttons.append(btn)
+        btn.onclick(self.__set_drawpref, 3)
+        self.__drawpref.append(btn)
+
+    def __useractioncb(self) -> None:
+        if self.mps.ctrl.noaccount:
+            if not self.__username.text or not self.__password.text:
+                self.__gen_dlg('CANNOT BE EMPTY\n\nPlease insert\n'
+                               'a valid username\nand password\n\n\n')
+                return
+            if not 2 < len(self.__username.text) < 31:
+                self.__gen_dlg('Username must\nbe between 3\n'
+                               'and 30 characters\n\n\n')
+                return
+            req = self.mps.ctrl.create_new_account(self.__username.text.strip(),
+                                                   self.__password.text)
+            self.mps.ctrl.register_callback(req, self.__new_account)
+            self.statuslbl.text = 'Attempting to connect...'
+            self.statuslbl.show()
+        else:
+            if not self.__username.text or not self.__password.text:
+                self.__gen_dlg('CANNOT BE EMPTY\n\nPlease insert\n'
+                               'a valid username\nand password\n\n\n')
+                return
+            if not 2 < len(self.__username.text) < 31:
+                self.__gen_dlg('Username must\nbe between 3\n'
+                               'and 30 characters\n\n\n')
+                return
+            if self.__username.text == self.config.get('mp', 'user',
+                                                       fallback='') \
+                  and self.__password.text == UNCHANGED:
+                return
+            if self.mps.login != 0:
+                req = self.mps.ctrl.update_user_ranking()
+                self.mps.ctrl.register_callback(req, self.__update_acc)
+            else:
+                self.__update_acc()
+
+    def __update_acc(self, rescode: int = None) -> None:
+        if rescode is not None and rescode != 0:
+            self.__gen_dlg(f'Unable to update\n\n'
+                           f'{mpctrl.RESTXT[rescode]}\n\n')
+            return
+
+        self.__update_data['user'] = False
+        self.__update_data['password'] = False
+        self.__update_data['msg'] = ''
+        if self.__username.text != self.config.get('mp', 'user', fallback=''):
+            req = self.mps.ctrl.change_username(self.__username.text.strip())
+            self.mps.ctrl.register_callback(req, self.__user_change)
+            self.__update_data['user'] = True
+        if self.__password.text != UNCHANGED:
+            req = self.mps.ctrl.change_password(self.__password.text)
+            self.mps.ctrl.register_callback(req, self.__passwd_change)
+            self.__update_data['password'] = True
+        if self.__update_data['user'] or self.__update_data['password']:
+            self.statuslbl.text = 'Updating...'
+            self.statuslbl.show()
+
+    def __user_change(self, rescode: int) -> None:
+        if rescode != 0 and self.__update_data['password']:
+            self.__update_data['msg'] = 'Failed to change\nusername\n'
+            self.__update_data['user'] = False
+            self.__username.text = self.config.get('mp', 'user', fallback='')
+            return
+        if self.__update_data['password']:
+            self.__update_data['user'] = False
+            return
+        msg = 'SUCCESS\n'
+        if rescode != 0:
+            msg = f'ERROR\n\nFailed to change\nusername\n' \
+                  f'{self.__update_data["msg"]}'
+        self.__gen_dlg(msg)
+        self.__update_data['user'] = False
+        self.__username.text = self.config.get('mp', 'user', fallback='')
+        self.statuslbl.hide()
+
+    def __passwd_change(self, rescode: int) -> None:
+        if rescode != 0 and self.__update_data['user']:
+            self.__update_data['msg'] = 'Failed to change\npassword\n'
+            self.__update_data['password'] = False
+            self.__password.text = UNCHANGED
+            return
+        if self.__update_data['user']:
+            self.__update_data['password'] = False
+            self.__password.text = UNCHANGED
+            return
+        msg = 'SUCCESS\n'
+        if rescode != 0:
+            msg = f'ERROR\n\nFailed to change\npassword\n' \
+                  f'{self.__update_data["msg"]}'
+        self.__gen_dlg(msg)
+        self.__update_data['password'] = False
+        self.__password.text = UNCHANGED
+        self.statuslbl.hide()
+
+    def __new_account(self, rescode: int) -> None:
+        if rescode == 0:
+            logger.info('New account created successfully.')
+            self.statuslbl.hide()
+            self.__gen_dlg('Success')
+            self.__useraction.change_text('Update')
+            self.__password.text = UNCHANGED
+            self.__update_drawpref()
+        else:
+            logger.info(f'Unable to create account, got return code {rescode}')
+            self.config.set('mp', 'user', self.__username.text)
+            pwhash = util.generate_hash(self.__password.text)
+            self.config.set('mp', 'password', util.encode_hash(pwhash))
+            self.config.save()
+            req = self.mps.ctrl.update_user_ranking()
+            self.mps.ctrl.register_callback(req, self.__login_success)
+            self.statuslbl.text = 'Attempting login...'
+
+    def __login_success(self, rescode: int) -> None:
+        self.statuslbl.hide()
+        if rescode == 5:
+            self.__gen_dlg('Unable to create\nor login to account!\n\n'
+                           'Either wrong password\nor the username\n'
+                           'is already taken\n\n')
+        elif rescode == 0:
+            self.__gen_dlg('Login successful\n')
+            self.__update_drawpref()
+            self.__useraction.change_text('Update')
+            self.__password.text = UNCHANGED
+            return
+        else:
+            self.__gen_dlg('LOGIN FAILED!\n\ncheck provided\n'
+                           'username/password\n\n\n')
+        self.config.set('mp', 'user', '')
+        self.config.set('mp', 'password', '')
+        self.config.save()
+
+    def __set_drawpref(self, option: int) -> None:
+        req = self.mps.ctrl.set_draw_count_pref(option)
+        self.mps.ctrl.register_callback(req, self.__drawpref_set)
+        self.statuslbl.text = 'Updating...'
+        self.statuslbl.show()
+        self.__update_drawpref(option)
+
+    def __drawpref_set(self, rescode: int) -> None:
+        self.statuslbl.hide()
+        if rescode == 0:
+            self.__update_drawpref()
+        else:
+            self.__gen_dlg(f'REQUEST FAILED:\n\n{mpctrl.RESTXT[rescode]}')
+
+    def __clearpw(self):
+        if self.__password.text == UNCHANGED:
+            self.__password.text = ''
