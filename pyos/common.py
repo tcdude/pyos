@@ -49,11 +49,11 @@ try:
     import android  # pylint: disable=unused-import
     CACHEDIR = '../cache'
     DATAFILE = '../gamedata.db'
-    MPDATAFILE = '../gamedata.db'
+    MPDATAFILE = '../mp.db'
 except ImportError:
     CACHEDIR = 'cache/'
     DATAFILE = 'gamedata.db'
-    MPDATAFILE = 'gamedata.db'
+    MPDATAFILE = 'mp.db'
 
 # Config
 DEFAULTCONFIG = {
