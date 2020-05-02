@@ -10,6 +10,7 @@ test.sh
 build.sh
 .vscode
 **gamedata.db
+**mp.db
 logs/
 
 # Byte-compiled / optimized / DLL files
