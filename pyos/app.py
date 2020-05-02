@@ -11,6 +11,8 @@ import sdl2
 import plyer
 
 from foolysh import app
+from foolysh.scene.node import Origin
+from foolysh.ui import label
 
 import common
 import mpctrl
@@ -50,6 +52,7 @@ class MPSystems:
     """Holds multiplayer related systems."""
     ctrl: mpctrl.MPControl
     dbh: mpdb.MPDBHandler
+    login: int = -1
 
 
 class AppBase(app.App):
@@ -60,6 +63,12 @@ class AppBase(app.App):
     """
     def __init__(self, config_file):
         super().__init__(config_file=config_file)
+        self.statuslbl = label.Label(text='', **common.STATUS_TXT_KW)
+        self.statuslbl.reparent_to(self.ui.center)
+        self.statuslbl.origin = Origin.CENTER
+        self.statuslbl.depth = 2000
+        self.statuslbl.hide()
+
         self.layout_refresh = False
         self.need_new_game = False
         self.shuffler = rules.Shuffler()
@@ -71,9 +80,28 @@ class AppBase(app.App):
         self.daydeal: Tuple[int, int] = None
         self.mps = MPSystems(mpctrl.MPControl(self.config),
                              mpdb.MPDBHandler(common.MPDATAFILE))
+        self.login()
         self.__last_orientation: str = None
         self.__setup_events_tasks()
         logger.debug('AppBase initialized')
+
+    def login(self) -> None:
+        """Attempts to login to multiplayer."""
+        if not self.mps.ctrl.noaccount:
+            req = self.mps.ctrl.update_user_ranking()
+            print(req)
+            self.mps.ctrl.register_callback(req, self.__logincb)
+            self.statuslbl.text = 'Login...'
+            self.statuslbl.show()
+
+    def __logincb(self, rescode: int) -> None:
+        self.statuslbl.hide()
+        self.mps.login = rescode
+        if rescode:
+            logger.warning(f'Login failed with rescode '
+                           f'{mpctrl.RESTXT[rescode]}')
+        else:
+            logger.debug('Login successful')
 
     def __setup_events_tasks(self):
         """Setup Events and Tasks."""
@@ -105,7 +133,7 @@ class AppBase(app.App):
         """Handles Android Back, Escape and Backspace Events"""
         if event.key.keysym.sym in (sdl2.SDLK_AC_BACK, 27):
             if self.active_state != 'main_menu':
-                self.request('main_menu')
+                self.fsm_back()
             else:
                 self.quit(blocking=False)
 
