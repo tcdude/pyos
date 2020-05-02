@@ -122,8 +122,8 @@ class UserData(Base):
     __tablename__ = 'user_data'
     id = Column(Integer, primary_key=True)
     draw_count_preference = Column(SmallInteger, default=0)
-    rank = Column(Integer)
-    points = Column(Integer)
+    rank = Column(Integer, default=0)
+    points = Column(Integer, default=0)
 
 
 class DDScore(Base):
@@ -353,3 +353,20 @@ class MPDBHandler:
         if state is None:
             return 0
         return state.timestamp
+
+    @property
+    def draw_count_preference(self) -> int:
+        """The users draw count preference or `4` if not loaded yet."""
+        data = self._session.query(UserData).first()
+        if data is None:
+            return 4
+        return data.draw_count_preference
+
+    @draw_count_preference.setter
+    def draw_count_preference(self, pref: int) -> None:
+        data = self._session.query(UserData).first()
+        if data is None:
+            data = UserData()
+            self._session.add(data)
+        data.draw_count_preference = pref
+        self._session.commit()
