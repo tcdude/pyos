@@ -132,7 +132,9 @@ class Multiplayer:
         except ValueError:
             return WRONG_FORMAT
         if self.mpc.new_user(username, password):
+            logger.debug('New Account request was successful')
             return SUCCESS
+        logger.warning('New Account request failed')
         return FAILURE
 
     def _change_username(self, data: bytes) -> bytes:
@@ -231,6 +233,7 @@ class Multiplayer:
             return NO_CONNECTION
         except mpclient.CouldNotLoginError:
             return NOT_LOGGED_IN
+        self.mpdbh.draw_count_preference = pref
         return SUCCESS
 
     def _update_daily_deal_best_scores(self, unused_data: bytes) -> bytes:
@@ -367,6 +370,7 @@ class Multiplayer:
         except (mpclient.NotConnectedError, mpclient.CouldNotLoginError):
             res = False
         self._login = res
+        self._sync_local_database()
         return res
 
     def _sync_local_database(self) -> bytes:

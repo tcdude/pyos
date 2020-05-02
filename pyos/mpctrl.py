@@ -50,6 +50,8 @@ __version__ = '0.3'
 
 RESMAP = {SUCCESS: 0, FAILURE: 1, ILLEGAL_REQUEST: 2, WRONG_FORMAT: 3,
           NO_CONNECTION: 4, NOT_LOGGED_IN: 5}
+RESTXT = {0: 'Success', 1: 'Request Failed', 2: 'Illegal request',
+          3: 'Wrong Format', 4: 'No Connection', 5: 'Not Logged In'}
 REQ = [struct.pack('<B', i) for i in range(256)]
 STOP = REQ[255]
 SEL = selectors.DefaultSelector()
@@ -81,7 +83,9 @@ class Request:
     def recv(self, sock: socket.socket) -> None:
         """Reads the request as soons as the socket becomes readable."""
         data = sock.recv(1024)
-        if data[0] in RESMAP:
+        if not data:
+            return
+        if data[:1] in RESMAP:
             self.res_dict[self.reqid] = RESMAP[data]
         else:
             self.res_dict[self.reqid] = RESMAP[FAILURE]
@@ -166,9 +170,9 @@ class MPControl:
         """Start a "Remove Friend" request."""
         return self._request(REQ[7] + f'{userid}'.encode('utf8'))
 
-    def set_draw_count_pref(self, userid: int) -> int:
+    def set_draw_count_pref(self, pref: int) -> int:
         """Start a "Set Draw Count Preference" request."""
-        return self._request(REQ[8] + f'{userid}'.encode('utf8'))
+        return self._request(REQ[8] + f'{pref}'.encode('utf8'))
 
     def update_dd_scores(self) -> int:
         """Start a "Update Daily Deal Best Scores" request."""
@@ -238,6 +242,7 @@ class MPControl:
             if k in self._data.pending:
                 if k in self._data.reload_cfg:
                     if self._data.results[k] == self._data.reload_cfg[k]:
+                        logger.debug('Reloading configuration')
                         self.cfg.reload()
                     self._data.reload_cfg.pop(k)
                 self._data.pending.pop(k)
