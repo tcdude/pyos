@@ -34,5 +34,6 @@ that data is available for reading (success) or an error code to be handled
 | 13  | **Start Challenge** | User ID, Rounds |
 | 14  | **Synchronize Challenges** | *None* |
 | 15  | **Submit Challenge Round Result** | Challenge ID, Round#, Result |
+| 16  | **Start Friend Request** | Username |
 | 255 | **Stop Service** | *None* |
 
