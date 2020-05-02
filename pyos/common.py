@@ -133,6 +133,7 @@ BTNLIST_BORDER_COLOR = 0, 0, 0
 TOOLBAR_BORDER_COLOR = 255, 255, 255
 
 TITLE_TXT_COLOR = 255, 255, 255, 255
+STATUS_TXT_COLOR = 220, 220, 220, 240
 
 MENU_TXT_BTN_KW = {'font': DEFAULTCONFIG['font']['bold'],
                    'text_color': (0, 50, 0, 255),
@@ -185,6 +186,12 @@ ENTRY_KW = {'margin': 0.01, 'hint_text_color': (10, 10, 10, 180),
             'text_color': (10, 10, 10, 255), 'align': 'left',
             'frame_color': (255, 255, 255), 'border_thickness': 0.001,
             'border_color': (0, 0, 0), 'corner_radius': 0.02, 'alpha': 255}
+STATUS_TXT_KW = {'size': (0.9, 0.2), 'pos': (0, 0), 'font_size': 0.05,
+                 'font': DEFAULTCONFIG['font']['bold'],
+                 'text_color': STATUS_TXT_COLOR, 'border_thickness': 0.005,
+                 'corner_radius': 0.05, 'frame_color': SETTINGS_FRAME_COLOR,
+                 'border_color': (0, 0, 0), 'align': 'center',
+                 'multisampling': 2, 'alpha': 220}
 
 
 def get_menu_txt_btn_kw(size: Tuple[float, float], **kwargs) -> Dict[str, Any]:
