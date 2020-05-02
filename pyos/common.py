@@ -121,6 +121,13 @@ class TableLocation:
 
 # Formatting
 
+IN_SYM = chr(0xf234)
+OUT_SYM = chr(0xf1d8)
+ACC_SYM = chr(0xf00c)
+DEN_SYM = chr(0xf00d)
+BLK_SYM = chr(0xf05e)
+CLOSE_SYM = chr(0xf56d)
+
 FRAME_COLOR_STD = 40, 120, 20
 BTNLIST_FRAME_COLOR = 255, 255, 255
 CHALLENGES_FRAME_COLOR = 142, 55, 22
