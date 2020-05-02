@@ -288,11 +288,23 @@ class MultiplayerClient:
         """Retrieve a username by userid."""
         ret = 'N/A'
         self._verify_connected()
+        logger.debug(f'Get username for id {userid}')
         self._conn.sendall(REQ[14] + util.encode_id(userid))
         data = self._recv()
         if len(data) > 3:
             ret = data[1:].decode('utf8')
+        else:
+            logger.warning(f'Message too short "{data}"')
         return ret
+
+    def active_relation(self, userid: int) -> bool:
+        """Check whether a recorded relation is still active."""
+        self._verify_connected()
+        self._conn.sendall(REQ[16] + util.encode_id(userid))
+        data = self._recv()
+        if data != REQ[16] + SUCCESS:
+            return False
+        return True
 
     def pending_recv_friend_request(self, timestamp: int = 0) -> List[int]:
         """Retrieve pending received friend requests."""
@@ -323,10 +335,13 @@ class MultiplayerClient:
             return []
         return util.parse_leaderboard(data[1:])
 
-    def userranking(self) -> Tuple[int, int]:
+    def userranking(self, otherid: int = None) -> Tuple[int, int]:
         """Retrieve the users current rank and points in the leaderboard."""
         self._verify_connected()
-        self._conn.sendall(REQ[66])
+        if otherid is None:
+            self._conn.sendall(REQ[66])
+        else:
+            self._conn.sendall(REQ[66] + util.encode_id(otherid))
         data = self._recv()
         if len(data) != 9:
             return 0, 0
@@ -545,7 +560,7 @@ class MultiplayerClient:
             return []
         ret = []
         for i in range(len(data[1:]) // 4):
-            start = i * 4
+            start = i * 4 + 1
             ret.append(util.parse_id(data[start:start + 4]))
         return ret
 
