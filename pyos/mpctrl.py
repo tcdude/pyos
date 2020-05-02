@@ -213,6 +213,12 @@ class MPControl:
         return self._request(
             REQ[15] + f'{challenge_id}{SEP}{roundno}'.encode('utf8') + res)
 
+    def nop(self) -> int:
+        """
+        No Operation request that always returns SUCCESS if service is running.
+        """
+        return self._request(REQ[254])
+
     # Other
 
     def register_callback(self, reqid: int, callback: Callable[[int], None]

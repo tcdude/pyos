@@ -117,6 +117,10 @@ class Multiplayer:
                 logger.error('Unable to confirm stop request.')
             conn.close()
             return False
+        if req == 254:  # NOP
+            logger.debug('NOP')
+            conn.sendall(SUCCESS)
+            return True
         if req in self._handler_methods:
             logger.debug(f'Valid request {req}')
             if not self.mpc.connected and not self.mpc.connect():
