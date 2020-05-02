@@ -61,6 +61,7 @@ class Multiplayer:
         self.mpc = mpclient.MultiplayerClient(cfg_file)
         self.mpdbh = mpdb.MPDBHandler(common.MPDATAFILE)
         self._login = False
+        self._first_sync = True
         self._handler_methods: Dict[int, Callable] = {
             0: self._new_account, 1: self._change_username,
             2: self._change_password, 3: self._sync_relations,
@@ -383,7 +384,8 @@ class Multiplayer:
         return res
 
     def _sync_local_database(self) -> bytes:
-        timestamp = self.mpdbh.timestamp
+        timestamp = 0 if self._first_sync else self.mpdbh.timestamp
+        self._first_sync = False
         now = util.timestamp()
         ret = SUCCESS
         try:
