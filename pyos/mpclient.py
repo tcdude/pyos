@@ -123,12 +123,16 @@ class MultiplayerClient:
         self._conn.sendall(REQ[0] + f'{username}'.encode('utf8'))
         data = self._recv()
         if len(data) != util.HASHSIZE + 1:
+            logger.warning(f'Got bad response "{data}"')
             return False
+        logger.debug('Got temporary password, sending response')
         pwhash = util.generate_hash(password)
         self._conn.sendall(REQ[0] + pwhash)
         data = self._recv()
         if data != REQ[0] + SUCCESS:
+            logger.warning('Request failed')
             return False
+        logger.info('New account created successfully')
         self.cfg.set('mp', 'user', username)
         self.cfg.set('mp', 'password', util.encode_hash(pwhash))
         self.cfg.save()
@@ -140,9 +144,12 @@ class MultiplayerClient:
         self._conn.sendall(REQ[1])
         data = self._recv()
         if len(data) != util.HASHSIZE + 1:
+            logger.warning(f'Got bad response "{data}"')
             return False
+        self.cfg.reload()
         username = self.cfg.get('mp', 'user')
         if not username:
+            logger.warning('No username set in config')
             return False
         username = util.generate_hash(username)
         password = util.parse_hash(self.cfg.get('mp', 'password'))
@@ -150,7 +157,9 @@ class MultiplayerClient:
         self._conn.sendall(REQ[1] + username + password)
         data = self._recv()
         if data != REQ[1] + SUCCESS:
+            logger.warning('Unable to login')
             return False
+        logger.info('Login successful')
         return True
 
     def friend_request(self, otheruser: str) -> bool:
