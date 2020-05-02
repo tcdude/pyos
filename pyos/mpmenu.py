@@ -1,6 +1,7 @@
 """
 Provides the different menus in the app.
 """
+# pylint: disable=too-many-lines
 
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Tuple
@@ -90,6 +91,7 @@ class MultiplayerMenu(app.AppBase):
 
     def enter_multiplayer_menu(self):
         """Enter state -> Setup."""
+        logger.debug('Enter Multiplayer Menu')
         if not self.mps.ctrl.active:
             self.mps.ctrl.start_service()
         if self.config.getboolean('pyos', 'left_handed', fallback=False):
@@ -112,13 +114,23 @@ class MultiplayerMenu(app.AppBase):
             self.__buttons.challenges.enabled = True
             self.__buttons.friends.enabled = True
             self.__buttons.leaderboard.enabled = True
+        self.__buttons.back.enabled = False
         self.__root.show()
 
     def exit_multiplayer_menu(self):
         """Exit state -> Setup."""
+        logger.debug('Exit Multiplayer Menu')
         self.__root.hide()
         if self.__dlg is not None:
             self.__dlg.hide()
+
+    def __update_notifications(self) -> None:
+        self.__buttons.back.enabled = False
+        req = self.mps.ctrl.nop()
+        self.mps.ctrl.register_callback(req, self.__enable_back)
+
+    def __enable_back(self, unused_rescode: int) -> None:
+        self.__buttons.back.enabled = True
 
     def __hide_dlg(self):
         self.__dlg.hide()
@@ -185,10 +197,14 @@ class MultiplayerMenu(app.AppBase):
                              text=chr(0xf80c), **kwargs)
         back.origin = Origin.CENTER
         back.reparent_to(self.__frame)
-        back.onclick(self.request, 'main_menu')
+        back.onclick(self.__back)
         self.__buttons = MenuButtons(challenges, leaderboard, friends, settings,
                                      back)
 
+    def __back(self) -> None:
+        logger.debug(f'back nodeid {self.__buttons.back.node_id}')
+        logger.debug('MP Menu Back clicked')
+        self.request('main_menu')
 
 def _gen_btnlist(item_font: str, filter_font: str, data: List[str],
                  cbs: Tuple[Callable, Callable], itpp: int,
@@ -305,6 +321,9 @@ class FriendsNodes:
     newview: node.Node
     userview: node.Node
     usertitle: label.Label
+    usertxt: node.TextNode = None
+    userremove: button.Button = None
+    userchallenge: button.Button = None
     searchfield: entry.Entry = None
     searchbtn: button.Button = None
     cancelbtn: button.Button = None
@@ -376,6 +395,7 @@ class Friends(app.AppBase):
             pos_x = 0.38
         self.__nodes.back.pos = pos_x, -0.38
         self.__nodes.new.pos = pos_x, 0.38
+        self.__data.active = None
         self.__filter(self.__data.fltr)
         self.__update_data()
         self.__nodes.root.show()
@@ -478,12 +498,16 @@ class Friends(app.AppBase):
 
     def __close_remove(self) -> None:
         self.__dlgs.removerequest.hide()
-        self.__data.active = None
+        if self.__nodes.userview.hidden:
+            self.__data.active = None
 
     def __reqcb(self, rescode: int) -> None:
         self.statuslbl.hide()
         if rescode:
             logger.warning(f'Request failed {mpctrl.RESTXT[rescode]}')
+            return
+        if not self.__nodes.userview.hidden:
+            self.__show_listview()
             return
         self.__update_data()
 
@@ -492,9 +516,11 @@ class Friends(app.AppBase):
         self.mps.ctrl.register_callback(req, self.__sync_relcb)
         self.statuslbl.text = 'Updating Friends...'
         self.statuslbl.show()
+        self.__nodes.back.enabled = False
 
     def __sync_relcb(self, rescode: int) -> None:
         self.statuslbl.hide()
+        self.__nodes.back.enabled = True
         if rescode:
             logger.warning(f'Unable to sync relationships '
                            f'"{mpctrl.RESTXT[rescode]}"')
@@ -524,9 +550,9 @@ class Friends(app.AppBase):
 
     def __setup(self):
         # listview
+        fnt = self.config.get('font', 'bold')
         self.__nodes.btnlist = _gen_btnlist(self.config.get('font', 'normal'),
-                                            self.config.get('font', 'bold'),
-                                            self.__data.data,
+                                            fnt, self.__data.data,
                                             (self.__listclick, self.__filter),
                                             4, (0.85, 0.625),
                                             self.__nodes.listview,
@@ -537,20 +563,19 @@ class Friends(app.AppBase):
         else:
             pos_x = 0.38
         kwargs = common.get_menu_sym_btn_kw()
-        newb = button.Button(name='new button', pos=(pos_x, 0.38),
-                             text=chr(0xf893), **kwargs)
-        newb.origin = Origin.CENTER
-        newb.reparent_to(self.__nodes.listview)
-        newb.onclick(self.__new_friend)
+        self.__nodes.new = button.Button(name='new button', pos=(pos_x, 0.38),
+                                         text=chr(0xf893), **kwargs)
+        self.__nodes.new.origin = Origin.CENTER
+        self.__nodes.new.reparent_to(self.__nodes.listview)
+        self.__nodes.new.onclick(self.__new_friend)
 
         # always visible
-        back = button.Button(name='back button', pos=(pos_x, -0.38),
-                             text=chr(0xf80c), **kwargs)
-        back.origin = Origin.CENTER
-        back.reparent_to(self.__nodes.frame)
-        back.onclick(self.request, 'multiplayer_menu')
-        self.__nodes.new = newb
-        self.__nodes.back = back
+        self.__nodes.back = button.Button(name='back button',
+                                          pos=(pos_x, -0.38), text=chr(0xf80c),
+                                          **kwargs)
+        self.__nodes.back.origin = Origin.CENTER
+        self.__nodes.back.reparent_to(self.__nodes.frame)
+        self.__nodes.back.onclick(self.__back)
 
         # newview
         self.__nodes.searchfield = entry.Entry(name='friendsearch',
@@ -576,8 +601,30 @@ class Friends(app.AppBase):
         self.__nodes.cancelbtn.onclick(self.__show_listview)
 
         # userview
+        self.__nodes.usertxt = self.__nodes.userview \
+            .attach_text_node(text='Username', align='center', font_size=0.05,
+                              font=fnt, text_color=common.TITLE_TXT_COLOR,
+                              alpha=0, multiline=True, pos=(0, -0.1))
+        self.__nodes.usertxt.origin = Origin.CENTER
+        kwa = common.get_dialogue_btn_kw(size=(0.32, 0.1))
+        self.__nodes.userchallenge = button \
+            .Button(text='Challenge', pos=(-0.35, 0.25), **kwa)
+        self.__nodes.userchallenge.reparent_to(self.__nodes.userview)
+        self.__nodes.userchallenge.onclick(self.__start_challenge)
+        self.__nodes.userremove = button \
+            .Button(text='Remove', pos=(0.03, 0.25), **kwa)
+        self.__nodes.userremove.reparent_to(self.__nodes.userview)
+        self.__nodes.userremove.onclick(self.__remove_friend)
+
+    def __back(self) -> None:
+        logger.debug(f'back nodeid {self.__nodes.back.node_id}')
+        if self.__nodes.listview.hidden:
+            self.__show_listview()
+        else:
+            self.fsm_back()
 
     def __show_listview(self) -> None:
+        self.__data.active = None
         self.__nodes.newview.hide()
         self.__nodes.userview.hide()
         self.__nodes.listview.show()
@@ -620,6 +667,35 @@ class Friends(app.AppBase):
         self.__nodes.listview.hide()
         self.__nodes.userview.show()
         self.__nodes.usertitle.text = self.__data.data[pos]
+        userid = self.__data.idmap[pos]
+        if self.mps.dbh.canchallenge(userid):
+            self.__nodes.userchallenge.enabled = True
+        else:
+            self.__nodes.userchallenge.enabled = False
+        self.__gen_userstat(self.__data.active)
+
+    def __start_challenge(self) -> None:
+        # TODO: Launch start challenge dialogue from Challenges state
+        pass
+
+    def __remove_friend(self) -> None:
+        username = self.__data.data[self.__data.active]
+        self.__gen_dlg('remove', f'Remove friend\n{username} ?\n\n')
+
+    def __gen_userstat(self, pos) -> None:
+        values = self.mps.dbh \
+            .userstats(self.__data.idmap[pos])
+        txt = ['Rank ', 'Points ', 'Rounds won ', 'Rounds lost ',
+               'Rounds draw ']
+        numlen = len(str(max(values)))
+        txtlen = [len(i) for i in txt]
+        txtmax = max(txtlen) + numlen
+        msg = ''
+        for desc, value, tlen in zip(txt, values, txtlen):
+            val = str(value)
+            padding = txtmax - len(val) - tlen
+            msg += desc + ' ' * padding + val + '\n'
+        self.__nodes.usertxt.text = msg
 
 
 class Leaderboard(app.AppBase):

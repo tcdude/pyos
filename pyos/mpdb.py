@@ -322,7 +322,7 @@ class MPDBHandler:
     def update_challenge_round(self, challenge_id: int, roundno: int,
                                draw: int = None, chtype: int = None,
                                seed: int = 0, resuser: Result = None,
-                               resother: Result = None ) -> bool:
+                               resother: Result = None) -> bool:
         """Update an existing challenge round."""
         # pylint: disable=too-many-arguments
         chround = self._session.query(ChallengeRound) \
@@ -350,6 +350,59 @@ class MPDBHandler:
         self._session.commit()
         self._check_challenge_complete(challenge_id)
         return True
+
+    def userstats(self, userid: int) -> Tuple[int, int, int, int, int]:
+        """Returns the stats for a user (rank, points, win, lose, draw)."""
+        user = self._session.query(User).filter(User.user_id == userid).first()
+        if user is None:
+            logger.error('Unknown user')
+            return (0, ) * 5
+        win, lose, draw = 0, 0, 0
+        for i in self._session.query(Challenge) \
+              .filter(Challenge.otherid == userid).all():
+            rwin, rlose, rdraw = self._challenge_result(i.challenge_id)
+            win += rwin
+            lose += rlose
+            draw += rdraw
+        return user.rank, user.points, win, lose, draw
+
+    def canchallenge(self, userid: int) -> bool:
+        """Returns `True` when the user can be sent a challenge request."""
+        return self._session.query(Challenge) \
+            .filter(Challenge.active == true(),
+                    Challenge.otherid == userid).count() == 0
+
+    def _challenge_result(self, challenge_id: int) -> Tuple[int, int, int]:
+        # pylint: disable=too-many-branches
+        win, lose, draw = 0, 0, 0
+        for i in self._session.query(ChallengeRound) \
+              .filter(ChallengeRound.challenge_id == challenge_id,
+                      ChallengeRound.user_duration > -1.0,
+                      ChallengeRound.other_duration > -1.0).all():
+            if i.chtype == 0:  # duration
+                if i.user_duration < i.other_duration:
+                    win += 1
+                elif i.user_duration > i.other_duration:
+                    lose += 1
+                else:
+                    draw += 1
+            elif i.chtype == 1:  # moves
+                if i.user_moves < i.other_moves:
+                    win += 1
+                elif i.user_moves > i.other_moves:
+                    lose += 1
+                else:
+                    draw += 1
+            elif i.chtype == 2:  # points
+                if i.user_points > i.other_points:
+                    win += 1
+                elif i.user_points < i.other_points:
+                    lose += 1
+                else:
+                    draw += 1
+            else:
+                logger.warning(f'Unknown score type {i.chtype}')
+        return win, lose, draw
 
     def _check_challenge_complete(self, challenge_id: int) -> None:
         """Finalizes a challenge if all rounds have been played."""
