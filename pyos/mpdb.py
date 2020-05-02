@@ -2,6 +2,8 @@
 Provides multiplayer data storage in a sqlite3 db file locally.
 """
 
+from typing import List, Tuple
+
 from sqlalchemy import Boolean, Column, Float, Integer, Unicode, SmallInteger
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql.expression import true
@@ -56,6 +58,8 @@ class User(Base):
     name = Column(Unicode(30), nullable=False)
     rtype = Column(SmallInteger)
     draw_count_preference = Column(SmallInteger)
+    rank = Column(Integer, default=0)
+    points = Column(Integer, default=0)
 
     def __repr__(self):
         return f'User(id={self.id}, name={self.name}, rtype={self.rtype})'
@@ -175,7 +179,7 @@ class MPDBHandler:
     def add_user(self, userid: int, username: str, rtype: int,
                  draw_count_preference: int) -> bool:
         """Add a new user."""
-        if self._session.query(User).filter(User.id == userid).count() > 0:
+        if self._session.query(User).filter(User.user_id == userid).count() > 0:
             logger.error('User with userid already exists')
             return False
         user = User()
@@ -187,18 +191,27 @@ class MPDBHandler:
         self._session.commit()
         return True
 
-    def update_user(self, userid: int, username: str, rtype: int,
-                    draw_count_preference: int) -> bool:
-        """Update username and/or rtype."""
-        user = self._session.query(User).filter(User.id == userid).first()
-        if user is None:
+    def update_user(self, userid: int, username: str = None, rtype: int = None,
+                    draw_count_preference: int = None, rank: int = None,
+                    points: int = None) -> bool:
+        """Update user."""
+        # pylint: disable=too-many-arguments
+        user = self._session.query(User).filter(User.user_id == userid).first()
+        if user is None and not None in (username, rtype,
+                                         draw_count_preference):
             if not self.add_user(userid, username, rtype,
                                  draw_count_preference):
                 return False
-            return True
-        user.name = username
-        user.rtype = rtype
-        user.draw_count_preference = draw_count_preference
+            if rank is points is None:
+                return True
+            user = self._session.query(User) \
+                .filter(User.user_id == userid).first()
+        user.name = username or user.name
+        user.rtype = rtype or user.rtype
+        dpref = user.draw_count_preference
+        user.draw_count_preference = draw_count_preference or dpref
+        user.rank = rank or user.rank
+        user.points = points or user.points
         self._session.commit()
         return True
 
@@ -209,7 +222,7 @@ class MPDBHandler:
             return ''
         return usr.name
 
-    def update_user_ranking(self, rank: int, points: int):
+    def update_user_ranking(self, rank: int, points: int) -> None:
         """Update the users rank and points."""
         usrdata = self._session.query(UserData).first()
         if usrdata is None:
@@ -218,6 +231,15 @@ class MPDBHandler:
         usrdata.rank = rank
         usrdata.points = points
         self._session.commit()
+
+    def delete_user(self, userid: int) -> bool:
+        """Attempts to delete a user."""
+        user = self._session.query(User).filter(User.user_id == userid).first()
+        if user is None:
+            return False
+        self._session.delete(user)
+        self._session.commit()
+        return True
 
     def update_dd_score(self, draw: int, dayoffset: int, result: Result):
         """Update DDScore."""
@@ -370,3 +392,40 @@ class MPDBHandler:
             self._session.add(data)
         data.draw_count_preference = pref
         self._session.commit()
+
+    @property
+    def userids(self) -> List[int]:
+        """Returns a list of all user ids."""
+        ret = []
+        for i in self._session.query(User).all():
+            ret.append(i.user_id)
+        return ret
+
+    @property
+    def friends(self) -> List[Tuple[int, str]]:
+        """Returns all friends as a list."""
+        ret = []
+        for i in self._session.query(User).filter(User.rtype == 2).all():
+            ret.append((i.user_id, i.name))
+        return ret
+
+    @property
+    def pending(self) -> List[Tuple[int, str]]:
+        """
+        Returns all pending friend requests, prefixed with i=incoming and
+        o=sent by the user.
+        """
+        ret = []
+        for i in self._session.query(User).filter(User.rtype == 0).all():
+            ret.append((i.user_id, 'o' + i.name))
+        for i in self._session.query(User).filter(User.rtype == 1).all():
+            ret.append((i.user_id, 'i' + i.name))
+        return ret
+
+    @property
+    def blocked(self) -> List[Tuple[int, str]]:
+        """Returns all blocked users as a list."""
+        ret = []
+        for i in self._session.query(User).filter(User.rtype == 3).all():
+            ret.append((i.user_id, i.name))
+        return ret
