@@ -115,6 +115,7 @@ class MultiplayerMenu(app.AppBase):
             self.__buttons.friends.enabled = True
             self.__buttons.leaderboard.enabled = True
         self.__buttons.back.enabled = False
+        self.__update_notifications()
         self.__root.show()
 
     def exit_multiplayer_menu(self):
@@ -194,7 +195,7 @@ class MultiplayerMenu(app.AppBase):
         settings.reparent_to(self.__frame)
         settings.onclick(self.request, 'multiplayer_settings')
         back = button.Button(name='back button', pos=(pos_x, -0.38),
-                             text=chr(0xf80c), **kwargs)
+                             text=common.BACK_SYM, **kwargs)
         back.origin = Origin.CENTER
         back.reparent_to(self.__frame)
         back.onclick(self.__back)
@@ -290,7 +291,7 @@ class Challenges(app.AppBase):
         newb.reparent_to(self.__frame)
         newb.onclick(self.__new_challenge)
         back = button.Button(name='back button', pos=(pos_x, -0.38),
-                             text=chr(0xf80c), **kwargs)
+                             text=common.BACK_SYM, **kwargs)
         back.origin = Origin.CENTER
         back.reparent_to(self.__frame)
         back.onclick(self.request, 'multiplayer_menu')
@@ -345,6 +346,7 @@ class FriendsDlg:
     """Holds the different dialogue instances in the Friends menu."""
     replyrequest: Dialogue = None
     removerequest: Dialogue = None
+    unblockrequest: Dialogue = None
 
 
 class Friends(app.AppBase):
@@ -408,6 +410,8 @@ class Friends(app.AppBase):
             self.__dlgs.replyrequest.hide()
         if self.__dlgs.removerequest is not None:
             self.__dlgs.removerequest.hide()
+        if self.__dlgs.unblockrequest is not None:
+            self.__dlgs.unblockrequest.hide()
 
     def __gen_dlg(self, dlg: str, txt: str) -> None:
         if dlg == 'reply':
@@ -420,7 +424,7 @@ class Friends(app.AppBase):
                                           callback=self.__deny_req),
                            DialogueButton(text=common.BLK_SYM, fmtkwargs=bkwa,
                                           callback=self.__block_req),
-                           DialogueButton(text=common.CLOSE_SYM, fmtkwargs=bkwa,
+                           DialogueButton(text=common.BACK_SYM, fmtkwargs=bkwa,
                                           callback=self.__close_reply)]
                 dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
                                size=(0.7, 0.7), font=fnt, align='center',
@@ -454,6 +458,49 @@ class Friends(app.AppBase):
             else:
                 self.__dlgs.removerequest.text = txt
                 self.__dlgs.removerequest.show()
+        elif dlg == 'unblock':
+            if self.__dlgs.unblockrequest is None:
+                fnt = self.config.get('font', 'bold')
+                bkwa = common.get_dialogue_btn_kw(size=(0.11, 0.1))
+                buttons = [DialogueButton(text=common.ACC_SYM, fmtkwargs=bkwa,
+                                          callback=self.__unblock,
+                                          cbargs=(True, )),
+                           DialogueButton(text=common.DEN_SYM, fmtkwargs=bkwa,
+                                          callback=self.__unblock,
+                                          cbargs=(False, )),
+                           DialogueButton(text=common.BACK_SYM, fmtkwargs=bkwa,
+                                          callback=self.__close_unblock)]
+                dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
+                               size=(0.7, 0.7), font=fnt, align='center',
+                               frame_color=common.FRIENDS_FRAME_COLOR,
+                               border_thickness=0.01,
+                               corner_radius=0.05, multi_sampling=2)
+                dlg.pos = -0.35, -0.35
+                dlg.reparent_to(self.ui.center)
+                dlg.depth = 1000
+                self.__dlgs.unblockrequest = dlg
+            else:
+                self.__dlgs.unblockrequest.text = txt
+                self.__dlgs.unblockrequest.show()
+
+    def __unblock(self, decision: bool) -> None:
+        self.__dlgs.unblockrequest.hide()
+        self.statuslbl.show()
+        self.statuslbl.text = 'Unblocking user...'
+        userid = self.__data.idmap[self.__data.active]
+        req = self.mps.ctrl.unblock_user(userid, decision)
+        self.mps.ctrl.register_callback(req, self.__unblock_req)
+        self.__data.active = None
+
+    def __unblock_req(self, rescode: int) -> None:
+        if rescode:
+            logger.warning(f'Request failed {mpctrl.RESTXT[rescode]}')
+        self.statuslbl.hide()
+        self.__show_listview()
+
+    def __close_unblock(self) -> None:
+        self.__data.active = None
+        self.__dlgs.unblockrequest.hide()
 
     def __accept_req(self) -> None:
         self.__dlgs.replyrequest.hide()
@@ -570,7 +617,8 @@ class Friends(app.AppBase):
 
         # always visible
         self.__nodes.back = button.Button(name='back button',
-                                          pos=(pos_x, -0.38), text=chr(0xf80c),
+                                          pos=(pos_x, -0.38),
+                                          text=common.BACK_SYM,
                                           **kwargs)
         self.__nodes.back.origin = Origin.CENTER
         self.__nodes.back.reparent_to(self.__nodes.frame)
@@ -657,11 +705,17 @@ class Friends(app.AppBase):
             if self.__data.data[pos].startswith(common.IN_SYM):
                 txt = f'Friendrequest\n{self.__data.data[pos]}\n\n' \
                     f'{common.ACC_SYM} Accept {common.DEN_SYM} Deny\n' \
-                    f'{common.BLK_SYM} Block or {common.CLOSE_SYM} Back\n\n'
+                    f'{common.BLK_SYM} Block or {common.BACK_SYM} Back\n\n'
                 self.__gen_dlg('reply', txt)
             else:
                 txt = 'Remove pending\nfriendrequest?\n\n'
                 self.__gen_dlg('remove', txt)
+            return
+        if self.__data.fltr == 2:
+            txt = f'Unblock user\n{self.__data.data[pos]}\n\n' \
+                f'{common.ACC_SYM} Become Friends\n{common.DEN_SYM} Remove\n' \
+                f'or {common.BACK_SYM} Back\n\n'
+            self.__gen_dlg('unblock', txt)
             return
         self.__nodes.usertitle.text = self.__data.data[pos]
         userid = self.__data.idmap[pos]
@@ -752,7 +806,7 @@ class Leaderboard(app.AppBase):
             pos_x = 0.38
         kwargs = common.get_menu_sym_btn_kw()
         self.__back = button.Button(name='back button', pos=(pos_x, -0.38),
-                                    text=chr(0xf80c), **kwargs)
+                                    text=common.BACK_SYM, **kwargs)
         self.__back.origin = Origin.CENTER
         self.__back.reparent_to(self.__frame)
         self.__back.onclick(self.request, 'multiplayer_menu')
@@ -848,7 +902,7 @@ class MultiplayerSettings(app.AppBase):
     def __setup_menu_buttons(self):
         kwargs = common.get_menu_sym_btn_kw()
         self.__back = button.Button(name='back button', pos=(0, -0.38),
-                                    text=chr(0xf80c), **kwargs)
+                                    text=common.BACK_SYM, **kwargs)
         self.__back.origin = Origin.CENTER
         self.__back.reparent_to(self.__frame)
         self.__back.onclick(self.request, 'multiplayer_menu')

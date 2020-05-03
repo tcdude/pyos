@@ -371,7 +371,7 @@ class SettingsMenu(app.AppBase):
             pos_x = 0.38
         kwargs = common.get_menu_sym_btn_kw()
         but = button.Button(name='back button', pos=(pos_x, -0.38),
-                            text=chr(0xf80c), **kwargs)
+                            text=common.BACK_SYM, **kwargs)
         but.origin = Origin.CENTER
         but.reparent_to(self.__frame)
         but.onclick(self.request, 'main_menu')

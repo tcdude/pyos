@@ -126,7 +126,7 @@ OUT_SYM = chr(0xf1d8)
 ACC_SYM = chr(0xf00c)
 DEN_SYM = chr(0xf00d)
 BLK_SYM = chr(0xf05e)
-CLOSE_SYM = chr(0xf56d)
+BACK_SYM = chr(0xf80c)
 
 FRAME_COLOR_STD = 40, 120, 20
 BTNLIST_FRAME_COLOR = 255, 255, 255
