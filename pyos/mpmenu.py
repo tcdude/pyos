@@ -477,13 +477,14 @@ class MultiplayerSettings(app.AppBase):
         self.statuslbl.hide()
 
     def __new_account(self, rescode: int) -> None:
+        self.mps.login = rescode
         if rescode == 0:
             logger.info('New account created successfully.')
             self.statuslbl.hide()
             self.__gen_dlg('Success')
             self.__useraction.change_text('Update')
             self.__nodes.password.text = UNCHANGED
-            self.__update_drawpref()
+            self.__update_drawpref(0)
         else:
             logger.info(f'Unable to create account, got return code {rescode}')
             self.config.set('mp', 'user', self.__nodes.username.text)
