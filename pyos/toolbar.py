@@ -84,21 +84,21 @@ class ToolBar:
                                 down_border_thickness=border * 1.1,
                                 corner_radius=min(height, unit_width) / 2)
         newb = button.Button(name='new but', size=(unit_width * 3, height),
-                             text=chr(0xf893) + ' Deal', **kwargs)
+                             text=common.NEW_SYM + ' Deal', **kwargs)
         newb.reparent_to(self._frame)
         newb.onclick(callbacks[0])
         newb.pos = offset, (size[1] - height) / 2
         offset += unit_width * 3.2
 
         reset = button.Button(name='reset but', size=(unit_width * 3, height),
-                              text=chr(0xf021) + ' Reset', **kwargs)
+                              text=common.RES_SYM + ' Reset', **kwargs)
         reset.reparent_to(self._frame)
         reset.onclick(callbacks[1])
         reset.pos = offset, (size[1] - height) / 2
         offset += unit_width * 3.2
 
         undo = button.Button(name='undo but', size=(unit_width * 3, height),
-                             text=chr(0xfa4b) + ' Undo', **kwargs)
+                             text=common.UNDO_SYM + ' Undo', **kwargs)
         undo.reparent_to(self._frame)
         undo.onclick(callbacks[2])
         undo.pos = offset, (size[1] - height) / 2
@@ -107,7 +107,7 @@ class ToolBar:
         kwargs['font_size'] *= 1.25
         kwargs['border_thickness'] = 0
         menu = button.Button(name='menu but', size=(unit_width, height),
-                             text=chr(0xf85b), **kwargs)
+                             text=common.MENU_SYM, **kwargs)
         menu.reparent_to(self._frame)
         menu.onclick(callbacks[3])
         menu.pos = offset, (size[1] - height) / 2

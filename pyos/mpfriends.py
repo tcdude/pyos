@@ -335,20 +335,16 @@ class Friends(app.AppBase):
                          (0.85, 0.625), self.__nodes.listview,
                          ['Friends', 'Pending', 'Blocked'])
         self.__nodes.btnlist.pos = 0, 0
-        if self.config.getboolean('pyos', 'left_handed', fallback=False):
-            pos_x = -0.38
-        else:
-            pos_x = 0.38
         kwargs = common.get_menu_sym_btn_kw()
-        self.__nodes.new = button.Button(name='new button', pos=(pos_x, 0.38),
-                                         text=chr(0xf893), **kwargs)
+        self.__nodes.new = button.Button(name='new button', pos=(0, 0.38),
+                                         text=common.NEW_SYM, **kwargs)
         self.__nodes.new.origin = Origin.CENTER
         self.__nodes.new.reparent_to(self.__nodes.listview)
         self.__nodes.new.onclick(self.__new_friend)
 
         # always visible
         self.__nodes.back = button.Button(name='back button',
-                                          pos=(pos_x, -0.38),
+                                          pos=(0, -0.38),
                                           text=common.BACK_SYM,
                                           **kwargs)
         self.__nodes.back.origin = Origin.CENTER

@@ -129,6 +129,10 @@ ACC_SYM = chr(0xf00c)
 DEN_SYM = chr(0xf00d)
 BLK_SYM = chr(0xf05e)
 BACK_SYM = chr(0xf80c)
+NEW_SYM = chr(0xf893)
+RES_SYM = chr(0xf021)
+UNDO_SYM = chr(0xfa4b)
+MENU_SYM = chr(0xf85b)
 
 FRAME_COLOR_STD = 40, 120, 20
 BTNLIST_FRAME_COLOR = 255, 255, 255
