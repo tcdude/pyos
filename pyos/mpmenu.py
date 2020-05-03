@@ -496,6 +496,7 @@ class MultiplayerSettings(app.AppBase):
 
     def __login_success(self, rescode: int) -> None:
         self.statuslbl.hide()
+        self.mps.login = rescode
         if rescode == 5:
             self.__gen_dlg('Unable to create\nor login to account!\n\n'
                            'Either wrong password\nor the username\n'
