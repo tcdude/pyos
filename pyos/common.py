@@ -6,7 +6,9 @@ from collections import OrderedDict
 from dataclasses import dataclass
 import datetime
 from enum import Enum
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
+import buttonlist
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = """
@@ -259,3 +261,28 @@ def get_entry_kw(**kwargs) -> Dict[str, Any]:
     kwa.update(ENTRY_KW)
     kwa.update(kwargs)
     return kwa
+
+
+def gen_btnlist(item_font: str, filter_font: str, data: List[str],
+                cbs: Tuple[Callable, Callable], itpp: int,
+                size: Tuple[float, float], parent: object = None,
+                filters: List[str] = None):
+    """Generate a ButtonList instance used in the multiplayer section."""
+    # pylint: disable=too-many-arguments
+    kwargs = {'font': item_font, 'text_color': (0, 50, 0, 255),
+              'frame_color': (200, 220, 200),
+              'down_text_color': (255, 255, 255, 255),
+              'border_thickness': 0.005, 'down_border_thickness': 0.008,
+              'border_color': (0, 50, 0), 'down_border_color': (255, 255, 255),
+              'corner_radius': 0.025, 'multi_sampling': 2, 'align': 'center'}
+    fkwargs = {}
+    fkwargs.update(kwargs)
+    fkwargs['size'] = 0.25, 0.08
+    fkwargs['font'] = filter_font
+    fkwargs['border_color'] = (200, ) * 3
+    return buttonlist.ButtonList(data, cbs[0], itpp, kwargs, parent, filters,
+                                 cbs[1], fkwargs, (0, 50, 0), size=size,
+                                 frame_color=BTNLIST_FRAME_COLOR,
+                                 border_color=BTNLIST_BORDER_COLOR,
+                                 border_thickness=0.005, corner_radius=0.03,
+                                 multi_sampling=2)

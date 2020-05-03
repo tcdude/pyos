@@ -13,6 +13,9 @@ import common
 import daydeal
 import menu
 import mpmenu
+import mpchallenge
+import mpfriends
+import mpleaderboard
 import game
 import statsmenu
 
@@ -44,8 +47,9 @@ __version__ = '0.3'
 
 
 class PyOS(menu.MainMenu, menu.SettingsMenu, game.Game, statsmenu.Statistics,
-           daydeal.DayDeal, mpmenu.MultiplayerMenu, mpmenu.Challenges,
-           mpmenu.Friends, mpmenu.Leaderboard, mpmenu.MultiplayerSettings):
+           daydeal.DayDeal, mpmenu.MultiplayerMenu, mpchallenge.Challenges,
+           mpfriends.Friends, mpleaderboard.Leaderboard,
+           mpmenu.MultiplayerSettings):
     """
     All states collected using multiple inheritance.
     """

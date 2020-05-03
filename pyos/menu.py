@@ -80,10 +80,16 @@ class MainMenu(app.AppBase):
         self.__buttons.settings.pos = pos_x, 0.38
         self.__buttons.quit.pos = pos_x, -0.38
         self.__root.show()
+        self.__buttons.quit.enabled = False
+        req = self.mps.ctrl.nop()
+        self.mps.ctrl.register_callback(req, self.__enable_quit)
 
     def exit_main_menu(self):
         """Exit state -> Setup."""
         self.__root.hide()
+
+    def __enable_quit(self, unused_rescode: int) -> None:
+        self.__buttons.quit.enabled = True
 
     def __setup_menu_buttons(self):
         kwargs = common.get_menu_txt_btn_kw(size=(0.8, 0.1))

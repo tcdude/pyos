@@ -91,7 +91,7 @@ class AppBase(app.App):
             req = self.mps.ctrl.update_user_ranking()
             print(req)
             self.mps.ctrl.register_callback(req, self.__logincb)
-            self.statuslbl.text = 'Login...'
+            self.statuslbl.text = 'Connecting to server...'
             self.statuslbl.show()
 
     def __logincb(self, rescode: int) -> None:
