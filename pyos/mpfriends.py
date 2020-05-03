@@ -308,10 +308,13 @@ class Friends(app.AppBase):
         self.__data.idmap.clear()
         if self.__data.fltr == 0:
             data = self.mps.dbh.friends
+            data.sort()
         elif self.__data.fltr == 1:
             data = self.mps.dbh.pending
+            data.sort(key=lambda x: x[1:])
         elif self.__data.fltr == 2:
             data = self.mps.dbh.blocked
+            data.sort()
         for i, (user_id, username) in enumerate(data):
             if self.__data.fltr == 1:
                 if username.startswith('i'):
@@ -321,21 +324,16 @@ class Friends(app.AppBase):
             else:
                 self.__data.data.append(username)
             self.__data.idmap[i] = user_id
-        if self.__data.fltr == 1:
-            self.__data.data.sort(key=lambda x: x[2:])
-        else:
-            self.__data.data.sort()
         self.__nodes.btnlist.update_content(True)
 
     def __setup(self):
         # listview
         fnt = self.config.get('font', 'bold')
-        self.__nodes.btnlist = common.gen_btnlist(self.config.get('font', 'normal'),
-                                            fnt, self.__data.data,
-                                            (self.__listclick, self.__filter),
-                                            4, (0.85, 0.625),
-                                            self.__nodes.listview,
-                                            ['Friends', 'Pending', 'Blocked'])
+        self.__nodes.btnlist = common \
+            .gen_btnlist(self.config.get('font', 'normal'), fnt,
+                         self.__data.data, (self.__listclick, self.__filter), 4,
+                         (0.85, 0.625), self.__nodes.listview,
+                         ['Friends', 'Pending', 'Blocked'])
         self.__nodes.btnlist.pos = 0, 0
         if self.config.getboolean('pyos', 'left_handed', fallback=False):
             pos_x = -0.38
