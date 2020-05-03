@@ -417,7 +417,7 @@ class Multiplayer:
         if ret == SUCCESS and sum([i in reqs for i in (3, 4, 5, 14, 15)]) > 0:
             if not self._update_user(timestamp, 14 in reqs):
                 ret = FAILURE
-        if ret == SUCCESS and 129 in reqs or 130 in reqs:
+        if ret == SUCCESS and 129 in reqs or 130 in reqs or 136 in reqs:
             if not self._update_challenges(timestamp):
                 ret = FAILURE
         try:
@@ -481,6 +481,7 @@ class Multiplayer:
                  (2, self.mpc.active_challenges))
         challenge_ids = []
         for status, meth in check:
+            logger.debug(f'Checking challenges with status {status}')
             try:
                 res = meth(timestamp)
             except (mpclient.NotConnectedError, mpclient.CouldNotLoginError):
@@ -499,6 +500,7 @@ class Multiplayer:
                                             status, True)
                 if not self._update_challenge_rounds(challenge_id, roundno):
                     return False
+        logger.debug(f'Updated challenges {repr(challenge_ids)}')
         return True
 
     def _update_challenge_rounds(self, challenge_id: int, roundno: int) -> bool:

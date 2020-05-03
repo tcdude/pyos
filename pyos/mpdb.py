@@ -8,9 +8,10 @@ from sqlalchemy import Boolean, Column, Float, Integer, Unicode, SmallInteger
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql.expression import true
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, or_, and_
 from loguru import logger
 
+import common
 from mpclient import Result
 
 __author__ = 'Tiziano Bettio'
@@ -447,5 +448,114 @@ class MPDBHandler:
         """Returns all blocked users as a list."""
         ret = []
         for i in self._session.query(User).filter(User.rtype == 3).all():
+            ret.append((i.user_id, i.name))
+        return ret
+
+    @property
+    def chmyturn(self) -> List[Tuple[int, str]]:
+        """Returns all challenges where it's the users turn."""
+        act = []
+        new = []
+        res = self._session.query(Challenge) \
+            .filter(Challenge.active == true(),
+                    Challenge.status.in_([1, 2])).all()
+        for i in res:
+            user = self._session.query(User) \
+                .filter(User.user_id == i.otherid).first()
+            if user is None:
+                logger.error('User in challenge not present in DB')
+                continue
+            if i.status == 1:
+                txt = f'NEW ({user.name} / {i.rounds})'
+                new.append((i.challenge_id, txt))
+                continue
+            chround = self._session.query(ChallengeRound) \
+                .filter(ChallengeRound.challenge_id == i.challenge_id,
+                        ChallengeRound.seed != 0,
+                        ChallengeRound.user_duration == -1.0,
+                        ChallengeRound.user_moves == -1,
+                        ChallengeRound.user_points == -1) \
+                .order_by(ChallengeRound.roundno.desc()).first()
+            if chround is None:
+                continue
+            txt = f'{user.name} D{chround.draw}/{chround.roundno}/{i.rounds}'
+            act.append((i.challenge_id, txt))
+        new.sort(key=lambda x: x[1])
+        act.sort(key=lambda x: x[1])
+        return new + act
+
+    @property
+    def chwaiting(self) -> List[Tuple[int, str]]:
+        """Returns all challenges where it's the other users turn."""
+        req = []
+        wait = []
+        res = self._session.query(Challenge) \
+            .filter(Challenge.active == true(),
+                    Challenge.status.in_([0, 2])).all()
+        for i in res:
+            user = self._session.query(User) \
+                .filter(User.user_id == i.otherid).first()
+            if user is None:
+                logger.error('User in challenge not present in DB')
+                continue
+            if i.status == 0:
+                txt = f'{common.OUT_SYM} ({user.name} / {i.rounds})'
+                req.append((i.challenge_id, txt))
+                continue
+            chround = self._session.query(ChallengeRound) \
+                .filter(ChallengeRound.challenge_id == i.challenge_id,
+                        ChallengeRound.user_duration != -1.0,
+                        ChallengeRound.user_moves != -1,
+                        ChallengeRound.user_points != -1,
+                        ChallengeRound.other_duration == -1.0,
+                        ChallengeRound.other_moves == -1,
+                        ChallengeRound.other_points == -1) \
+                .order_by(ChallengeRound.roundno.desc()).first()
+            if chround is None:
+                continue
+            txt = f'{user.name} D{chround.draw}/{chround.roundno}/{i.rounds}'
+            wait.append((i.challenge_id, txt))
+        req.sort(key=lambda x: x[1])
+        wait.sort(key=lambda x: x[1])
+        return wait + req
+
+    @property
+    def chfinished(self) -> List[Tuple[int, str]]:
+        """Returns all locally stored finished challenges."""
+        ret = []
+        res = self._session.query(Challenge) \
+            .filter(Challenge.active != true(),
+                    Challenge.status == 3) \
+            .order_by(Challenge.challenge_id.desc()).all()
+        for i in res:
+            user = self._session.query(User) \
+                .filter(User.user_id == i.otherid).first()
+            if user is None:
+                logger.error('User in challenge not present in DB')
+                continue
+            txt = f'{common.ACC_SYM} ({user.name} / {i.rounds})'
+            ret.append((i.challenge_id, txt))
+        return ret
+
+    @property
+    def challenge_available(self) -> List[Tuple[int, str]]:
+        """Returns all users against whom a challenge can be requested."""
+        ret = []
+        userdata = self._session.query(UserData).first()
+        if userdata is None or userdata.draw_count_preference == 3:
+            logger.warning('User does not want to multiplay')
+            return ret
+        if userdata.draw_count_preference == 0:
+            acceptable = (0, 1, 2)
+        else:
+            acceptable = (userdata.draw_count_preference, )
+        for i in self._session.query(User) \
+              .filter(User.draw_count_preference.in_(acceptable),
+                      User.rtype == 2) \
+              .order_by(User.name).all():
+            if self._session.query(Challenge) \
+                  .filter(Challenge.active == true(),
+                          Challenge.otherid == i.user_id).count() > 0:
+                continue
             ret.append((i.user_id, i.name))
         return ret
