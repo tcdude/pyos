@@ -74,7 +74,8 @@ class Multiplayer:
             13: self._start_challenge, 14: self._sync_challenges,
             15: self._submit_challenge_round_result,
             16: self._friend_request,
-            17: self._challenge_stats,}
+            17: self._challenge_stats,
+            18: self._update_single_user}
         logger.debug('Multiplayer initialized')
 
     def start(self):
@@ -388,6 +389,23 @@ class Multiplayer:
         if won == lost == draw == 0:
             return FAILURE
         if self.mpdbh.update_user(otherid, stats=(won, lost, draw)):
+            return SUCCESS
+        return FAILURE
+
+    def _update_single_user(self, data: bytes) -> bytes:
+        if not self._check_login():
+            return NOT_LOGGED_IN
+        try:
+            otherid = int(data.decode('utf8'))
+        except ValueError:
+            return WRONG_FORMAT
+        username = self.mpc.get_username(otherid)
+        draw_count_preference = self.mpc.get_draw_count_pref(otherid)
+        logger.debug(f'user {otherid} {draw_count_preference}')
+        rank, points = self.mpc.userranking(otherid)
+        if self.mpdbh.update_user(otherid, username=username,
+                                  draw_count_preference=draw_count_preference,
+                                  rank=rank, points=points):
             return SUCCESS
         return FAILURE
 

@@ -66,7 +66,8 @@ class User(Base):
     draw = Column(Integer, default=0)
 
     def __repr__(self):
-        return f'User(id={self.id}, name={self.name}, rtype={self.rtype})'
+        return f'User(id={self.user_id}, name={self.name}, ' \
+               f'rtype={self.rtype}, dcp={self.draw_count_preference})'
 
 
 class State(Base):
@@ -212,9 +213,10 @@ class MPDBHandler:
             user = self._session.query(User) \
                 .filter(User.user_id == userid).first()
         user.name = username or user.name
-        user.rtype = rtype or user.rtype
-        dpref = user.draw_count_preference
-        user.draw_count_preference = draw_count_preference or dpref
+        if rtype is not None:
+            user.rtype = rtype
+        if draw_count_preference is not None:
+            user.draw_count_preference = draw_count_preference
         user.rank = rank or user.rank
         user.points = points or user.points
         if stats is not None:
@@ -371,6 +373,42 @@ class MPDBHandler:
         return self._session.query(Challenge) \
             .filter(Challenge.active == true(),
                     Challenge.otherid == userid).count() == 0
+
+    def available_draw(self, challenge_id: int) -> List[int]:
+        """Returns a list of draw counts that can be used in a challenge."""
+        userdata = self._session.query(UserData).first()
+        if userdata is None:
+            userdcp = 0
+        else:
+            userdcp = userdata.draw_count_preference
+        other = self._session.query(User) \
+            .join(Challenge, Challenge.otherid == User.user_id) \
+            .filter(Challenge.challenge_id == challenge_id,
+                    Challenge.active == true()).first()
+        if other is None:
+            logger.error('Unable to find challenge')
+            return []
+        otherdcp = other.draw_count_preference
+        if 3 in (userdcp, otherdcp):
+            return []
+        if userdcp == otherdcp == 0:
+            return [1, 3]
+        if userdcp == 1 or otherdcp == 1:
+            return [1]
+        if userdcp == 2 or otherdcp == 2:
+            return [3]
+        return []
+
+    def opponent_id(self, challenge_id: int) -> int:
+        """Returns the user id of the opponent in a challenge."""
+        other = self._session.query(User) \
+            .join(Challenge, Challenge.otherid == User.user_id) \
+            .filter(Challenge.challenge_id == challenge_id,
+                    Challenge.active == true()).first()
+        if other is None:
+            logger.error('Unable to find challenge')
+            return -1
+        return other.user_id
 
     def _check_challenge_complete(self, challenge_id: int) -> None:
         """Finalizes a challenge if all rounds have been played."""

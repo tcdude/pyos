@@ -217,6 +217,10 @@ class MPControl:
         """Request update of challenge stats."""
         return self._request(REQ[17] + str(otherid).encode('utf8'))
 
+    def update_other_user(self, otherid: int) -> int:
+        """Request update of challenge stats."""
+        return self._request(REQ[18] + str(otherid).encode('utf8'))
+
     def nop(self) -> int:
         """
         No Operation request that always returns SUCCESS if service is running.

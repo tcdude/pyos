@@ -4,7 +4,7 @@ Provides the Multiplayer Challenge State.
 # pylint: disable=too-many-lines
 
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 from foolysh.scene import node
 from foolysh.scene.node import Origin
@@ -54,7 +54,14 @@ class ChallengesNodes:
     newview: node.Node
     challengeview: node.Node
     challengetitle: label.Label
+    gametypeview: node.Node
+    gametypetitle: label.Label
+
     challengetxt: node.TextNode = None
+    gametypetxt: node.TextNode = None
+    gametypedraw: button.Button = None
+    gametypescore: List[button.Button] = None
+    gametypestart: button.Button = None
     userremove: button.Button = None
     userchallenge: button.Button = None
     searchfield: entry.Entry = None
@@ -73,12 +80,18 @@ class ChallengesData:
     fltr: int = None
     idmap: Dict[int, int] = field(default_factory=dict)
     active: int = None
+    gtdraw: int = 0
+    gtscore: int = 0
 
 
 @dataclass
 class ChallengesDlg:
     """Holds the different dialogue instances in the Challenges menu."""
     newchallenge: Dialogue = None
+    all: Tuple[Dialogue, ...] = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.all = (self.newchallenge, )
 
 
 class Challenges(app.AppBase):
@@ -109,14 +122,23 @@ class Challenges(app.AppBase):
         newview.hide()
 
         challengeview = _frame.attach_node('MP Challenges challengeview')
-        tit = label.Label(text='', align='center', size=(0.8, 0.1),
-                          pos=(0, -0.4), font_size=0.06, font=fnt,
-                          text_color=common.TITLE_TXT_COLOR, alpha=0)
-        tit.reparent_to(challengeview)
-        tit.origin = Origin.CENTER
+        chtit = label.Label(text='', align='center', size=(0.8, 0.1),
+                            pos=(0, -0.4), font_size=0.06, font=fnt,
+                            text_color=common.TITLE_TXT_COLOR, alpha=0)
+        chtit.reparent_to(challengeview)
+        chtit.origin = Origin.CENTER
         challengeview.hide()
+
+        gametypeview = _frame.attach_node('MP Challenges challengeview')
+        gttit = label.Label(text='', align='center', size=(0.8, 0.1),
+                            pos=(0, -0.4), font_size=0.06, font=fnt,
+                            text_color=common.TITLE_TXT_COLOR, alpha=0)
+        gttit.reparent_to(gametypeview)
+        gttit.origin = Origin.CENTER
+        gametypeview.hide()
         self.__nodes = ChallengesNodes(root, _frame, listview, newview,
-                                       challengeview, tit)
+                                       challengeview, chtit, gametypeview,
+                                       gttit)
         self.__data = ChallengesData()
         self.__dlgs = ChallengesDlg()
         self.__setup()
@@ -137,6 +159,9 @@ class Challenges(app.AppBase):
     def exit_challenges(self):
         """Exit state -> Setup."""
         self.__nodes.root.hide()
+        for i in self.__dlgs.all:
+            if i is not None and not i.hidden:
+                i.hide()
         if self.__dlgs.newchallenge is not None:
             self.__dlgs.newchallenge.hide()
 
@@ -239,9 +264,64 @@ class Challenges(app.AppBase):
                          self.__nodes.newview)
         self.__nodes.newviewbtnlist.pos = 0, 0.06
 
+        # gametypeview
+        self.__nodes.gametypetxt = self.__nodes.gametypeview \
+            .attach_text_node(text='Choose the game type\nfor the round:\n\n',
+                              text_color=common.TITLE_TXT_COLOR, align='center',
+                              font=self.config.get('font', 'bold'),
+                              font_size=0.05, multiline=True)
+        self.__nodes.gametypetxt.origin = Origin.CENTER
+        self.__nodes.gametypetxt.pos = 0, -0.2
+
+        lbl = self.__nodes.gametypeview \
+            .attach_text_node(text='Draw count:',
+                              text_color=common.TITLE_TXT_COLOR,
+                              font=self.config.get('font', 'bold'),
+                              font_size=0.05)
+        lbl.pos = 0, -0.1
+        lbl.origin = Origin.CENTER
+
+        self.__nodes.gametypedraw = button \
+            .Button(text='One', pos=(-0.125, -0.05),
+                    **common.get_dialogue_btn_kw(size=(0.25, 0.1)))
+        self.__nodes.gametypedraw.reparent_to(self.__nodes.gametypeview)
+        self.__nodes.gametypedraw.onclick(self.__toggle_gt, 'draw')
+
+        lbl = self.__nodes.gametypeview \
+            .attach_text_node(text='Score type:',
+                              text_color=common.TITLE_TXT_COLOR,
+                              font=self.config.get('font', 'bold'),
+                              font_size=0.05)
+        lbl.pos = 0, 0.125
+        lbl.origin = Origin.CENTER
+        self.__nodes.gametypescore = []
+        btn = button \
+            .Button(text='Fastest', pos=(-0.4, 0.175),
+                    **common.get_dialogue_btn_kw(size=(0.25, 0.1)))
+        btn.reparent_to(self.__nodes.gametypeview)
+        btn.onclick(self.__toggle_gt, 'score', 0)
+        self.__nodes.gametypescore.append(btn)
+        btn = button \
+            .Button(text='Moves', pos=(-0.125, 0.175),
+                    **common.get_dialogue_btn_kw(size=(0.25, 0.1)))
+        btn.reparent_to(self.__nodes.gametypeview)
+        btn.onclick(self.__toggle_gt, 'score', 1)
+        self.__nodes.gametypescore.append(btn)
+        btn = button \
+            .Button(text='Points', pos=(0.15, 0.175),
+                    **common.get_dialogue_btn_kw(size=(0.25, 0.1)))
+        btn.reparent_to(self.__nodes.gametypeview)
+        btn.onclick(self.__toggle_gt, 'score', 2)
+        self.__nodes.gametypescore.append(btn)
+
+        self.__nodes.gametypestart = button \
+            .Button(text='Start', pos=(-0.125, 0.3),
+                    **common.get_dialogue_btn_kw(size=(0.25, 0.1)))
+        self.__nodes.gametypestart.reparent_to(self.__nodes.gametypeview)
+        self.__nodes.gametypestart.onclick(self.__newround)
+
     def __back(self):
-        dlgs = (self.__dlgs.newchallenge, )
-        for i in dlgs:
+        for i in self.__dlgs.all:
             if i is not None and not i.hidden:
                 i.hide()
                 return
@@ -253,8 +333,65 @@ class Challenges(app.AppBase):
     def __show_listview(self) -> None:
         self.__nodes.newview.hide()
         self.__nodes.challengeview.hide()
+        self.__nodes.gametypeview.hide()
         self.__nodes.listview.show()
         self.__update_list()
+
+    def __show_gametypeview(self) -> None:
+        req = self.mps.ctrl \
+            .update_other_user(self.mps.dbh.opponent_id(
+                self.__data.idmap[self.__data.active]))
+        self.mps.ctrl.register_callback(req, self.__show_gametypeviewcb)
+        self.statuslbl.show()
+        self.statuslbl.text = 'Updating preferences...'
+
+    def __show_gametypeviewcb(self, rescode: int) -> None:
+        self.statuslbl.hide()
+        if rescode:
+            logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
+            return
+        self.__nodes.newview.hide()
+        self.__nodes.challengeview.hide()
+        self.__nodes.listview.hide()
+        self.__nodes.gametypeview.show()
+        self.__nodes.gametypetitle.text = self.__data.data[self.__data.active]
+        dcp = self.mps.dbh.available_draw(self.__data.idmap[self.__data.active])
+        if len(dcp) == 2 or 1 in dcp:
+            self.__data.gtdraw = 0
+            self.__nodes.gametypedraw.change_text('One')
+        else:
+            self.__data.gtdraw = 1
+            self.__nodes.gametypedraw.change_text('Three')
+        if len(dcp) == 1:
+            self.__nodes.gametypedraw.enabled = False
+        else:
+            self.__nodes.gametypedraw.enabled = True
+        self.__data.gtscore = 0
+        for i, btn in enumerate(self.__nodes.gametypescore):
+            if i:
+                btn.enabled = True
+            else:
+                btn.enabled = False
+
+    def __toggle_gt(self, event: str, value: int = None) -> None:
+        if event == 'draw':
+            if self.__data.gtdraw == 0:
+                self.__nodes.gametypedraw.change_text('Three')
+                self.__data.gtdraw = 1
+            else:
+                self.__nodes.gametypedraw.change_text('One')
+                self.__data.gtdraw = 0
+        elif event == 'score':
+            self.__data.gtscore = value
+            for i, btn in enumerate(self.__nodes.gametypescore):
+                if i == value:
+                    btn.enabled = False
+                else:
+                    btn.enabled = True
+
+    def __newround(self) -> None:
+        # TODO: Prepare Game State and Transition
+        pass
 
     def __new_challenge(self):
         self.__nodes.listview.hide()
@@ -286,6 +423,8 @@ class Challenges(app.AppBase):
     def __listclick(self, pos: int) -> None:
         self.__data.active = pos
         if not self.__nodes.listview.hidden:
+            if self.__data.fltr == 0:
+                self.__show_gametypeview()
             print(f'listview clicked on "{self.__data.data[pos]}"')
             return
         if not self.__nodes.newview.hidden:
