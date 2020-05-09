@@ -62,6 +62,7 @@ class ChallengesNodes:
     gametypedraw: button.Button = None
     gametypescore: List[button.Button] = None
     gametypestart: button.Button = None
+    gametypereject: button.Button = None
     userremove: button.Button = None
     userchallenge: button.Button = None
     searchfield: entry.Entry = None
@@ -315,10 +316,16 @@ class Challenges(app.AppBase):
         self.__nodes.gametypescore.append(btn)
 
         self.__nodes.gametypestart = button \
-            .Button(text='Start', pos=(-0.125, 0.3),
+            .Button(text='Start', pos=(-0.255, 0.3),
                     **common.get_dialogue_btn_kw(size=(0.25, 0.1)))
         self.__nodes.gametypestart.reparent_to(self.__nodes.gametypeview)
         self.__nodes.gametypestart.onclick(self.__newround)
+
+        self.__nodes.gametypereject = button \
+            .Button(text='Reject', pos=(0.005, 0.3),
+                    **common.get_dialogue_btn_kw(size=(0.25, 0.1)))
+        self.__nodes.gametypereject.reparent_to(self.__nodes.gametypeview)
+        self.__nodes.gametypereject.onclick(self.__reject_challenge)
 
     def __back(self):
         for i in self.__dlgs.all:
@@ -372,6 +379,15 @@ class Challenges(app.AppBase):
                 btn.enabled = True
             else:
                 btn.enabled = False
+        roundno = self.mps.dbh.roundno(self.__data.idmap[self.__data.active])
+        if roundno < 1:
+            logger.error('Challenge does not exist')
+        elif roundno > 1:
+            self.__nodes.gametypereject.hide()
+            self.__nodes.gametypestart.x = -0.125
+        else:
+            self.__nodes.gametypereject.show()
+            self.__nodes.gametypestart.x = -0.255
 
     def __toggle_gt(self, event: str, value: int = None) -> None:
         if event == 'draw':
@@ -392,6 +408,19 @@ class Challenges(app.AppBase):
     def __newround(self) -> None:
         # TODO: Prepare Game State and Transition
         pass
+
+    def __reject_challenge(self) -> None:
+        req = self.mps.ctrl \
+            .reject_challenge(self.__data.idmap[self.__data.active])
+        self.mps.ctrl.register_callback(req, self.__reject_challengecb)
+        self.statuslbl.show()
+        self.statuslbl.text = 'Rejecting...'
+
+    def __reject_challengecb(self, rescode: int) -> None:
+        self.statuslbl.hide()
+        if rescode:
+            logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
+        self.__show_listview()
 
     def __new_challenge(self):
         self.__nodes.listview.hide()
@@ -424,7 +453,10 @@ class Challenges(app.AppBase):
         self.__data.active = pos
         if not self.__nodes.listview.hidden:
             if self.__data.fltr == 0:
-                self.__show_gametypeview()
+                if self.mps.dbh.newround(self.__data.idmap[self.__data.active]):
+                    self.__show_gametypeview()
+                else:
+                    print('Handle just play a round here...')
             print(f'listview clicked on "{self.__data.data[pos]}"')
             return
         if not self.__nodes.newview.hidden:
