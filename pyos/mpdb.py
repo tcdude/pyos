@@ -309,6 +309,27 @@ class MPDBHandler:
         self._session.commit()
         return True
 
+    def reject_challenge(self, challenge_id: int) -> bool:
+        """Reject a received challenge request."""
+        challenge = self._session.query(Challenge) \
+            .filter(Challenge.challenge_id == challenge_id).first()
+        if challenge is None:
+            return False
+        challenge.status = 4
+        challenge.active = False
+        self._session.commit()
+        return True
+
+    def inactive_challenge(self, challenge_id: int) -> bool:
+        """Reject a received challenge request."""
+        challenge = self._session.query(Challenge) \
+            .filter(Challenge.challenge_id == challenge_id).first()
+        if challenge is None:
+            return False
+        challenge.active = False
+        self._session.commit()
+        return True
+
     def add_challenge_round(self, challenge_id: int, roundno: int, draw: int,
                             chtype: int, seed: int = 0) -> bool:
         """Add a new challenge round to a challenge."""
@@ -398,6 +419,43 @@ class MPDBHandler:
         if userdcp == 2 or otherdcp == 2:
             return [3]
         return []
+
+    def roundno(self, challenge_id: int) -> int:
+        """
+        Returns the current round number of a challenge. -1 if the challenge
+        is not in the DB.
+        """
+        if self._session.query(Challenge) \
+              .filter(Challenge.challenge_id == challenge_id).count() != 1:
+            return -1
+        cnt = self._session.query(ChallengeRound) \
+            .filter(ChallengeRound.challenge_id == challenge_id).count()
+        return max(1, cnt)
+
+    def newround(self, challenge_id: int) -> bool:
+        """Whether the user can choose a gametype."""
+        challenge = self._session.query(Challenge) \
+            .filter(Challenge.challenge_id == challenge_id).first()
+        if challenge is None:
+            logger.warning('Unknown challenge id')
+            return False
+        chround = self._session.query(ChallengeRound) \
+            .filter(ChallengeRound.challenge_id == challenge_id) \
+            .order_by(ChallengeRound.roundno.desc()).first()
+        if chround is None and challenge.status == 1:
+            return True
+        if chround is None and challenge.status != 1:
+            return False
+        usrsum = sum(chround.user_duration, chround.user_moves,
+                     chround.user_points)
+        othsum = sum(chround.other_duration, chround.other_moves,
+                     chround.other_points)
+        if chround.roundno == challenge.rounds and usrsum != -3.0 != othsum:
+            return False
+        if usrsum == othsum == -3.0 and challenge.status > 0:
+            return True
+        logger.warning(f'Unhandled case {challenge} {chround}')
+        return False
 
     def opponent_id(self, challenge_id: int) -> int:
         """Returns the user id of the opponent in a challenge."""

@@ -459,7 +459,8 @@ class MultiplayerClient:
         """Accept or decline a challenge request."""
         self._verify_connected()
         req = REQ[132] + util.encode_accept(challenge_id, decision)
-        req += util.encode_game_type(gamet.draw, gamet.score)
+        if gamet is not None:
+            req += util.encode_game_type(gamet.draw, gamet.score)
         self._conn.sendall(req)
         data = self._recv()
         if decision and len(data) == 5:
@@ -469,7 +470,7 @@ class MultiplayerClient:
                 logger.error(f'Unable to unpack seed: {err}')
                 return 0
             return seed
-        if not decision and data.decode('utf8') == REQ[132] + SUCCESS:
+        if not decision and data == REQ[132] + SUCCESS:
             return 1
         return 0
 

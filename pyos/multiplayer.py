@@ -75,7 +75,8 @@ class Multiplayer:
             15: self._submit_challenge_round_result,
             16: self._friend_request,
             17: self._challenge_stats,
-            18: self._update_single_user}
+            18: self._update_single_user,
+            19: self._reject_challenge}
         logger.debug('Multiplayer initialized')
 
     def start(self):
@@ -409,6 +410,19 @@ class Multiplayer:
             return SUCCESS
         return FAILURE
 
+    def _reject_challenge(self, data: bytes) -> bytes:
+        if not self._check_login():
+            return NOT_LOGGED_IN
+        try:
+            challenge_id = int(data.decode('utf8'))
+        except ValueError:
+            return WRONG_FORMAT
+        if self.mpc.accept_challenge(challenge_id, False) == 1:
+            if not self.mpdbh.reject_challenge(challenge_id):
+                logger.error('Something went wrong while updating local DB')
+            return SUCCESS
+        return FAILURE
+
     def _check_login(self) -> bool:
         if self._login and self.mpc.connected:
             return True
@@ -447,6 +461,7 @@ class Multiplayer:
         if ret == SUCCESS:
             self.mpdbh.update_draw_count_pref(pref)
             self.mpdbh.update_timestamp(now)
+        self._prune_challenge()
         return ret
 
     def _update_user(self, timestamp, update_names: bool) -> bool:
@@ -538,6 +553,14 @@ class Multiplayer:
                                               gametype.draw, gametype.score,
                                               seed, resuser, resother)
         return True
+
+    def _prune_challenge(self) -> None:
+        logger.debug('Pruning challenges')
+        for i, _ in self.mpdbh.chwaiting:
+            if self.mpc.challenge_active(i):
+                continue
+            logger.debug(f'Challenge {i} marked as inactive')
+            self.mpdbh.inactive_challenge(i)
 
 
 if __name__ == '__main__':
