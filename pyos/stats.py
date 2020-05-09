@@ -6,6 +6,7 @@ import datetime
 from typing import Optional, Tuple, Union
 
 from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql.expression import true
 from sqlalchemy.orm import sessionmaker, relationship
@@ -49,6 +50,7 @@ class Game(Base):
     draw = Column(Integer, nullable=False)
     windeal = Column(Boolean, nullable=False)
     daydeal = Column(Boolean, nullable=False)
+    challenge = Column(Boolean, nullable=True, default=False)
     solution = Column(Boolean, default=False)  # Solution playback requested.
     attempts = relationship('Attempt', back_populates='game')
 
@@ -113,6 +115,7 @@ class Stats:
         Base.metadata.create_all(engine)
         Base.metadata.bind = engine
         self._session = sessionmaker(bind=engine)()
+        self._check_migrate(engine)
         logger.debug('Stats initialized')
 
     def new_deal(self, seed: int, draw: int, windeal: bool,
@@ -252,6 +255,22 @@ class Stats:
             .filter(Attempt.solved == true(), Game.seed == seed,
                     Game.draw == draw, Game.windeal == windeal,
                     Game.daydeal == daydeal).count() > 0
+
+    def _check_migrate(self, engine):
+        try:
+            _ = self.first_launch
+        except OperationalError:
+            # Alter table Game here
+            col = Column('challenge', Boolean, nullable=True, default=False)
+            # pylint: disable=no-value-for-parameter
+            colname = col.compile(dialect=engine.dialect)
+            # pylint: enable=no-value-for-parameter
+            coltype = col.type.compile(engine.dialect)
+            engine.execute(f'ALTER TABLE game ADD COLUMN {colname} {coltype}')
+        else:
+            return
+        engine.execute(f'UPDATE game SET challenge=0 WHERE challenge IS NULL')
+        _ = self.first_launch
 
     @property
     def first_launch(self) -> bool:
