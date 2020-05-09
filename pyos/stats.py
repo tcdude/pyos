@@ -119,25 +119,28 @@ class Stats:
         logger.debug('Stats initialized')
 
     def new_deal(self, seed: int, draw: int, windeal: bool,
-                 daydeal: bool = False) -> int:
+                 daydeal: bool = False, challenge: bool = False) -> int:
         """Makes sure a game with the given information exists in the db."""
-        res = self._session.query(Game).filter(Game.seed == seed,
-                                               Game.draw == draw,
-                                               Game.windeal == windeal,
-                                               Game.daydeal == daydeal).all()
-        if res:
-            logger.debug(f'new deal {res[0].id}')
-            return res[0].id
-        game = Game(seed=seed, draw=draw, windeal=windeal, daydeal=daydeal)
+        # pylint: disable=too-many-arguments
+        res = self._session.query(Game)\
+            .filter(Game.seed == seed, Game.draw == draw,
+                    Game.windeal == windeal, Game.daydeal == daydeal,
+                    Game.challenge == challenge).first()
+        if res is not None:
+            logger.debug(f'existing deal {res.id}')
+            return res.id
+        game = Game(seed=seed, draw=draw, windeal=windeal, daydeal=daydeal,
+                    challenge=challenge)
         self._session.add(game)
         self._session.commit()
         logger.debug(f'new deal {game.id}')
         return game.id
 
     def new_attempt(self, seed: int, draw: int, windeal: bool,
-                    daydeal: bool = False) -> None:
+                    daydeal: bool = False, challenge: bool = False) -> None:
         """Creates a new attempt with the given information."""
-        game_id = self.new_deal(seed, draw, windeal, daydeal)
+        # pylint: disable=too-many-arguments
+        game_id = self.new_deal(seed, draw, windeal, daydeal, challenge)
         attempt = Attempt(game_id=game_id)
         self._session.add(attempt)
         self._session.commit()
@@ -196,13 +199,14 @@ class Stats:
         logger.debug('closing database session')
 
     def result(self, seed: int, draw: int, windeal: bool,
-               daydeal: bool = False) -> Union[Tuple[float, int, int, int],
-                                               None]:
+               daydeal: bool = False, challenge: bool = False
+               ) -> Union[Tuple[float, int, int, int], None]:
         """Returns the result of a game, if available otherwise None."""
+        # pylint: disable=too-many-arguments
         res = self._session.query(Attempt).join(Game) \
             .filter(Game.seed == seed, Game.draw == draw,
                     Game.windeal == windeal, Game.daydeal == daydeal,
-                    Attempt.solved == true()) \
+                    Game.challenge == challenge, Attempt.solved == true()) \
             .order_by(Attempt.total.desc()).first()
         if res:
             return res.duration, res.moves, res.points, res.bonus
@@ -308,3 +312,18 @@ class Stats:
         if deals:
             return attempts / deals
         return 0.0
+
+    @property
+    def median_attempts(self) -> float:
+        """Returns median attempts per deal."""
+        attempts = []
+        for i in self._session.query(Game).all():
+            cnt = self._session.query(Attempt) \
+                .filter(Attempt.game_id == i.id).count()
+            if cnt:
+                attempts.append(cnt)
+        attempts.sort()
+        numattempts = len(attempts)
+        if numattempts % 2:
+            return attempts[numattempts // 2]
+        return sum(attempts[numattempts // 2 - 1:numattempts // 2 + 1]) / 2
