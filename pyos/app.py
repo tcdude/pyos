@@ -4,6 +4,8 @@ shared with all the states.
 """
 
 from dataclasses import dataclass
+import os
+import struct
 from typing import Tuple
 
 from loguru import logger
@@ -58,9 +60,46 @@ class MPSystems:
 @dataclass
 class State:
     """Holds various state attributes."""
-    stats: stats.Stats
+    statefile: str
     daydeal: Tuple[int, int] = None
     challenge: int = -1
+    layout_refresh: bool = False
+    need_new_game: bool = False
+
+    def load(self) -> None:
+        """Attempts to load the state from disk."""
+        try:
+            with open(self.statefile, 'rb') as fhandler:
+                data = fhandler.read()
+        except FileNotFoundError:
+            logger.warning('State file does not exist')
+            return
+        try:
+            seed, draw, chg, ref, nng = struct.unpack('<iBi??', data)
+        except struct.error as err:
+            logger.error(f'Unable to unpack data {err}')
+            return
+        if seed == draw == 0:
+            self.daydeal = None
+        else:
+            self.daydeal = seed, draw
+        self.challenge = chg
+        self.layout_refresh = ref
+        self.need_new_game = nng
+
+    def save(self) -> None:
+        """Saves the current state to the statefile."""
+        daydeal = self.daydeal or (0, 0)
+        with open(self.statefile, 'wb') as fhandler:
+            fhandler.write(struct.pack('<iBi??', *daydeal, self.challenge,
+                                       self.layout_refresh, self.need_new_game))
+
+
+@dataclass
+class Systems:
+    """Holds global systems"""
+    stats: stats.Stats
+    shuffler: rules.Shuffler
 
 
 class AppBase(app.App):
@@ -77,14 +116,15 @@ class AppBase(app.App):
         self.statuslbl.depth = 2000
         self.statuslbl.hide()
 
-        self.layout_refresh = False
-        self.need_new_game = False
-        self.shuffler = rules.Shuffler()
         dtf = self.config.get('pyos', 'datafile',
                               fallback=common.DEFAULTCONFIG['pyos']['datafile'])
-        self.state = State(stats.Stats(dtf))
+        self.systems = Systems(stats.Stats(dtf), rules.Shuffler())
+        path = os.path.join(self.config['base']['cache_dir'],
+                            self.config['pyos']['app_state_file'])
+        self.state = State(path)
+        self.state.load()
         self.config.save()
-        self.state.stats.start_session()
+        self.systems.stats.start_session()
         self.mps = MPSystems(mpctrl.MPControl(self.config),
                              mpdb.MPDBHandler(common.MPDATAFILE))
         self.login()
@@ -96,7 +136,6 @@ class AppBase(app.App):
         """Attempts to login to multiplayer."""
         if not self.mps.ctrl.noaccount:
             req = self.mps.ctrl.update_user_ranking()
-            print(req)
             self.mps.ctrl.register_callback(req, self.__logincb)
             self.statuslbl.text = 'Connecting to server...'
             self.statuslbl.show()
@@ -149,14 +188,15 @@ class AppBase(app.App):
         # pylint: disable=unused-argument
         logger.info('Paused app')
         self.request('app_base')
-        self.state.stats.end_session()
+        self.systems.stats.end_session()
+        self.state.save()
 
     def __event_resume(self, event=None):
         """Called when the app enters background."""
         # pylint: disable=unused-argument
         logger.info('Resume app')
         self.request('main_menu')
-        self.state.stats.start_session()
+        self.systems.stats.start_session()
 
     def __event_will_enter_bg(self, event=None):
         """Called when the os announces that the app will enter background."""
@@ -164,11 +204,11 @@ class AppBase(app.App):
         logger.warning('Unhandled event APP_WILLENTERBACKGROUND!!!')
         self.request('app_base')
 
-    @staticmethod
-    def __event_low_memory(event=None):
+    def __event_low_memory(self, event=None):
         """Called when the os announces low memory."""
         # pylint: disable=unused-argument
         logger.warning('Unhandled event APP_LOWMEMORY!!!')
+        self.state.save()
 
     def __orientation(self):
         """Handles orientation change."""
@@ -208,8 +248,9 @@ class AppBase(app.App):
         self.request('app_base')
         if self.isandroid:
             plyer.gravity.disable()
-        self.state.stats.end_session()
-        self.state.stats.close()
+        self.systems.stats.end_session()
+        self.systems.stats.close()
+        self.state.save()
         self.mps.ctrl.stop()
         super().on_quit()
 

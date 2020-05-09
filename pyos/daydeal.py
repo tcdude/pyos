@@ -104,7 +104,7 @@ class DayDeal(app.AppBase):
                 day: str = '') -> None:
         if score:
             txt = f'{day}\n\n'
-            dur, moves, pts, bonus = self.state.stats.result(seed, draw, True,
+            dur, moves, pts, bonus = self.systems.stats.result(seed, draw, True,
                                                              True)
             dur = f'{int(dur / 60)}:{dur % 60:05.2f}'
             moves = f'{moves}'
@@ -120,7 +120,7 @@ class DayDeal(app.AppBase):
             self.__gen_dlg(txt)
         else:
             self.state.daydeal = draw, seed
-            self.shuffler.request_deal(draw, seed)
+            self.systems.shuffler.request_deal(draw, seed)
             self.request('game')
 
     def __hide_dlg(self):
@@ -156,7 +156,7 @@ class DayDeal(app.AppBase):
             for k in (1, 3):
                 seed = self.__dailyseeds[k][start_i.days + i]
                 btn = self.__buttons[k][i]
-                if self.state.stats.issolved(seed, k, True, True):
+                if self.systems.stats.issolved(seed, k, True, True):
                     btn.onclick(self.__click, k, seed, True, sday)
                     btn.labels[UIState.NORMAL].frame_color = (40, 150, 20)
                 else:

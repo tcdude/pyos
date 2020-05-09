@@ -55,7 +55,7 @@ class PyOS(menu.MainMenu, menu.SettingsMenu, game.Game, statsmenu.Statistics,
     """
     # pylint: disable=too-many-ancestors
     def on_quit(self):
-        self.shuffler.stop()
+        self.systems.shuffler.stop()
         super().on_quit()
 
 

@@ -203,13 +203,28 @@ class Stats:
                ) -> Union[Tuple[float, int, int, int], None]:
         """Returns the result of a game, if available otherwise None."""
         # pylint: disable=too-many-arguments
+        if challenge == -1:  # Normal result
+            res = self._session.query(Attempt).join(Game) \
+                .filter(Game.seed == seed, Game.draw == draw,
+                        Game.windeal == windeal, Game.daydeal == daydeal,
+                        Game.challenge == challenge, Attempt.solved == true()) \
+                .order_by(Attempt.total.desc()).first()
+            if res:
+                return res.duration, res.moves, res.points, res.bonus
+            return None
+        # Challenge result, totalized no bonus
         res = self._session.query(Attempt).join(Game) \
             .filter(Game.seed == seed, Game.draw == draw,
-                    Game.windeal == windeal, Game.daydeal == daydeal,
-                    Game.challenge == challenge, Attempt.solved == true()) \
-            .order_by(Attempt.total.desc()).first()
-        if res:
-            return res.duration, res.moves, res.points, res.bonus
+                    Game.challenge == challenge).all()
+        duration, points, moves = 0, 0, 0
+        solved = False
+        for i in res:
+            solved = solved or i.solved
+            duration += i.duration
+            points += i.points
+            moves += i.moves
+        if solved:
+            return duration, moves, points, 0
         return None
 
     def highscore(self, draw: int, with_bonus: Optional[bool] = True) -> int:

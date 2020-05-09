@@ -64,6 +64,7 @@ class GameSystems:
     hud: HUD
     toolbar: ToolBar
     windlg: Union[None, Dialogue] = None
+    suredlg: Union[None, Dialogue] = None
 
 
 @dataclass
@@ -100,10 +101,18 @@ class Game(app.AppBase):
         logger.debug('Enter state game')
         self.__setup()
         self.__state.fresh_state = True
+        if self.state.challenge > 0:
+            self.__new_deal(*self.mps.dbh.get_round_info(self.state.challenge))
+            chg = True
+        else:
+            chg = False
         if self.state.daydeal is None:
             self.__state.day_deal = False
-        if self.need_new_game or self.state.stats.first_launch \
-              or self.state.daydeal is not None:
+        else:
+            self.__state.day_deal = True
+        if not chg and (self.state.need_new_game
+                        or self.systems.stats.first_launch
+                        or self.state.daydeal is not None):
             self.__new_deal()
 
     def exit_game(self):
@@ -193,7 +202,7 @@ class Game(app.AppBase):
                           self.config['font']['bold'],
                           (self.__new_deal, self.__reset_deal, self.__undo_move,
                            self.__menu, self.__giveup))
-        game_table = Table(layout.callback, self.shuffler)
+        game_table = Table(layout.callback, self.systems.shuffler)
         layout.set_table(game_table)
         self.__systems = GameSystems(game_table, layout, hud, toolbar)
         self.__need_setup = False
@@ -247,13 +256,13 @@ class Game(app.AppBase):
         """Update HUD."""
         # pylint: disable=invalid-name,unused-argument
         if self.window.size != self.__state.last_window_size \
-              or self.layout_refresh:
+              or self.state.layout_refresh:
             self.__state.last_window_size = self.window.size
             self.__systems.layout.setup(self.__state.last_window_size,
                                         self.config.getboolean('pyos',
                                                                'left_handed'))
             self.__state.refresh_next_frame = 2
-            self.layout_refresh = False
+            self.state.layout_refresh = False
         elif self.__state.refresh_next_frame > 0:
             self.__state.refresh_next_frame -= 1
             self.__systems.game_table.refresh_table()
@@ -468,7 +477,7 @@ class Game(app.AppBase):
     # Game State
 
     def __update_attempt(self, solved=False, bonus=0):
-        if self.__systems.game_table.is_paused:
+        if self.__systems.game_table.is_paused and not solved:
             return
         mvs, tim, pts = self.__systems.game_table.stats
         undo, invalid = self.__systems.game_table.undo_invalid
@@ -478,11 +487,13 @@ class Game(app.AppBase):
             win_deal = self.config.getboolean('pyos', 'winner_deal',
                                               fallback=True)
             win_deal = win_deal or self.__state.day_deal
-            self.state.stats.new_attempt(seed, draw, win_deal,
-                                         self.__state.day_deal)
-        self.state.stats.update_attempt(moves=mvs, duration=tim, points=pts,
-                                        undo=undo, invalid=invalid,
-                                        solved=solved, bonus=bonus)
+            win_deal = win_deal or self.state.challenge > -1
+            self.systems.stats.new_attempt(seed, draw, win_deal,
+                                           self.__state.day_deal,
+                                           self.state.challenge)
+        self.systems.stats.update_attempt(moves=mvs, duration=tim, points=pts,
+                                          undo=undo, invalid=invalid,
+                                          solved=solved, bonus=bonus)
 
 
     def __save(self):
@@ -504,26 +515,37 @@ class Game(app.AppBase):
     def __show_score(self):
         """Show the result screen."""
         self.__save()
+        if self.state.challenge > -1:
+            self.__update_attempt(solved=True)
+            res = self.systems \
+                .stats.result(self.__systems.game_table.seed,
+                              self.__systems.game_table.draw_count, True, False,
+                              self.state.challenge)
+            if res is None:
+                raise RuntimeError('Win state but no solved result')
+            dur, moves, pts, _ = res
+            self.fsm_global_data['result'] = dur, pts, moves
+            self.request('challenges')
+            return
         dur, pts, bonus, moves = self.__systems.game_table.result
-        mins = int(dur / 60)
-        secs = dur - mins * 60
+        mins, secs = int(dur // 60), dur % 60
         txt = f'Daily deal WON!' if self.__state.day_deal else f'You WON!'
         txt += '\n\n'
         scr = f'{pts + bonus}'
         top = False
-        i = self.state.stats.highscore(self.__systems.game_table.draw_count)
+        i = self.systems.stats.highscore(self.__systems.game_table.draw_count)
         logger.debug(f'Current highscore: {i}')
         if pts + bonus > i:
             scr += f' {chr(0xf01b)}'
             top = True
         mvs = f'{moves}'
-        i = self.state.stats.least_moves(self.__systems.game_table.draw_count)
+        i = self.systems.stats.least_moves(self.__systems.game_table.draw_count)
         logger.debug(f'Current least_moves: {i}')
         if moves <= i:
             mvs += f' {chr(0xf01b)}'
             top = True
         tim = f'{mins}:{secs:05.2f}'
-        i = self.state.stats.fastest(self.__systems.game_table.draw_count)
+        i = self.systems.stats.fastest(self.__systems.game_table.draw_count)
         logger.debug(f'Current fastest: {i}')
         if dur < i:
             tim += f' {chr(0xf01b)}'
@@ -540,27 +562,47 @@ class Game(app.AppBase):
             self.__win_animation()
             self.__update_attempt(solved=True, bonus=bonus)
         self.__disable_all()
-        self.__state.day_deal = False
+        self.state.day_deal = None
 
-    def __gen_dlg(self, txt: str):
-        if self.__systems.windlg is None:
-            fnt = self.config.get('font', 'bold')
-            buttons = [DialogueButton(text='New Game',
-                                      fmtkwargs=common.get_dialogue_btn_kw(),
-                                      callback=self.__new_deal)]
-            dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
-                           size=(0.7, 0.7), font=fnt, align='center',
-                           frame_color=common.FRAME_COLOR_STD,
-                           border_thickness=0.01,
-                           corner_radius=0.05, multi_sampling=2)
-            dlg.pos = -0.35, -0.35
-            dlg.reparent_to(self.ui.center)
-            self.__systems.windlg = dlg
-        else:
-            self.__systems.windlg.text = txt
-            self.__systems.windlg.show()
+    def __gen_dlg(self, txt: str, dlgtype: str = 'newgame'):
+        dlgkw = common.get_dialogue_btn_kw()
+        if dlgtype == 'newgame':
+            if self.__systems.windlg is None:
+                fnt = self.config.get('font', 'bold')
+                buttons = [DialogueButton(text='New Game', fmtkwargs=dlgkw,
+                                          callback=self.__new_deal)]
+                dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
+                               size=(0.7, 0.7), font=fnt, align='center',
+                               frame_color=common.FRAME_COLOR_STD,
+                               border_thickness=0.01,
+                               corner_radius=0.05, multi_sampling=2)
+                dlg.pos = -0.35, -0.35
+                dlg.reparent_to(self.ui.center)
+                self.__systems.windlg = dlg
+            else:
+                self.__systems.windlg.text = txt
+                self.__systems.windlg.show()
+        elif dlgtype == 'sure':
+            if self.__systems.suredlg is None:
+                fnt = self.config.get('font', 'bold')
+                buttons = [DialogueButton(text='Yes', fmtkwargs=dlgkw,
+                                          callback=self.__giveupdo),
+                           DialogueButton(text='No', fmtkwargs=dlgkw,
+                                          callback=self.__hide_dlg)]
+                dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
+                               size=(0.7, 0.7), font=fnt, align='center',
+                               frame_color=common.FRAME_COLOR_STD,
+                               border_thickness=0.01,
+                               corner_radius=0.05, multi_sampling=2)
+                dlg.pos = -0.35, -0.35
+                dlg.reparent_to(self.ui.center)
+                self.__systems.suredlg = dlg
+            else:
+                self.__systems.suredlg.text = txt
+                self.__systems.suredlg.show()
 
     def __win_animation(self):
+        # pylint: disable=too-many-locals
         scx, scy = self.screen_size
         caw, cah = self.__systems.layout.card_size
         scx, scy = scx / min(scx, scy) - caw, scy / min(scx, scy) - cah
@@ -612,24 +654,37 @@ class Game(app.AppBase):
         self.__systems.game_table.reset()
         self.__state.refresh_next_frame = 2
 
-    def __new_deal(self):
+    def __new_deal(self, seed: int = None, draw: int = None, score: int = None):
         """On New Deal click: Deal new game."""
         dlg = self.__systems.windlg
         if dlg is not None and not dlg.hidden:
             dlg.hide()
             self.__setup()
-        if self.state.daydeal is not None:
+        if seed is not None:
+            if self.__systems.game_table.seed != seed \
+                  or self.__systems.game_table.draw_count != draw \
+                  or self.__systems.game_table.stats[0] <= 0:
+                self.__systems.game_table.draw_count = draw
+                self.__systems.game_table.deal(seed, win_deal=True)
+                self.systems.stats.new_deal(seed, draw, True, False,
+                                            self.state.challenge)
+                self.state.daydeal = None
+                self.__state.day_deal = True
+            self.__systems.toolbar.toggle(False)
+            logger.debug('Started a challenge round')
+        elif self.state.daydeal is not None:
             draw, seed = self.state.daydeal
             if self.__systems.game_table.seed != seed \
                   or self.__systems.game_table.draw_count != draw \
                   or self.__systems.game_table.stats[0] <= 0:
                 self.__systems.game_table.draw_count = draw
                 self.__systems.game_table.deal(seed, win_deal=True)
-                self.state.stats.new_deal(seed, draw, True, True)
+                self.systems.stats.new_deal(seed, draw, True, True)
                 self.state.daydeal = None
                 self.__state.day_deal = True
-                logger.debug('Started a daydeal')
-        elif self.__state.day_deal and self.need_new_game:
+            self.__systems.toolbar.toggle(True)
+            logger.debug('Started a daydeal')
+        elif self.__state.day_deal and self.state.need_new_game:
             pass
         else:
             if self.config.getboolean('pyos', 'draw_one'):
@@ -640,11 +695,12 @@ class Game(app.AppBase):
             self.__systems.game_table.deal(win_deal=win_deal)
             seed = self.__systems.game_table.seed
             draw = self.__systems.game_table.draw_count
-            self.state.stats.new_deal(seed, draw, win_deal)
+            self.systems.stats.new_deal(seed, draw, win_deal)
             self.__state.day_deal = False
+            self.__systems.toolbar.toggle(True)
             logger.debug('Started a regular deal')
         self.__state.refresh_next_frame = 2
-        self.need_new_game = False
+        self.state.need_new_game = False
 
     def __menu(self):
         """On Menu click."""
@@ -652,4 +708,18 @@ class Game(app.AppBase):
 
     def __giveup(self):
         """On Give Up click."""
-        # TODO: Implement
+        self.__systems.game_table.pause()
+        self.__disable_all()
+        self.__gen_dlg('Do you really\nwant to give up?\n\n\n', 'sure')
+
+    def __giveupdo(self):
+        """Give Up."""
+        self.fsm_global_data['result'] = -2.0, 0, 0
+        self.request('challenges')
+
+    def __hide_dlg(self):
+        """Hide all open dialogues."""
+        for dlg in (self.__systems.windlg, self.__systems.suredlg):
+            if dlg is not None and not dlg.hidden:
+                dlg.hide()
+        self.__setup()

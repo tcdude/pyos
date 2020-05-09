@@ -220,14 +220,14 @@ class SettingsMenu(app.AppBase):
             self.config.set('pyos', 'draw_one', 'True')
             self.__buttons.draw_one.enabled = False
             self.__buttons.draw_three.enabled = True
-            self.layout_refresh = True
-            self.need_new_game = True
+            self.state.layout_refresh = True
+            self.state.need_new_game = True
         elif task == 'draw_three':
             self.config.set('pyos', 'draw_one', 'False')
             self.__buttons.draw_one.enabled = True
             self.__buttons.draw_three.enabled = False
-            self.layout_refresh = True
-            self.need_new_game = True
+            self.state.layout_refresh = True
+            self.state.need_new_game = True
         elif task == 'tap_move':
             self.__toggle(task, self.__buttons.tap_move)
         elif task == 'foundation':
@@ -245,7 +245,7 @@ class SettingsMenu(app.AppBase):
         elif task == 'left_handed':
             self.__toggle(task, self.__buttons.left_handed, ('Left', 'Right'))
             self.__update_button_pos()
-            self.layout_refresh = True
+            self.state.layout_refresh = True
         elif task == 'orientation':
             orient = self.config.get('pyos', 'orientation', fallback='auto')
             if orient == 'auto':

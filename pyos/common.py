@@ -76,7 +76,8 @@ DEFAULTCONFIG = {
                          ('click_threshold', '0.06'), ('log_level', 'INFO'),
                          ('auto_solve_delay', '0.25'), ('orientation', 'auto'),
                          ('datafile', DATAFILE),
-                         ('dailyseeds', 'assets/other/dailyseeds.bin')]),
+                         ('dailyseeds', 'assets/other/dailyseeds.bin'),
+                         ('app_state_file', 'app_state.bin')]),
     'mp': OrderedDict([('server', 'pyos.tizilogic.com'), ('port', '22864'),
                        ('user', ''), ('password', ''), ('bufsize', '4096'),
                        ('uds', './mp.sock'), ('datafile', 'mp.db')]),
@@ -85,7 +86,7 @@ DEFAULTCONFIG = {
 }
 OVERWRITE_PYOS = ['card_ratio', 'padding', 'status_size', 'toolbar_size',
                   'click_threshold', 'auto_solve_delay',
-                  'datafile', 'dailyseeds']
+                  'datafile', 'dailyseeds', 'app_state_file']
 OVERWRITE_MP = ['server', 'port', 'bufsize', 'uds', 'datafile']
 OVERWRITE_FONT = ['normal', 'bold']
 
@@ -94,6 +95,8 @@ START_DATE = datetime.datetime(year=2020, month=3, day=13)
 
 
 # Types
+
+Result = Tuple[float, int, int]
 
 class TableArea(Enum):
     """Enumeration to describe different areas on the table."""
