@@ -100,10 +100,10 @@ class Game(app.AppBase):
         logger.debug('Enter state game')
         self.__setup()
         self.__state.fresh_state = True
-        if self.daydeal is None:
+        if self.state.daydeal is None:
             self.__state.day_deal = False
-        if self.need_new_game or self.stats.first_launch \
-              or self.daydeal is not None:
+        if self.need_new_game or self.state.stats.first_launch \
+              or self.state.daydeal is not None:
             self.__new_deal()
 
     def exit_game(self):
@@ -192,7 +192,7 @@ class Game(app.AppBase):
                           tuple([float(i) for i in tool_size]),
                           self.config['font']['bold'],
                           (self.__new_deal, self.__reset_deal, self.__undo_move,
-                           self.__menu))
+                           self.__menu, self.__giveup))
         game_table = Table(layout.callback, self.shuffler)
         layout.set_table(game_table)
         self.__systems = GameSystems(game_table, layout, hud, toolbar)
@@ -478,10 +478,11 @@ class Game(app.AppBase):
             win_deal = self.config.getboolean('pyos', 'winner_deal',
                                               fallback=True)
             win_deal = win_deal or self.__state.day_deal
-            self.stats.new_attempt(seed, draw, win_deal, self.__state.day_deal)
-        self.stats.update_attempt(moves=mvs, duration=tim, points=pts,
-                                  undo=undo, invalid=invalid, solved=solved,
-                                  bonus=bonus)
+            self.state.stats.new_attempt(seed, draw, win_deal,
+                                         self.__state.day_deal)
+        self.state.stats.update_attempt(moves=mvs, duration=tim, points=pts,
+                                        undo=undo, invalid=invalid,
+                                        solved=solved, bonus=bonus)
 
 
     def __save(self):
@@ -510,19 +511,19 @@ class Game(app.AppBase):
         txt += '\n\n'
         scr = f'{pts + bonus}'
         top = False
-        i = self.stats.highscore(self.__systems.game_table.draw_count)
+        i = self.state.stats.highscore(self.__systems.game_table.draw_count)
         logger.debug(f'Current highscore: {i}')
         if pts + bonus > i:
             scr += f' {chr(0xf01b)}'
             top = True
         mvs = f'{moves}'
-        i = self.stats.least_moves(self.__systems.game_table.draw_count)
+        i = self.state.stats.least_moves(self.__systems.game_table.draw_count)
         logger.debug(f'Current least_moves: {i}')
         if moves <= i:
             mvs += f' {chr(0xf01b)}'
             top = True
         tim = f'{mins}:{secs:05.2f}'
-        i = self.stats.fastest(self.__systems.game_table.draw_count)
+        i = self.state.stats.fastest(self.__systems.game_table.draw_count)
         logger.debug(f'Current fastest: {i}')
         if dur < i:
             tim += f' {chr(0xf01b)}'
@@ -617,15 +618,15 @@ class Game(app.AppBase):
         if dlg is not None and not dlg.hidden:
             dlg.hide()
             self.__setup()
-        if self.daydeal is not None:
-            draw, seed = self.daydeal
+        if self.state.daydeal is not None:
+            draw, seed = self.state.daydeal
             if self.__systems.game_table.seed != seed \
                   or self.__systems.game_table.draw_count != draw \
                   or self.__systems.game_table.stats[0] <= 0:
                 self.__systems.game_table.draw_count = draw
                 self.__systems.game_table.deal(seed, win_deal=True)
-                self.stats.new_deal(seed, draw, True, True)
-                self.daydeal = None
+                self.state.stats.new_deal(seed, draw, True, True)
+                self.state.daydeal = None
                 self.__state.day_deal = True
                 logger.debug('Started a daydeal')
         elif self.__state.day_deal and self.need_new_game:
@@ -639,7 +640,7 @@ class Game(app.AppBase):
             self.__systems.game_table.deal(win_deal=win_deal)
             seed = self.__systems.game_table.seed
             draw = self.__systems.game_table.draw_count
-            self.stats.new_deal(seed, draw, win_deal)
+            self.state.stats.new_deal(seed, draw, win_deal)
             self.__state.day_deal = False
             logger.debug('Started a regular deal')
         self.__state.refresh_next_frame = 2
@@ -648,3 +649,7 @@ class Game(app.AppBase):
     def __menu(self):
         """On Menu click."""
         self.request('main_menu')
+
+    def __giveup(self):
+        """On Give Up click."""
+        # TODO: Implement

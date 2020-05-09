@@ -55,6 +55,14 @@ class MPSystems:
     login: int = -1
 
 
+@dataclass
+class State:
+    """Holds various state attributes."""
+    stats: stats.Stats
+    daydeal: Tuple[int, int] = None
+    challenge: int = -1
+
+
 class AppBase(app.App):
     """
     Serves as base for all states registered through multiple inheritance. All
@@ -74,10 +82,9 @@ class AppBase(app.App):
         self.shuffler = rules.Shuffler()
         dtf = self.config.get('pyos', 'datafile',
                               fallback=common.DEFAULTCONFIG['pyos']['datafile'])
-        self.stats = stats.Stats(dtf)
+        self.state = State(stats.Stats(dtf))
         self.config.save()
-        self.stats.start_session()
-        self.daydeal: Tuple[int, int] = None
+        self.state.stats.start_session()
         self.mps = MPSystems(mpctrl.MPControl(self.config),
                              mpdb.MPDBHandler(common.MPDATAFILE))
         self.login()
@@ -142,14 +149,14 @@ class AppBase(app.App):
         # pylint: disable=unused-argument
         logger.info('Paused app')
         self.request('app_base')
-        self.stats.end_session()
+        self.state.stats.end_session()
 
     def __event_resume(self, event=None):
         """Called when the app enters background."""
         # pylint: disable=unused-argument
         logger.info('Resume app')
         self.request('main_menu')
-        self.stats.start_session()
+        self.state.stats.start_session()
 
     def __event_will_enter_bg(self, event=None):
         """Called when the os announces that the app will enter background."""
@@ -201,8 +208,8 @@ class AppBase(app.App):
         self.request('app_base')
         if self.isandroid:
             plyer.gravity.disable()
-        self.stats.end_session()
-        self.stats.close()
+        self.state.stats.end_session()
+        self.state.stats.close()
         self.mps.ctrl.stop()
         super().on_quit()
 

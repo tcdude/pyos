@@ -133,6 +133,7 @@ NEW_SYM = chr(0xf893)
 RES_SYM = chr(0xf021)
 UNDO_SYM = chr(0xfa4b)
 MENU_SYM = chr(0xf85b)
+GUP_SYM = chr(0xf024)
 
 FRAME_COLOR_STD = 40, 120, 20
 BTNLIST_FRAME_COLOR = 255, 255, 255
@@ -188,6 +189,9 @@ DIALOGUE_BTN_KW = {'size': (0.35, 0.1), 'font': DEFAULTCONFIG['font']['bold'],
                    'border_thickness': 0.005, 'down_border_thickness': 0.008,
                    'border_color': (0, 50, 0),
                    'down_border_color': (255, 255, 255), 'corner_radius': 0.05,
+                   'disabled_text_color': (255, 255, 255, 255),
+                   'disabled_frame_color': (160, 160, 160),
+                   'disabled_border_color': (255, 255, 255),
                    'multi_sampling': 2, 'align': 'center'}
 TOOLBAR_BTN_KW = {'text_color': (0, 0, 0, 255),
                   'down_text_color': (255, 255, 255, 255),

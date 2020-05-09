@@ -101,21 +101,21 @@ class Statistics(app.AppBase):
         self.__root.hide()
 
     def __update_labels(self):
-        vals = [f'{self.stats.deals_played}',
-                f'{self.stats.solved_ratio * 100:.3f}%',
-                f'{self.stats.avg_attempts + 0.05:.1f}']
+        vals = [f'{self.state.stats.deals_played}',
+                f'{self.state.stats.solved_ratio * 100:.3f}%',
+                f'{self.state.stats.avg_attempts + 0.05:.1f}']
         for i in (1, 3):
-            val = self.stats.highscore(i)
+            val = self.state.stats.highscore(i)
             if val:
                 vals.append(f'{val}')
             else:
                 vals.append('     N/A')
-            val = self.stats.fastest(i)
+            val = self.state.stats.fastest(i)
             if val == float('inf'):
                 vals.append('     N/A')
             else:
                 vals.append(f'{int(val / 60)}:{val % 60:06.3f}')
-            val = self.stats.least_moves(i)
+            val = self.state.stats.least_moves(i)
             if val == 2**32:
                 val = '     N/A'
             vals.append(f'{val}')
