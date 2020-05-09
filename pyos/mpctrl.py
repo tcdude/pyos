@@ -17,7 +17,7 @@ try:
 except ImportError:
     import subprocess
 
-from mpclient import Result
+from common import Result
 from multiplayer import (SEP, SUCCESS, FAILURE, ILLEGAL_REQUEST, WRONG_FORMAT,
                          NO_CONNECTION, NOT_LOGGED_IN)
 import util
@@ -225,6 +225,11 @@ class MPControl:
         """Reject a challenge."""
         return self._request(REQ[19] + str(challenge_id).encode('utf8'))
 
+    def accept_challenge(self, challenge_id: int, draw: int, score: int) -> int:
+        """Accept a challenge."""
+        return self._request(
+            REQ[20] + f'{challenge_id}{SEP}{draw}{SEP}{score}'.encode('utf8'))
+
     def nop(self) -> int:
         """
         No Operation request that always returns SUCCESS if service is running.
@@ -233,20 +238,23 @@ class MPControl:
 
     # Other
 
-    def register_callback(self, reqid: int, callback: Callable[[int], None]
-                          ) -> bool:
+    def register_callback(self, reqid: int, callback: Callable[[int], None],
+                          *args, **kwargs) -> bool:
         """
         Register a result callback.
 
         Args:
             reqid: A valid request id.
-            callback: A callable that accepts one positional argument.
+            callback: A callable that accepts at least one positional argument
+                for the result code of the request.
+            *args: Additional positional arguments to pass to the callback.
+            **kwargs: Keyword arguments to pass to the callback.
 
         Returns:
             Success as boolean.
         """
         if reqid in self._data.pending or reqid in self._data.results:
-            self._data.callbacks[reqid] = callback
+            self._data.callbacks[reqid] = callback, args, kwargs
             return True
         return False
 
@@ -271,7 +279,8 @@ class MPControl:
                     self._data.reload_cfg.pop(k)
                 self._data.pending.pop(k)
             if k in self._data.callbacks:
-                self._data.callbacks[k](self._data.results[k])
+                callback, args, kwargs = self._data.callbacks.pop(k)
+                callback(self._data.results[k], *args, **kwargs)
                 drop.append(k)
         for k in drop:
             self._data.results.pop(k)

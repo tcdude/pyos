@@ -2,17 +2,17 @@
 Provides multiplayer data storage in a sqlite3 db file locally.
 """
 
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 from sqlalchemy import Boolean, Column, Float, Integer, Unicode, SmallInteger
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql.expression import true
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import create_engine, or_, and_
+from sqlalchemy import create_engine
 from loguru import logger
 
 import common
-from mpclient import Result
+from common import Result
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = """
@@ -380,6 +380,93 @@ class MPDBHandler:
         self._session.commit()
         self._check_challenge_complete(challenge_id)
         return True
+
+    def get_round_info(self, challenge_id: int, roundno: int = None
+                       ) -> Tuple[int, int, int]:
+        """
+        Returns seed, draw, score type for a challenge id. If no roundno is
+        specified, the information of the highest available round number will be
+        returned.
+        """
+        if roundno is None:
+            chround = self._session.query(ChallengeRound) \
+                .filter(ChallengeRound.challenge_id == challenge_id) \
+                .order_by(ChallengeRound.roundno.desc()).first()
+        else:
+            chround = self._session.query(ChallengeRound) \
+                .filter(ChallengeRound.challenge_id == challenge_id,
+                        ChallengeRound.roundno == roundno).first()
+        if chround is None:
+            logger.error('Requested unknown round info')
+            return -1, -1, -1
+        return chround.seed, chround.draw, chround.chtype
+
+    def round_won(self, challenge_id: int, roundno: int = None) -> int:
+        """
+        Round result: 0=won, 1=lost, 2=draw, 3=first result, -1=invalid round.
+        """
+        # pylint: disable=too-many-branches
+        if roundno is None:
+            chround = self._session.query(ChallengeRound) \
+                .filter(ChallengeRound.challenge_id == challenge_id) \
+                .order_by(ChallengeRound.roundno.desc()).first()
+        else:
+            chround = self._session.query(ChallengeRound) \
+                .filter(ChallengeRound.challenge_id == challenge_id,
+                        ChallengeRound.roundno == roundno).first()
+        if chround is None:
+            logger.error('Requested unknown round info')
+            return -1
+        if -1.0 in (chround.other_duration, chround.user_duration):
+            return 3
+        if chround.chtype == 0:  # quickest
+            if chround.other_duration == -2.0 \
+                  or chround.user_duration < chround.other_duration:
+                ret = 0
+            elif chround.user_duration == -2.0 \
+                  or chround.user_duration > chround.other_duration:
+                ret = 1
+            else:
+                ret = 2
+        elif chround.chtype == 1:  # moves
+            if chround.other_duration == -2.0 \
+                  or chround.user_moves < chround.other_moves:
+                ret = 0
+            elif chround.user_duration == -2.0 \
+                  or chround.user_moves > chround.other_moves:
+                ret = 1
+            else:
+                ret = 2
+        elif chround.chtype == 2:  # points
+            if chround.other_duration == -2.0 \
+                  or chround.user_points > chround.other_points:
+                ret = 0
+            elif chround.user_duration == -2.0 \
+                  or chround.user_points < chround.other_points:
+                ret = 1
+            else:
+                ret = 2
+        else:
+            raise ValueError('Wrong chtype')
+        return ret
+
+    def round_other_result(self, challenge_id: int, roundno: int
+                           ) -> Union[int, float]:
+        """
+        Returns the relevant part of the result of the other player in a
+        challenge round. Special values -1 = No result yet, -2 = Forfeited and
+        -3 = Unable to find the challenge round.
+        """
+        chround = self._session.query(ChallengeRound) \
+            .filter(ChallengeRound.challenge_id == challenge_id,
+                    ChallengeRound.roundno == roundno).first()
+        if chround is None:
+            return -3
+        if chround.other_duration == -2.0:
+            return -2
+        ret = (chround.other_duration, chround.other_points,
+               chround.other_moves)
+        return ret[chround.chtype]
 
     def userstats(self, userid: int) -> Tuple[int, int, int, int, int]:
         """Returns the stats for a user (rank, points, won, lost, draw)."""

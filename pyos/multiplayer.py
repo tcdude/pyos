@@ -76,7 +76,8 @@ class Multiplayer:
             16: self._friend_request,
             17: self._challenge_stats,
             18: self._update_single_user,
-            19: self._reject_challenge}
+            19: self._reject_challenge,
+            20: self._accept_challenge}
         logger.debug('Multiplayer initialized')
 
     def start(self):
@@ -420,6 +421,25 @@ class Multiplayer:
         if self.mpc.accept_challenge(challenge_id, False) == 1:
             if not self.mpdbh.reject_challenge(challenge_id):
                 logger.error('Something went wrong while updating local DB')
+            return SUCCESS
+        return FAILURE
+
+    def _accept_challenge(self, data: bytes) -> bytes:
+        if not self._check_login():
+            return NOT_LOGGED_IN
+        try:
+            chid, draw, score = data.decode('utf8').split(SEP)
+            challenge_id = int(chid)
+            draw = int(draw)
+            score = int(score)
+        except ValueError:
+            return WRONG_FORMAT
+        gamet = mpclient.GameType(draw, score)
+        seed = self.mpc.accept_challenge(challenge_id, True, gamet)
+        if seed > 0:
+            if not self.mpdbh.add_challenge_round(challenge_id, 1, draw, score,
+                                                  seed):
+                logger.error('Something went wrong during add_challenge_round')
             return SUCCESS
         return FAILURE
 

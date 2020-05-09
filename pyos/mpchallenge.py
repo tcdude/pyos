@@ -4,11 +4,11 @@ Provides the Multiplayer Challenge State.
 # pylint: disable=too-many-lines
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple
+from typing import Callable, Dict, List, Tuple
 
 from foolysh.scene import node
 from foolysh.scene.node import Origin
-from foolysh.ui import button, frame, entry, label
+from foolysh.ui import button, frame, label
 from loguru import logger
 
 import app
@@ -56,6 +56,8 @@ class ChallengesNodes:
     challengetitle: label.Label
     gametypeview: node.Node
     gametypetitle: label.Label
+    resultview: node.Node
+    resulttitle: label.Label
 
     challengetxt: node.TextNode = None
     gametypetxt: node.TextNode = None
@@ -63,11 +65,10 @@ class ChallengesNodes:
     gametypescore: List[button.Button] = None
     gametypestart: button.Button = None
     gametypereject: button.Button = None
-    userremove: button.Button = None
-    userchallenge: button.Button = None
-    searchfield: entry.Entry = None
-    searchbtn: button.Button = None
-    cancelbtn: button.Button = None
+    resulttxt: node.TextNode = None
+    resultnext: button.Button = None
+    resultback: button.Button = None
+
     btnlist: buttonlist.ButtonList = None
     newviewbtnlist: buttonlist.ButtonList = None
     back: button.Button = None
@@ -83,6 +84,7 @@ class ChallengesData:
     active: int = None
     gtdraw: int = 0
     gtscore: int = 0
+    pending: Dict[int, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -130,16 +132,24 @@ class Challenges(app.AppBase):
         chtit.origin = Origin.CENTER
         challengeview.hide()
 
-        gametypeview = _frame.attach_node('MP Challenges challengeview')
+        gametypeview = _frame.attach_node('MP Challenges gametypeview')
         gttit = label.Label(text='', align='center', size=(0.8, 0.1),
                             pos=(0, -0.4), font_size=0.06, font=fnt,
                             text_color=common.TITLE_TXT_COLOR, alpha=0)
         gttit.reparent_to(gametypeview)
         gttit.origin = Origin.CENTER
         gametypeview.hide()
+
+        resultview = _frame.attach_node('MP Challenges resultview')
+        restit = label.Label(text='', align='center', size=(0.8, 0.1),
+                             pos=(0, -0.4), font_size=0.06, font=fnt,
+                             text_color=common.TITLE_TXT_COLOR, alpha=0)
+        restit.reparent_to(resultview)
+        restit.origin = Origin.CENTER
+        resultview.hide()
         self.__nodes = ChallengesNodes(root, _frame, listview, newview,
                                        challengeview, chtit, gametypeview,
-                                       gttit)
+                                       gttit, resultview, restit)
         self.__data = ChallengesData()
         self.__dlgs = ChallengesDlg()
         self.__setup()
@@ -153,6 +163,8 @@ class Challenges(app.AppBase):
             pos_x = 0.38
         self.__nodes.back.pos = pos_x, -0.38
         self.__nodes.new.pos = pos_x, 0.38
+        if 'result' in self.fsm_global_data and self.fsm_global_data['result']:
+            self.__show_resultview()
         self.__filter(self.__data.fltr)
         self.__nodes.btnlist.update_content()
         self.__nodes.root.show()
@@ -166,11 +178,43 @@ class Challenges(app.AppBase):
         if self.__dlgs.newchallenge is not None:
             self.__dlgs.newchallenge.hide()
 
+    def __send_pending_results(self, callback: Callable) -> None:
+        for i, _ in self.mps.dbh.chmyturn:
+            seed, draw, _ = self.mps.dbh.get_round_info(i)
+            res = self.systems.stats.result(seed, draw, True, challenge=i)
+            if res is None:
+                continue
+            dur, mvs, pts, _ = res
+            roundno = self.mps.dbh.roundno(i)
+            req = self.mps.ctrl \
+                .submit_challenge_round_result(i, roundno, (dur, pts, mvs))
+            self.mps.ctrl.register_callback(req, self.__empty_pending, req,
+                                            callback)
+            self.__data.pending[req] = i
+
+    def __empty_pending(self, rescode: int, req: int, callback: Callable
+                        ) -> None:
+        if rescode:
+            logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
+        else:
+            logger.debug(f'Transmission of pending result for challenge '
+                         f'{self.__data.pending[req]} complete')
+        self.__data.pending.pop(req)
+        if not self.__data.pending:
+            req = self.mps.ctrl.sync_challenges()
+            self.mps.ctrl.register_callback(req, callback)
+            self.statuslbl.show()
+            self.statuslbl.text = 'Updating Challenges...'
+
     def __update_list(self) -> None:
-        req = self.mps.ctrl.sync_challenges()
-        self.mps.ctrl.register_callback(req, self.__update_listcb)
         self.statuslbl.show()
-        self.statuslbl.text = 'Updating Challenges...'
+        self.statuslbl.text = 'Sending results...'
+        self.__send_pending_results(self.__update_listcb)
+        if not self.__data.pending:
+            req = self.mps.ctrl.sync_challenges()
+            self.mps.ctrl.register_callback(req, self.__update_listcb)
+            self.statuslbl.show()
+            self.statuslbl.text = 'Updating Challenges...'
 
     def __update_listcb(self, rescode: int) -> None:
         self.statuslbl.hide()
@@ -257,6 +301,11 @@ class Challenges(app.AppBase):
         self.__nodes.new.reparent_to(self.__nodes.listview)
         self.__nodes.new.onclick(self.__new_challenge)
 
+        self.__setup_newview()
+        self.__setup_gametypeview()
+        self.__setup_resultview()
+
+    def __setup_newview(self):
         # newview
         self.__nodes.newviewbtnlist = common \
             .gen_btnlist(self.config.get('font', 'normal'),
@@ -265,6 +314,7 @@ class Challenges(app.AppBase):
                          self.__nodes.newview)
         self.__nodes.newviewbtnlist.pos = 0, 0.06
 
+    def __setup_gametypeview(self):
         # gametypeview
         self.__nodes.gametypetxt = self.__nodes.gametypeview \
             .attach_text_node(text='Choose the game type\nfor the round:\n\n',
@@ -327,6 +377,27 @@ class Challenges(app.AppBase):
         self.__nodes.gametypereject.reparent_to(self.__nodes.gametypeview)
         self.__nodes.gametypereject.onclick(self.__reject_challenge)
 
+    def __setup_resultview(self):
+        self.__nodes.resulttxt = self.__nodes.resultview \
+            .attach_text_node(text='', text_color=common.TITLE_TXT_COLOR,
+                              align='center',
+                              font=self.config.get('font', 'bold'),
+                              font_size=0.05, multiline=True)
+        self.__nodes.resulttxt.origin = Origin.CENTER
+        self.__nodes.resulttxt.pos = 0, -0.2
+
+        self.__nodes.resultnext = button \
+            .Button(text='Next', pos=(-0.255, -0.05),
+                    **common.get_dialogue_btn_kw(size=(0.25, 0.1)))
+        self.__nodes.resultnext.reparent_to(self.__nodes.resultview)
+        self.__nodes.resultnext.onclick(self.__next_round)
+
+        self.__nodes.resultback = button \
+            .Button(text='Back', pos=(0.005, -0.05),
+                    **common.get_dialogue_btn_kw(size=(0.25, 0.1)))
+        self.__nodes.resultback.reparent_to(self.__nodes.resultview)
+        self.__nodes.resultback.onclick(self.__show_listview)
+
     def __back(self):
         for i in self.__dlgs.all:
             if i is not None and not i.hidden:
@@ -341,6 +412,7 @@ class Challenges(app.AppBase):
         self.__nodes.newview.hide()
         self.__nodes.challengeview.hide()
         self.__nodes.gametypeview.hide()
+        self.__nodes.resultview.hide()
         self.__nodes.listview.show()
         self.__update_list()
 
@@ -360,6 +432,7 @@ class Challenges(app.AppBase):
         self.__nodes.newview.hide()
         self.__nodes.challengeview.hide()
         self.__nodes.listview.hide()
+        self.__nodes.resultview.hide()
         self.__nodes.gametypeview.show()
         self.__nodes.gametypetitle.text = self.__data.data[self.__data.active]
         dcp = self.mps.dbh.available_draw(self.__data.idmap[self.__data.active])
@@ -389,6 +462,85 @@ class Challenges(app.AppBase):
             self.__nodes.gametypereject.show()
             self.__nodes.gametypestart.x = -0.255
 
+    def __show_resultview(self) -> None:
+        self.__send_pending_results(self.__show_resultviewcb)
+        self.statuslbl.show()
+        self.statuslbl.text = 'Sending Result...'
+
+    def __show_resultviewcb(self, rescode: int) -> None:
+        self.statuslbl.hide()
+        if rescode:
+            logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
+
+        roundno = self.mps.dbh.roundno(self.state.challenge)
+        roundwon = self.mps.dbh.round_won(self.state.challenge, roundno)
+        other = self.mps.dbh.get_username(
+            self.mps.dbh.opponent_id(self.state.challenge))
+        txt = self.__gen_result_txt(roundno, roundwon, other)
+
+        self.__nodes.newview.hide()
+        self.__nodes.challengeview.hide()
+        self.__nodes.gametypeview.hide()
+        self.__nodes.listview.hide()
+        self.__nodes.resultview.show()
+        self.__nodes.resulttitle.text = f'{other} {roundno}'
+        self.__nodes.resulttxt.text = txt
+        if self.mps.dbh.newround(self.state.challenge):
+            self.__nodes.resultnext.enabled = True
+            self.__nodes.resultback.x = 0.005
+        else:
+            self.__nodes.resultnext.enabled = False
+            self.__nodes.resultback.x = -0.125
+
+    def __gen_result_txt(self, roundno: int, roundwon: int, other: str) -> str:
+        # pylint: disable=too-many-branches
+        gametype = self.mps.dbh.get_round_info(self.state.challenge)[-1]
+        duration, points, moves = self.fsm_global_data['result']
+        self.fsm_global_data['result'] = None
+        other_result = self.mps.dbh \
+            .round_other_result(self.state.challenge, roundno)
+
+        if roundwon == -1:
+            txt = 'Result not\navailable!\n\n\n'
+        elif duration == -2.0:
+            txt = f'Forfeited Round {roundno}!\n\n'
+        elif gametype == 0:
+            mins, secs = int(duration // 60), duration % 60
+            txt = f'Round {roundno}:\n\nYou {mins}:{secs:05.2f}\n'
+            if other_result == -2:
+                txt += f'{other}\nForfeited!\n\n'
+            elif other_result == -1:
+                txt += f'{other}\nNot played yet\n\n'
+            elif other_result > -1:
+                mins, secs = int(other_result // 60), other_result % 60
+                txt += f'{other}\n{mins}:{secs:05.2f}\n\n'
+        elif gametype == 1:
+            txt = f'Round {roundno}:\n\nYou = {points}\n'
+            if other_result == -2:
+                txt += f'{other}\nForfeited!\n\n'
+            elif other_result == -1:
+                txt += f'{other}\nNot played yet\n\n'
+            elif other_result > -1:
+                txt += f'{other}\n{other_result}\n\n'
+        elif gametype == 2:
+            txt = f'Round {roundno}:\n\nYou = {moves}\n'
+            if other_result == -2:
+                txt += f'{other}\nForfeited!\n\n'
+            elif other_result == -1:
+                txt += f'{other}\nNot played yet\n\n'
+            elif other_result > -1:
+                txt += f'{other}\n{other_result}\n\n'
+        else:
+            txt = f'Unhandled Case!\n\n'
+
+        if roundwon == 0:
+            txt += 'WON\n\n'
+        elif roundwon == 1:
+            txt += 'LOST\n\n'
+        elif roundwon == 2:
+            txt += 'DRAW\n\n'
+        return txt
+
     def __toggle_gt(self, event: str, value: int = None) -> None:
         if event == 'draw':
             if self.__data.gtdraw == 0:
@@ -406,8 +558,28 @@ class Challenges(app.AppBase):
                     btn.enabled = True
 
     def __newround(self) -> None:
-        # TODO: Prepare Game State and Transition
-        pass
+        roundno = self.mps.dbh.roundno(self.__data.idmap[self.__data.active])
+        if roundno == 1:
+            req = self.mps.ctrl \
+                .accept_challenge(self.__data.idmap[self.__data.active],
+                                  3 if self.__data.gtdraw else 1,
+                                  self.__data.gtscore)
+        else:
+            # TODO: Add request for new round in existing challenge here
+            return
+        self.mps.ctrl.register_callback(req, self.__newroundcb)
+        self.statuslbl.show()
+        self.statuslbl.text = 'Starting...'
+
+    def __newroundcb(self, rescode: int) -> None:
+        self.statuslbl.hide()
+        if rescode:
+            logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
+            self.__show_listview()  # TODO: Display an error to the user...
+            return
+        self.state.challenge = self.__data.idmap[self.__data.active]
+        self.__data.active = None
+        self.request('game')
 
     def __reject_challenge(self) -> None:
         req = self.mps.ctrl \
@@ -420,7 +592,13 @@ class Challenges(app.AppBase):
         self.statuslbl.hide()
         if rescode:
             logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
+        self.__data.active = None
         self.__show_listview()
+
+    def __next_round(self) -> None:
+        self.__data.idmap[0] = self.state.challenge
+        self.__data.active = 0
+        self.__show_gametypeview()
 
     def __new_challenge(self):
         self.__nodes.listview.hide()

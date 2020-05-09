@@ -11,6 +11,7 @@ from typing import List, Tuple, Union
 from foolysh.tools import config
 from loguru import logger
 
+from common import Result
 import util
 
 __author__ = 'Tiziano Bettio'
@@ -41,7 +42,6 @@ __version__ = '0.3'
 REQ = [struct.pack('<B', i) for i in range(256)]
 SUCCESS = REQ[1]
 FAIL = REQ[0]
-Result = Tuple[float, int, int]
 
 
 class MPError(Exception):
