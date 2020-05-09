@@ -50,7 +50,7 @@ class Game(Base):
     draw = Column(Integer, nullable=False)
     windeal = Column(Boolean, nullable=False)
     daydeal = Column(Boolean, nullable=False)
-    challenge = Column(Boolean, nullable=True, default=False)
+    challenge = Column(Integer, nullable=True, default=-1)
     solution = Column(Boolean, default=False)  # Solution playback requested.
     attempts = relationship('Attempt', back_populates='game')
 
@@ -119,7 +119,7 @@ class Stats:
         logger.debug('Stats initialized')
 
     def new_deal(self, seed: int, draw: int, windeal: bool,
-                 daydeal: bool = False, challenge: bool = False) -> int:
+                 daydeal: bool = False, challenge: int = -1) -> int:
         """Makes sure a game with the given information exists in the db."""
         # pylint: disable=too-many-arguments
         res = self._session.query(Game)\
@@ -137,7 +137,7 @@ class Stats:
         return game.id
 
     def new_attempt(self, seed: int, draw: int, windeal: bool,
-                    daydeal: bool = False, challenge: bool = False) -> None:
+                    daydeal: bool = False, challenge: int = -1) -> None:
         """Creates a new attempt with the given information."""
         # pylint: disable=too-many-arguments
         game_id = self.new_deal(seed, draw, windeal, daydeal, challenge)
@@ -199,7 +199,7 @@ class Stats:
         logger.debug('closing database session')
 
     def result(self, seed: int, draw: int, windeal: bool,
-               daydeal: bool = False, challenge: bool = False
+               daydeal: bool = False, challenge: int = -1
                ) -> Union[Tuple[float, int, int, int], None]:
         """Returns the result of a game, if available otherwise None."""
         # pylint: disable=too-many-arguments
@@ -265,7 +265,7 @@ class Stats:
             _ = self.first_launch
         except OperationalError:
             # Alter table Game here
-            col = Column('challenge', Boolean, nullable=True, default=False)
+            col = Column('challenge', Integer, nullable=True, default=-1)
             # pylint: disable=no-value-for-parameter
             colname = col.compile(dialect=engine.dialect)
             # pylint: enable=no-value-for-parameter
@@ -273,7 +273,7 @@ class Stats:
             engine.execute(f'ALTER TABLE game ADD COLUMN {colname} {coltype}')
         else:
             return
-        engine.execute(f'UPDATE game SET challenge=0 WHERE challenge IS NULL')
+        engine.execute(f'UPDATE game SET challenge=-1 WHERE challenge IS NULL')
         _ = self.first_launch
 
     @property
