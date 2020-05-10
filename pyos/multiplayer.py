@@ -563,12 +563,15 @@ class Multiplayer:
             except (mpclient.NotConnectedError, mpclient.CouldNotLoginError):
                 return False
             if res is None:
+                logger.debug(f'No entry for challenge {challenge_id} round '
+                             f'{i + 1}')
                 continue
             try:
                 seed = self.mpc.get_round_seed(challenge_id, i + 1)
             except (mpclient.NotConnectedError, mpclient.CouldNotLoginError):
                 return False
             gametype, resuser, resother = res
+            logger.debug(f'Updating round with data {repr(res)}')
             self.mpdbh.update_challenge_round(challenge_id, i + 1,
                                               gametype.draw, gametype.score,
                                               seed, resuser, resother)

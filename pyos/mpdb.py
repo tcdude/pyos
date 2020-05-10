@@ -99,7 +99,9 @@ class Challenge(Base):
     timestamp = Column(Integer)
 
     def __repr__(self):
-        return f'Challenge(id={self.id})'
+        return f'Challenge(id={self.challenge_id}, status={self.status}, ' \
+               f'rounds={self.rounds}, otherid={self.otherid}, ' \
+               f'active={self.active}, timestamp={self.timestamp})'
 
 
 class ChallengeRound(Base):
@@ -116,6 +118,14 @@ class ChallengeRound(Base):
     other_duration = Column(Float, default=-1.0)
     other_points = Column(SmallInteger, default=-1)
     other_moves = Column(SmallInteger, default=-1)
+
+    def __repr__(self):
+        user = self.user_duration, self.user_points, self.user_moves
+        other = self.other_duration, self.other_points, self.other_moves
+        return f'ChallengeRound(id={self.challenge_id}, ' \
+               f'roundno={self.roundno}, draw={self.draw}, ' \
+               f'chtype={self.chtype}, seed={self.seed}, user={repr(user)}, ' \
+               f'other={repr(other)})'
 
 
 class Leaderboard(Base):
@@ -153,6 +163,7 @@ class MPDBHandler:
     Args:
         db_file: The sqlite file to store data in.
     """
+    # pylint: disable=too-many-public-methods
     def __init__(self, db_file: str) -> None:
         engine = create_engine(f'sqlite:///{db_file}')
         Base.metadata.create_all(engine)
@@ -365,9 +376,12 @@ class MPDBHandler:
                 return False
             if self.add_challenge_round(challenge_id, roundno, draw, chtype,
                                         seed):
-                return True
-            logger.error('Unable to create non-existing ChallengeRound')
-            return False
+                chround = self._session.query(ChallengeRound) \
+                    .filter(ChallengeRound.challenge_id == challenge_id,
+                            ChallengeRound.roundno == roundno).first()
+            else:
+                logger.error('Unable to create non-existing ChallengeRound')
+                return False
         chround.seed = seed
         if resuser is not None:
             chround.user_duration = resuser[0]
@@ -533,13 +547,14 @@ class MPDBHandler:
             return True
         if chround is None and challenge.status != 1:
             return False
-        usrsum = sum(chround.user_duration, chround.user_moves,
-                     chround.user_points)
-        othsum = sum(chround.other_duration, chround.other_moves,
-                     chround.other_points)
-        if chround.roundno == challenge.rounds and usrsum != -3.0 != othsum:
+
+        uplayed = chround.user_duration != -1.0
+        oplayed = chround.other_duration != -1.0
+
+        if chround.roundno == challenge.rounds and uplayed and oplayed:
             return False
-        if usrsum == othsum == -3.0 and challenge.status > 0:
+        if uplayed is oplayed is False and challenge.status > 0 \
+              or (uplayed and oplayed and chround.roundno < challenge.rounds):
             return True
         logger.warning(f'Unhandled case {challenge} {chround}')
         return False
@@ -655,9 +670,7 @@ class MPDBHandler:
             chround = self._session.query(ChallengeRound) \
                 .filter(ChallengeRound.challenge_id == i.challenge_id,
                         ChallengeRound.seed != 0,
-                        ChallengeRound.user_duration == -1.0,
-                        ChallengeRound.user_moves == -1,
-                        ChallengeRound.user_points == -1) \
+                        ChallengeRound.user_duration == -1.0) \
                 .order_by(ChallengeRound.roundno.desc()).first()
             if chround is None:
                 continue
@@ -688,11 +701,7 @@ class MPDBHandler:
             chround = self._session.query(ChallengeRound) \
                 .filter(ChallengeRound.challenge_id == i.challenge_id,
                         ChallengeRound.user_duration != -1.0,
-                        ChallengeRound.user_moves != -1,
-                        ChallengeRound.user_points != -1,
-                        ChallengeRound.other_duration == -1.0,
-                        ChallengeRound.other_moves == -1,
-                        ChallengeRound.other_points == -1) \
+                        ChallengeRound.other_duration == -1.0) \
                 .order_by(ChallengeRound.roundno.desc()).first()
             if chround is None:
                 continue
