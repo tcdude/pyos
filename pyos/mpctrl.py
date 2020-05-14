@@ -312,7 +312,7 @@ class MPControl:
         else:
             self._proc = subprocess.Popen(['python', 'multiplayer.py'])
         for _ in range(10):
-            time.sleep(0.1)
+            time.sleep(0.3)
             reqid = self._request()
             if reqid > -1:
                 _ = self.result(reqid)
