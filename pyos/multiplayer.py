@@ -370,6 +370,8 @@ class Multiplayer:
             return NO_CONNECTION
         except mpclient.CouldNotLoginError:
             return NOT_LOGGED_IN
+        self.mpdbh.update_challenge_round(challenge_id, roundno, resuser=result,
+                                          result_sent=True)
         return SUCCESS
 
     def _friend_request(self, data: bytes) -> bytes:
@@ -435,10 +437,15 @@ class Multiplayer:
         except ValueError:
             return WRONG_FORMAT
         gamet = mpclient.GameType(draw, score)
-        seed = self.mpc.accept_challenge(challenge_id, True, gamet)
+        roundno = self.mpdbh.roundno(challenge_id)
+        if roundno == 0:
+            seed = self.mpc.accept_challenge(challenge_id, True, gamet)
+        else:
+            seed = self.mpc.new_round(challenge_id, gamet)
         if seed > 0:
-            if not self.mpdbh.add_challenge_round(challenge_id, 1, draw, score,
-                                                  seed):
+            roundno = max(1, roundno)
+            if not self.mpdbh.update_challenge_round(challenge_id, roundno,
+                                                     draw, score, seed):
                 logger.error('Something went wrong during add_challenge_round')
             return SUCCESS
         return FAILURE
@@ -543,21 +550,23 @@ class Multiplayer:
                 if status < 2:
                     rounds, challenge_id, otherid = i
                     roundno = 0
+                    userturn = status == 1
                 else:
                     challenge_id = i.challenge_id
                     roundno = i.roundno
                     rounds = i.rounds
                     otherid = i.userid
+                    userturn = i.waiting
                 challenge_ids.append(challenge_id)
                 self.mpdbh.update_challenge(challenge_id, otherid, rounds,
-                                            status, True)
+                                            status, True, userturn)
                 if not self._update_challenge_rounds(challenge_id, roundno):
                     return False
         logger.debug(f'Updated challenges {repr(challenge_ids)}')
         return True
 
     def _update_challenge_rounds(self, challenge_id: int, roundno: int) -> bool:
-        for i in range(roundno):
+        for i in range(roundno + 1):
             try:
                 res = self.mpc.challenge_round(challenge_id, i + 1)
             except (mpclient.NotConnectedError, mpclient.CouldNotLoginError):
@@ -574,7 +583,8 @@ class Multiplayer:
             logger.debug(f'Updating round with data {repr(res)}')
             self.mpdbh.update_challenge_round(challenge_id, i + 1,
                                               gametype.draw, gametype.score,
-                                              seed, resuser, resother)
+                                              seed, resuser, resother,
+                                              resuser[0] != -1.0)
         return True
 
     def _prune_challenge(self) -> None:
