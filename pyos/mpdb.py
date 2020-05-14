@@ -8,7 +8,7 @@ from sqlalchemy import Boolean, Column, Float, Integer, Unicode, SmallInteger
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql.expression import true
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, or_, and_
 from loguru import logger
 
 import common
@@ -96,12 +96,12 @@ class Challenge(Base):
     otherid = Column(Integer, nullable=False)
     rounds = Column(SmallInteger, nullable=False)
     active = Column(Boolean, default=True)
-    timestamp = Column(Integer)
+    userturn = Column(Boolean, default=False)
 
     def __repr__(self):
         return f'Challenge(id={self.challenge_id}, status={self.status}, ' \
                f'rounds={self.rounds}, otherid={self.otherid}, ' \
-               f'active={self.active}, timestamp={self.timestamp})'
+               f'active={self.active}, userturn={self.userturn})'
 
 
 class ChallengeRound(Base):
@@ -118,6 +118,7 @@ class ChallengeRound(Base):
     other_duration = Column(Float, default=-1.0)
     other_points = Column(SmallInteger, default=-1)
     other_moves = Column(SmallInteger, default=-1)
+    result_sent = Column(Boolean, default=False)
 
     def __repr__(self):
         user = self.user_duration, self.user_points, self.user_moves
@@ -125,7 +126,7 @@ class ChallengeRound(Base):
         return f'ChallengeRound(id={self.challenge_id}, ' \
                f'roundno={self.roundno}, draw={self.draw}, ' \
                f'chtype={self.chtype}, seed={self.seed}, user={repr(user)}, ' \
-               f'other={repr(other)})'
+               f'other={repr(other)}, result_sent={self.result_sent})'
 
 
 class Leaderboard(Base):
@@ -305,7 +306,8 @@ class MPDBHandler:
         return True
 
     def update_challenge(self, challenge_id: int, otherid: int, rounds: int,
-                         status: int, active: bool) -> bool:
+                         status: int, active: bool, userturn: bool = False
+                         ) -> bool:
         """Update an existing challenge."""
         # pylint: disable=too-many-arguments
         challenge = self._session.query(Challenge) \
@@ -314,9 +316,11 @@ class MPDBHandler:
             if not self.add_challenge(challenge_id, otherid, rounds, status,
                                       active):
                 return False
-            return True
+            challenge = self._session.query(Challenge) \
+                .filter(Challenge.challenge_id == challenge_id).first()
         challenge.status = status
         challenge.active = active
+        challenge.userturn = userturn
         self._session.commit()
         return True
 
@@ -338,6 +342,8 @@ class MPDBHandler:
         if challenge is None:
             return False
         challenge.active = False
+        if challenge.status == 2:
+            challenge.status = 3
         self._session.commit()
         return True
 
@@ -362,8 +368,9 @@ class MPDBHandler:
 
     def update_challenge_round(self, challenge_id: int, roundno: int,
                                draw: int = None, chtype: int = None,
-                               seed: int = 0, resuser: Result = None,
-                               resother: Result = None) -> bool:
+                               seed: int = None, resuser: Result = None,
+                               resother: Result = None, result_sent: bool = None
+                               ) -> bool:
         """Update an existing challenge round."""
         # pylint: disable=too-many-arguments
         chround = self._session.query(ChallengeRound) \
@@ -375,14 +382,15 @@ class MPDBHandler:
                              'created w/o "draw" and "chtype" argument')
                 return False
             if self.add_challenge_round(challenge_id, roundno, draw, chtype,
-                                        seed):
+                                        seed or 0):
                 chround = self._session.query(ChallengeRound) \
                     .filter(ChallengeRound.challenge_id == challenge_id,
                             ChallengeRound.roundno == roundno).first()
             else:
                 logger.error('Unable to create non-existing ChallengeRound')
                 return False
-        chround.seed = seed
+        if seed is not None:
+            chround.seed = seed
         if resuser is not None:
             chround.user_duration = resuser[0]
             chround.user_points = resuser[1]
@@ -391,6 +399,8 @@ class MPDBHandler:
             chround.other_duration = resother[0]
             chround.other_points = resother[1]
             chround.other_moves = resother[2]
+        if result_sent is not None:
+            chround.result_sent = result_sent
         self._session.commit()
         self._check_challenge_complete(challenge_id)
         return True
@@ -478,8 +488,10 @@ class MPDBHandler:
             return -3
         if chround.other_duration == -2.0:
             return -2
-        ret = (chround.other_duration, chround.other_points,
-               chround.other_moves)
+        if chround.other_duration == -1.0:
+            return -1
+        ret = (chround.other_duration, chround.other_moves,
+               chround.other_points)
         return ret[chround.chtype]
 
     def userstats(self, userid: int) -> Tuple[int, int, int, int, int]:
@@ -523,15 +535,15 @@ class MPDBHandler:
 
     def roundno(self, challenge_id: int) -> int:
         """
-        Returns the current round number of a challenge. -1 if the challenge
-        is not in the DB.
+        Returns the current round number of a challenge or 0 if no round has
+        been created yet. -1 if the challenge is not in the DB.
         """
         if self._session.query(Challenge) \
               .filter(Challenge.challenge_id == challenge_id).count() != 1:
             return -1
         cnt = self._session.query(ChallengeRound) \
             .filter(ChallengeRound.challenge_id == challenge_id).count()
-        return max(1, cnt)
+        return cnt
 
     def newround(self, challenge_id: int) -> bool:
         """Whether the user can choose a gametype."""
@@ -551,7 +563,8 @@ class MPDBHandler:
         uplayed = chround.user_duration != -1.0
         oplayed = chround.other_duration != -1.0
 
-        if chround.roundno == challenge.rounds and uplayed and oplayed:
+        if chround.roundno == challenge.rounds and uplayed and oplayed \
+              or (chround.seed != 0 and not uplayed):
             return False
         if uplayed is oplayed is False and challenge.status > 0 \
               or (uplayed and oplayed and chround.roundno < challenge.rounds):
@@ -563,8 +576,7 @@ class MPDBHandler:
         """Returns the user id of the opponent in a challenge."""
         other = self._session.query(User) \
             .join(Challenge, Challenge.otherid == User.user_id) \
-            .filter(Challenge.challenge_id == challenge_id,
-                    Challenge.active == true()).first()
+            .filter(Challenge.challenge_id == challenge_id).first()
         if other is None:
             logger.error('Unable to find challenge')
             return -1
@@ -585,6 +597,7 @@ class MPDBHandler:
                     Challenge.rounds == count).first()
         if challenge is not None:
             challenge.active = False
+            challenge.status = 3
             self._session.commit()
 
     @property
@@ -668,13 +681,18 @@ class MPDBHandler:
                 new.append((i.challenge_id, txt))
                 continue
             chround = self._session.query(ChallengeRound) \
+                .join(Challenge,
+                      Challenge.challenge_id == ChallengeRound.challenge_id) \
                 .filter(ChallengeRound.challenge_id == i.challenge_id,
                         ChallengeRound.seed != 0,
-                        ChallengeRound.user_duration == -1.0) \
+                        Challenge.userturn == true(),
+                        or_(ChallengeRound.user_duration == -1.0,
+                            and_(ChallengeRound.user_duration != -1.0,
+                                 ChallengeRound.other_duration != -1.0))) \
                 .order_by(ChallengeRound.roundno.desc()).first()
             if chround is None:
                 continue
-            txt = f'{user.name} D{chround.draw}/{chround.roundno}/{i.rounds}'
+            txt = f'{user.name} D{chround.draw} ({chround.roundno}/{i.rounds})'
             act.append((i.challenge_id, txt))
         new.sort(key=lambda x: x[1])
         act.sort(key=lambda x: x[1])
@@ -699,13 +717,14 @@ class MPDBHandler:
                 req.append((i.challenge_id, txt))
                 continue
             chround = self._session.query(ChallengeRound) \
+                .join(Challenge,
+                      Challenge.challenge_id == ChallengeRound.challenge_id) \
                 .filter(ChallengeRound.challenge_id == i.challenge_id,
-                        ChallengeRound.user_duration != -1.0,
-                        ChallengeRound.other_duration == -1.0) \
+                        Challenge.userturn != true()) \
                 .order_by(ChallengeRound.roundno.desc()).first()
             if chround is None:
                 continue
-            txt = f'{user.name} D{chround.draw}/{chround.roundno}/{i.rounds}'
+            txt = f'{user.name} D{chround.draw} ({chround.roundno}/{i.rounds})'
             wait.append((i.challenge_id, txt))
         req.sort(key=lambda x: x[1])
         wait.sort(key=lambda x: x[1])
@@ -751,3 +770,22 @@ class MPDBHandler:
                 continue
             ret.append((i.user_id, i.name))
         return ret
+
+    @property
+    def active_challenges(self) -> List[int]:
+        """Returns all challenge ids that are marked active."""
+        return self._session.query(Challenge.challenge_id) \
+            .filter(Challenge.active == true()).all()
+
+    @property
+    def unsent_results(self) -> List[Tuple[int, int]]:
+        """
+        Returns all challenge id/roundno where the result_sent flag is False.
+        """
+        return self._session \
+            .query(ChallengeRound.challenge_id, ChallengeRound.roundno) \
+            .join(Challenge,
+                  Challenge.challenge_id == ChallengeRound.challenge_id) \
+            .filter(Challenge.active == true(),
+                    ChallengeRound.result_sent != true(),
+                    ChallengeRound.seed != 0).all()
