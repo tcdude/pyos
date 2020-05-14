@@ -215,13 +215,16 @@ class Stats:
         # Challenge result, totalized no bonus
         res = self._session.query(Attempt).join(Game) \
             .filter(Game.seed == seed, Game.draw == draw,
-                    Game.challenge == challenge).all()
-        duration, points, moves = 0, 0, 0
+                    Game.challenge == challenge) \
+                    .order_by(Attempt.last_move.desc()).all()
+        if not res:
+            return None
+        duration, moves = 0, 0
+        points = res[0].points
         solved = False
         for i in res:
             solved = solved or i.solved
             duration += i.duration
-            points += i.points
             moves += i.moves
         if solved:
             return duration, moves, points, 0
