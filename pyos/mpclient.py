@@ -448,7 +448,7 @@ class MultiplayerClient:
         self._conn.sendall(req)
         data = self._recv()
         if len(data) != 18:
-            logger.warning('Invalid response size')
+            logger.warning(f'Invalid response size {len(data)}')
             return None
         gamet = GameType(*util.parse_game_type(data[1:2]))
         resuser = util.parse_result(data[2:10])
