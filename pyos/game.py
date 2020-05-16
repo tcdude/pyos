@@ -103,7 +103,7 @@ class Game(app.AppBase):
     def enter_game(self):
         """Tasks to be performed when this state is activated."""
         logger.info('Enter state game')
-        logger.debug(f'__active is: {self.__active}')
+        self.global_nodes.mpstatus.hide()
         self.__setup()
         self.__state.fresh_state = True
         logger.debug(f'state.challenge is: {self.state.challenge}')
@@ -131,6 +131,7 @@ class Game(app.AppBase):
         self.__systems.toolbar.hide()
         self.__systems.game_table.pause()
         self.__save()
+        self.global_nodes.mpstatus.show()
 
     # Setup / Tear down
 

@@ -102,6 +102,27 @@ class Systems:
     shuffler: rules.Shuffler
 
 
+@dataclass
+class GlobalNodes:
+    """Holds globally accessible Nodes."""
+    statuslbl: label.Label = None
+    mpstatus: label.Label = None
+
+    def show_status(self, text: str) -> None:
+        """Show the statuslbl with the given text."""
+        self.statuslbl.text = text
+        self.statuslbl.show()
+
+    def hide_status(self) -> None:
+        """Hides the statuslbl."""
+        self.statuslbl.hide()
+
+    def set_mpstatus(self, text: str) -> None:
+        """Updates the mpstatus text."""
+        self.mpstatus.text = text
+        self.mpstatus.show()
+
+
 class AppBase(app.App):
     """
     Serves as base for all states registered through multiple inheritance. All
@@ -110,11 +131,18 @@ class AppBase(app.App):
     """
     def __init__(self, config_file):
         super().__init__(config_file=config_file)
-        self.statuslbl = label.Label(text='', **common.STATUS_TXT_KW)
-        self.statuslbl.reparent_to(self.ui.center)
-        self.statuslbl.origin = Origin.CENTER
-        self.statuslbl.depth = 2000
-        self.statuslbl.hide()
+        self.global_nodes = GlobalNodes()
+        self.global_nodes.statuslbl = label \
+            .Label(text='', **common.STATUS_TXT_KW)
+        self.global_nodes.statuslbl.reparent_to(self.ui.center)
+        self.global_nodes.statuslbl.origin = Origin.CENTER
+        self.global_nodes.statuslbl.depth = 2000
+        self.global_nodes.statuslbl.hide()
+        self.global_nodes.mpstatus = label \
+            .Label(text='Not logged in', **common.MPSTATUS_TXT_KW)
+        self.global_nodes.mpstatus.reparent_to(self.ui.bottom_center)
+        self.global_nodes.mpstatus.origin = Origin.CENTER
+        self.global_nodes.mpstatus.depth = 2000
 
         dtf = self.config.get('pyos', 'datafile',
                               fallback=common.DEFAULTCONFIG['pyos']['datafile'])
@@ -137,17 +165,18 @@ class AppBase(app.App):
         if not self.mps.ctrl.noaccount:
             req = self.mps.ctrl.update_user_ranking()
             self.mps.ctrl.register_callback(req, self.__logincb)
-            self.statuslbl.text = 'Connecting to server...'
-            self.statuslbl.show()
+            self.global_nodes.show_status('Connecting to server...')
 
     def __logincb(self, rescode: int) -> None:
-        self.statuslbl.hide()
+        self.global_nodes.hide_status()
         self.mps.login = rescode
         if rescode:
             logger.warning(f'Login failed with rescode '
                            f'{mpctrl.RESTXT[rescode]}')
         else:
             logger.debug('Login successful')
+            user = self.config.get('mp', 'user')
+            self.global_nodes.set_mpstatus(f'Logged in as {user}')
 
     def __setup_events_tasks(self):
         """Setup Events and Tasks."""

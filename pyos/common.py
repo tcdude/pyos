@@ -213,6 +213,12 @@ STATUS_TXT_KW = {'size': (0.9, 0.2), 'pos': (0, 0), 'font_size': 0.05,
                  'corner_radius': 0.05, 'frame_color': SETTINGS_FRAME_COLOR,
                  'border_color': (0, 0, 0), 'align': 'center',
                  'multisampling': 2, 'alpha': 220}
+MPSTATUS_TXT_KW = {'size': (0.8, 0.08), 'pos': (0, -0.04), 'font_size': 0.035,
+                   'font': DEFAULTCONFIG['font']['normal'],
+                   'text_color': TITLE_TXT_COLOR, 'border_thickness': 0.0025,
+                   'corner_radius': 0.0375, 'frame_color': SETTINGS_FRAME_COLOR,
+                   'border_color': (0, 0, 0), 'align': 'center',
+                   'multisampling': 2, 'alpha': 220}
 
 
 def get_menu_txt_btn_kw(size: Tuple[float, float], **kwargs) -> Dict[str, Any]:

@@ -394,8 +394,7 @@ class MultiplayerSettings(app.AppBase):
                 .create_new_account(self.__nodes.username.text.strip(),
                                     self.__nodes.password.text)
             self.mps.ctrl.register_callback(req, self.__new_account)
-            self.statuslbl.text = 'Attempting to connect...'
-            self.statuslbl.show()
+            self.global_nodes.show_status('Attempting to connect...')
         else:
             if not self.__nodes.username.text or not self.__nodes.password.text:
                 self.__gen_dlg('CANNOT BE EMPTY\n\nPlease insert\n'
@@ -435,8 +434,7 @@ class MultiplayerSettings(app.AppBase):
             self.mps.ctrl.register_callback(req, self.__passwd_change)
             self.__update_data['password'] = True
         if self.__update_data['user'] or self.__update_data['password']:
-            self.statuslbl.text = 'Updating...'
-            self.statuslbl.show()
+            self.global_nodes.show_status('Updating...')
 
     def __user_change(self, rescode: int) -> None:
         if rescode != 0 and self.__update_data['password']:
@@ -455,7 +453,7 @@ class MultiplayerSettings(app.AppBase):
         self.__gen_dlg(msg)
         self.__update_data['user'] = False
         self.__nodes.username.text = self.config.get('mp', 'user', fallback='')
-        self.statuslbl.hide()
+        self.global_nodes.hide_status()
 
     def __passwd_change(self, rescode: int) -> None:
         if rescode != 0 and self.__update_data['user']:
@@ -474,13 +472,13 @@ class MultiplayerSettings(app.AppBase):
         self.__gen_dlg(msg)
         self.__update_data['password'] = False
         self.__nodes.password.text = UNCHANGED
-        self.statuslbl.hide()
+        self.global_nodes.hide_status()
 
     def __new_account(self, rescode: int) -> None:
         self.mps.login = rescode
         if rescode == 0:
             logger.info('New account created successfully.')
-            self.statuslbl.hide()
+            self.global_nodes.hide_status()
             self.__gen_dlg('Success')
             self.__useraction.change_text('Update')
             self.__nodes.password.text = UNCHANGED
@@ -493,10 +491,10 @@ class MultiplayerSettings(app.AppBase):
             self.config.save()
             req = self.mps.ctrl.update_user_ranking()
             self.mps.ctrl.register_callback(req, self.__login_success)
-            self.statuslbl.text = 'Attempting login...'
+            self.global_nodes.show_status('Attempting login...')
 
     def __login_success(self, rescode: int) -> None:
-        self.statuslbl.hide()
+        self.global_nodes.hide_status()
         self.mps.login = rescode
         if rescode == 5:
             self.__gen_dlg('Unable to create\nor login to account!\n\n'
@@ -518,12 +516,11 @@ class MultiplayerSettings(app.AppBase):
     def __set_drawpref(self, option: int) -> None:
         req = self.mps.ctrl.set_draw_count_pref(option)
         self.mps.ctrl.register_callback(req, self.__drawpref_set)
-        self.statuslbl.text = 'Updating...'
-        self.statuslbl.show()
+        self.global_nodes.show_status('Updating...')
         self.__update_drawpref(option)
 
     def __drawpref_set(self, rescode: int) -> None:
-        self.statuslbl.hide()
+        self.global_nodes.hide_status()
         if rescode == 0:
             self.__update_drawpref()
         else:

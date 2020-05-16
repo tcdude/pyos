@@ -218,8 +218,7 @@ class Friends(app.AppBase):
 
     def __unblock(self, decision: bool) -> None:
         self.__dlgs.unblockrequest.hide()
-        self.statuslbl.show()
-        self.statuslbl.text = 'Unblocking user...'
+        self.global_nodes.show_status('Unblocking user...')
         userid = self.__data.idmap[self.__data.active]
         req = self.mps.ctrl.unblock_user(userid, decision)
         self.mps.ctrl.register_callback(req, self.__unblock_req)
@@ -228,7 +227,7 @@ class Friends(app.AppBase):
     def __unblock_req(self, rescode: int) -> None:
         if rescode:
             logger.warning(f'Request failed {mpctrl.RESTXT[rescode]}')
-        self.statuslbl.hide()
+        self.global_nodes.hide_status()
         self.__show_listview()
 
     def __close_unblock(self) -> None:
@@ -240,8 +239,7 @@ class Friends(app.AppBase):
         userid = self.__data.idmap[self.__data.active]
         req = self.mps.ctrl.reply_friend_request(userid, True)
         self.mps.ctrl.register_callback(req, self.__reqcb)
-        self.statuslbl.text = 'Sending reply...'
-        self.statuslbl.show()
+        self.global_nodes.show_status('Sending reply...')
         self.__data.active = None
 
     def __deny_req(self) -> None:
@@ -249,8 +247,7 @@ class Friends(app.AppBase):
         userid = self.__data.idmap[self.__data.active]
         req = self.mps.ctrl.remove_friend(userid)
         self.mps.ctrl.register_callback(req, self.__reqcb)
-        self.statuslbl.text = 'Sending reply...'
-        self.statuslbl.show()
+        self.global_nodes.show_status('Sending reply...')
         self.__data.active = None
 
     def __block_req(self) -> None:
@@ -258,8 +255,7 @@ class Friends(app.AppBase):
         userid = self.__data.idmap[self.__data.active]
         req = self.mps.ctrl.reply_friend_request(userid, False)
         self.mps.ctrl.register_callback(req, self.__reqcb)
-        self.statuslbl.text = 'Sending reply...'
-        self.statuslbl.show()
+        self.global_nodes.show_status('Sending reply...')
         self.__data.active = None
 
     def __close_reply(self) -> None:
@@ -271,8 +267,7 @@ class Friends(app.AppBase):
         userid = self.__data.idmap[self.__data.active]
         req = self.mps.ctrl.remove_friend(userid)
         self.mps.ctrl.register_callback(req, self.__reqcb)
-        self.statuslbl.text = 'Sending reply...'
-        self.statuslbl.show()
+        self.global_nodes.show_status('Sending reply...')
         self.__data.active = None
 
     def __close_remove(self) -> None:
@@ -281,7 +276,7 @@ class Friends(app.AppBase):
             self.__data.active = None
 
     def __reqcb(self, rescode: int) -> None:
-        self.statuslbl.hide()
+        self.global_nodes.hide_status()
         if rescode:
             logger.warning(f'Request failed {mpctrl.RESTXT[rescode]}')
             return
@@ -293,12 +288,11 @@ class Friends(app.AppBase):
     def __update_data(self) -> None:
         req = self.mps.ctrl.sync_relationships()
         self.mps.ctrl.register_callback(req, self.__sync_relcb)
-        self.statuslbl.text = 'Updating Friends...'
-        self.statuslbl.show()
+        self.global_nodes.show_status('Updating Friends...')
         self.__nodes.back.enabled = False
 
     def __sync_relcb(self, rescode: int) -> None:
-        self.statuslbl.hide()
+        self.global_nodes.hide_status()
         self.__nodes.back.enabled = True
         if rescode:
             logger.warning(f'Unable to sync relationships '
@@ -410,10 +404,10 @@ class Friends(app.AppBase):
             return
         req = self.mps.ctrl.friend_request(username)
         self.mps.ctrl.register_callback(req, self.__friendreqcb)
-        self.statuslbl.text = 'Sending request...'
+        self.global_nodes.show_status('Sending request...')
 
     def __friendreqcb(self, rescode: int) -> None:
-        self.statuslbl.hide()
+        self.global_nodes.hide_status()
         if rescode == 0:
             self.__show_listview()
 
@@ -452,8 +446,7 @@ class Friends(app.AppBase):
             self.__nodes.userchallenge.enabled = False
         req = self.mps.ctrl.update_other_user(userid)
         self.mps.ctrl.register_callback(req, self.__gen_userstat)
-        self.statuslbl.show()
-        self.statuslbl.text = 'Loading user stats...'
+        self.global_nodes.show_status('Loading user stats...')
 
     def __start_challenge(self) -> None:
         self.fsm_global_data['start_challenge'] = self.__data \
@@ -465,7 +458,7 @@ class Friends(app.AppBase):
         self.__gen_dlg('remove', f'Remove friend\n{username} ?\n\n')
 
     def __gen_userstat(self, unused_rescode: int) -> None:
-        self.statuslbl.hide()
+        self.global_nodes.hide_status()
         self.__nodes.listview.hide()
         self.__nodes.userview.show()
         values = self.mps.dbh \

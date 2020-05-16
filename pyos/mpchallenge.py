@@ -228,21 +228,18 @@ class Challenges(app.AppBase):
         if not self.__data.pending:
             req = self.mps.ctrl.sync_challenges()
             self.mps.ctrl.register_callback(req, callback)
-            self.statuslbl.show()
-            self.statuslbl.text = 'Updating Challenges...'
+            self.global_nodes.show_status('Updating Challenges...')
 
     def __update_list(self) -> None:
-        self.statuslbl.show()
-        self.statuslbl.text = 'Sending results...'
+        self.global_nodes.show_status('Sending results...')
         self.__send_pending_results(self.__update_listcb)
         if not self.__data.pending:
             req = self.mps.ctrl.sync_challenges()
             self.mps.ctrl.register_callback(req, self.__update_listcb)
-            self.statuslbl.show()
-            self.statuslbl.text = 'Updating Challenges...'
+            self.global_nodes.show_status('Updating Challenges...')
 
     def __update_listcb(self, rescode: int) -> None:
-        self.statuslbl.hide()
+        self.global_nodes.hide_status()
         if rescode:
             logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
         self.__data.data.clear()
@@ -333,12 +330,11 @@ class Challenges(app.AppBase):
         userid = self.__data.idmap[self.__data.active]
         req = self.mps.ctrl.start_challenge(userid, rounds)
         self.mps.ctrl.register_callback(req, self.__challenge_reqcb)
-        self.statuslbl.show()
-        self.statuslbl.text = 'Sending request...'
+        self.global_nodes.show_status('Sending request...')
 
     def __challenge_reqcb(self, rescode: int) -> None:
         self.fsm_global_data['start_challenge'] = 0
-        self.statuslbl.hide()
+        self.global_nodes.hide_status()
         if rescode:
             logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
         self.__update_new_list()
@@ -479,6 +475,7 @@ class Challenges(app.AppBase):
         self.request('multiplayer_menu')
 
     def __show_listview(self) -> None:
+        self.state.challenge = -1
         self.__nodes.newview.hide()
         self.__nodes.challengeview.hide()
         self.__nodes.gametypeview.hide()
@@ -491,11 +488,10 @@ class Challenges(app.AppBase):
             .update_other_user(self.mps.dbh.opponent_id(
                 self.__data.idmap[self.__data.active]))
         self.mps.ctrl.register_callback(req, self.__show_gametypeviewcb)
-        self.statuslbl.show()
-        self.statuslbl.text = 'Updating preferences...'
+        self.global_nodes.show_status('Updating preferences...')
 
     def __show_gametypeviewcb(self, rescode: int) -> None:
-        self.statuslbl.hide()
+        self.global_nodes.hide_status()
         if rescode:
             logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
             return
@@ -540,11 +536,10 @@ class Challenges(app.AppBase):
     def __show_resultview(self) -> None:
         self.__send_pending_results(self.__show_resultviewcb)
         if self.__data.pending:
-            self.statuslbl.show()
-            self.statuslbl.text = 'Sending Result...'
+            self.global_nodes.show_status('Sending Result...')
 
     def __show_resultviewcb(self, rescode: int, *unused_a, **unused_kw) -> None:
-        self.statuslbl.hide()
+        self.global_nodes.hide_status()
         if rescode:
             logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
 
@@ -653,11 +648,10 @@ class Challenges(app.AppBase):
         else:
             return
         self.mps.ctrl.register_callback(req, self.__newroundcb)
-        self.statuslbl.show()
-        self.statuslbl.text = 'Starting...'
+        self.global_nodes.show_status('Starting...')
 
     def __newroundcb(self, rescode: int) -> None:
-        self.statuslbl.hide()
+        self.global_nodes.hide_status()
         if rescode:
             logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
             self.__nodes.gametypeview.hide()
@@ -673,11 +667,10 @@ class Challenges(app.AppBase):
         req = self.mps.ctrl \
             .reject_challenge(self.__data.idmap[self.__data.active])
         self.mps.ctrl.register_callback(req, self.__reject_challengecb)
-        self.statuslbl.show()
-        self.statuslbl.text = 'Rejecting...'
+        self.global_nodes.show_status('Rejecting...')
 
     def __reject_challengecb(self, rescode: int) -> None:
-        self.statuslbl.hide()
+        self.global_nodes.hide_status()
         if rescode:
             logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
         self.__data.active = None
@@ -696,11 +689,10 @@ class Challenges(app.AppBase):
     def __update_new_list(self) -> None:
         req = self.mps.ctrl.sync_relationships()
         self.mps.ctrl.register_callback(req, self.__update_new_listcb)
-        self.statuslbl.show()
-        self.statuslbl.text = 'Updating Friends...'
+        self.global_nodes.show_status('Updating Friends...')
 
     def __update_new_listcb(self, rescode: int) -> None:
-        self.statuslbl.hide()
+        self.global_nodes.hide_status()
         if rescode:
             logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
         data = self.mps.dbh.challenge_available
