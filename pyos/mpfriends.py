@@ -481,4 +481,6 @@ class Friends(app.AppBase):
             val = str(value)
             padding = txtmax - len(val) - tlen
             msg += desc + ' ' * padding + val + '\n'
-        self.__nodes.usertxt.text = msg
+            if desc == 'Points ':
+                msg += '\n'
+        self.__nodes.usertxt.text = msg + '\n'
