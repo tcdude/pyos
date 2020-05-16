@@ -165,6 +165,12 @@ class Challenges(app.AppBase):
         self.__nodes.new.pos = pos_x, 0.38
         if 'result' in self.fsm_global_data and self.fsm_global_data['result']:
             self.__show_resultview()
+        elif 'start_challenge' in self.fsm_global_data \
+              and self.fsm_global_data['start_challenge']:
+            self.__gen_dlg('new', f'Select the number\nof rounds to play\n'
+                                  f'or {common.BACK_SYM} to go back.\n\n')
+            self.__data.idmap[0] = self.fsm_global_data['start_challenge']
+            self.__data.active = 0
         else:
             self.__nodes.btnlist.update_content()
             self.__filter(self.__data.fltr)
@@ -290,6 +296,7 @@ class Challenges(app.AppBase):
         self.statuslbl.text = 'Sending request...'
 
     def __challenge_reqcb(self, rescode: int) -> None:
+        self.fsm_global_data['start_challenge'] = 0
         self.statuslbl.hide()
         if rescode:
             logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
@@ -419,6 +426,11 @@ class Challenges(app.AppBase):
             if i is not None and not i.hidden:
                 i.hide()
                 return
+        if 'start_challenge' in self.fsm_global_data \
+              and self.fsm_global_data['start_challenge']:
+            self.fsm_global_data['start_challenge'] = 0
+            self.request('friends')
+            return
         if self.__nodes.listview.hidden:
             self.__show_listview()
             return

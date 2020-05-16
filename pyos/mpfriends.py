@@ -456,8 +456,9 @@ class Friends(app.AppBase):
         self.statuslbl.text = 'Loading user stats...'
 
     def __start_challenge(self) -> None:
-        # TODO: Launch start challenge dialogue from Challenges state
-        pass
+        self.fsm_global_data['start_challenge'] = self.__data \
+            .idmap[self.__data.active]
+        self.request('challenges')
 
     def __remove_friend(self) -> None:
         username = self.__data.data[self.__data.active]
