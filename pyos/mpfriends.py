@@ -97,20 +97,20 @@ class Friends(app.AppBase):
         fnt = self.config.get('font', 'bold')
         tit = label.Label(text='Friends', align='center', size=(0.8, 0.1),
                           pos=(0, -0.4), font_size=0.06, font=fnt,
-                          text_color=common.TITLE_TXT_COLOR, alpha=0)
+                          text_color=common.FRIENDS_TXT_COLOR, alpha=0)
         tit.reparent_to(listview)
         tit.origin = Origin.CENTER
         newview = _frame.attach_node('MP Friends newview')
         tit = label.Label(text='New Friend', align='center', size=(0.8, 0.1),
                           pos=(0, -0.4), font_size=0.06, font=fnt,
-                          text_color=common.TITLE_TXT_COLOR, alpha=0)
+                          text_color=common.FRIENDS_TXT_COLOR, alpha=0)
         tit.reparent_to(newview)
         tit.origin = Origin.CENTER
         newview.hide()
         userview = _frame.attach_node('MP Friends userview')
         tit = label.Label(text='Username', align='center', size=(0.8, 0.1),
                           pos=(0, -0.4), font_size=0.06, font=fnt,
-                          text_color=common.TITLE_TXT_COLOR, alpha=0)
+                          text_color=common.FRIENDS_TXT_COLOR, alpha=0)
         tit.reparent_to(userview)
         tit.origin = Origin.CENTER
         userview.hide()
@@ -335,7 +335,7 @@ class Friends(app.AppBase):
                          (0.85, 0.625), self.__nodes.listview,
                          ['Friends', 'Pending', 'Blocked'])
         self.__nodes.btnlist.pos = 0, 0
-        kwargs = common.get_menu_sym_btn_kw()
+        kwargs = common.get_menu_sym_btn_kw(text_color=common.FRIENDS_TXT_COLOR)
         self.__nodes.new = button.Button(name='new button', pos=(0, 0.38),
                                          text=common.NEW_SYM, **kwargs)
         self.__nodes.new.origin = Origin.CENTER
@@ -377,7 +377,7 @@ class Friends(app.AppBase):
         # userview
         self.__nodes.usertxt = self.__nodes.userview \
             .attach_text_node(text='Username', align='center', font_size=0.05,
-                              font=fnt, text_color=common.TITLE_TXT_COLOR,
+                              font=fnt, text_color=common.FRIENDS_TXT_COLOR,
                               alpha=0, multiline=True, pos=(0, -0.1))
         self.__nodes.usertxt.origin = Origin.CENTER
         kwa = common.get_dialogue_btn_kw(size=(0.32, 0.1))
@@ -395,7 +395,7 @@ class Friends(app.AppBase):
         if self.__nodes.listview.hidden:
             self.__show_listview()
         else:
-            self.fsm_back()
+            self.request('multiplayer_menu')
 
     def __show_listview(self) -> None:
         self.__data.active = None
