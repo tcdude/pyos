@@ -344,6 +344,7 @@ class MultiplayerClient:
             self._conn.sendall(REQ[66] + util.encode_id(otherid))
         data = self._recv()
         if len(data) != 9:
+            logger.warning('Invalid response length')
             return 0, 0
         try:
             return struct.unpack('<II', data[1:])

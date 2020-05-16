@@ -218,7 +218,7 @@ class MPControl:
         return self._request(REQ[17] + str(otherid).encode('utf8'))
 
     def update_other_user(self, otherid: int) -> int:
-        """Request update of challenge stats."""
+        """Update specific user completely."""
         return self._request(REQ[18] + str(otherid).encode('utf8'))
 
     def reject_challenge(self, challenge_id: int) -> int:

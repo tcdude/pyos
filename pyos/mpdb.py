@@ -233,7 +233,8 @@ class MPDBHandler:
         if draw_count_preference is not None:
             user.draw_count_preference = draw_count_preference
         user.rank = rank or user.rank
-        user.points = points or user.points
+        if points is not None:
+            user.points = points
         if stats is not None:
             (user.chwon, user.chlost, user.chdraw, user.rwon, user.rlost,
              user.rdraw) = stats
@@ -408,6 +409,39 @@ class MPDBHandler:
         self._session.commit()
         self._check_challenge_complete(challenge_id)
         return True
+
+    def challenge_result(self, challenge_id: int) -> Tuple[int, int, int, bool]:
+        """
+        Returns the current or final result of a challenge as rounds won, lost,
+        draw and whether the challenge is finished.
+        """
+        challenge = self._session.query(Challenge) \
+            .filter(Challenge.challenge_id == challenge_id).first()
+        if challenge is None:
+            return -1, -1, -1, False
+        won, lost, draw = 0, 0, 0
+        finished = True
+        for i in range(challenge.rounds):
+            res = self.round_won(challenge_id, i + 1)
+            if res in (-1, 3):
+                finished = False
+                break
+            if res == 0:
+                won += 1
+            elif res == 1:
+                lost += 1
+            elif res == 2:
+                draw += 1
+        return won, lost, draw, finished
+
+    def num_rounds(self, challenge_id: int) -> int:
+        """Returns the number of rounds to be played in a given challenge."""
+        challenge = self._session.query(Challenge) \
+            .filter(Challenge.challenge_id == challenge_id).first()
+        if challenge is None:
+            logger.error('Unknown challenge id')
+            return -1
+        return challenge.rounds
 
     def get_round_info(self, challenge_id: int, roundno: int = None
                        ) -> Tuple[int, int, int]:

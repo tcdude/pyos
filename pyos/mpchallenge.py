@@ -91,10 +91,13 @@ class ChallengesData:
 class ChallengesDlg:
     """Holds the different dialogue instances in the Challenges menu."""
     newchallenge: Dialogue = None
-    all: Tuple[Dialogue, ...] = field(init=False)
+    round: Dialogue = None
+    error: Dialogue = None
 
-    def __post_init__(self) -> None:
-        self.all = (self.newchallenge, )
+    @property
+    def all(self) -> Tuple[Dialogue, ...]:
+        """Helper property to get all members."""
+        return self.newchallenge, self.round, self.error
 
 
 class Challenges(app.AppBase):
@@ -286,6 +289,44 @@ class Challenges(app.AppBase):
             else:
                 self.__dlgs.newchallenge.text = txt
                 self.__dlgs.newchallenge.show()
+        elif dlg == 'round':
+            if self.__dlgs.round is None:
+                fnt = self.config.get('font', 'bold')
+                bkwa = common.get_dialogue_btn_kw(size=(0.25, 0.11))
+                buttons = [DialogueButton(text='Play', fmtkwargs=bkwa,
+                                          callback=self.__start_round),
+                           DialogueButton(text='Back', fmtkwargs=bkwa,
+                                          callback=self.__back)]
+                dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
+                               size=(0.7, 0.7), font=fnt, align='center',
+                               frame_color=common.CHALLENGES_FRAME_COLOR,
+                               border_thickness=0.01,
+                               corner_radius=0.05, multi_sampling=2)
+                dlg.pos = -0.35, -0.35
+                dlg.reparent_to(self.ui.center)
+                dlg.depth = 1000
+                self.__dlgs.round = dlg
+            else:
+                self.__dlgs.round.text = txt
+                self.__dlgs.round.show()
+        elif dlg == 'error':
+            if self.__dlgs.error is None:
+                fnt = self.config.get('font', 'bold')
+                bkwa = common.get_dialogue_btn_kw(size=(0.25, 0.11))
+                buttons = [DialogueButton(text='Back', fmtkwargs=bkwa,
+                                          callback=self.__back)]
+                dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
+                               size=(0.7, 0.7), font=fnt, align='center',
+                               frame_color=common.CHALLENGES_FRAME_COLOR,
+                               border_thickness=0.01,
+                               corner_radius=0.05, multi_sampling=2)
+                dlg.pos = -0.35, -0.35
+                dlg.reparent_to(self.ui.center)
+                dlg.depth = 1000
+                self.__dlgs.error = dlg
+            else:
+                self.__dlgs.error.text = txt
+                self.__dlgs.error.show()
 
     def __challenge_req(self, rounds: int) -> None:
         self.__dlgs.newchallenge.hide()
@@ -425,6 +466,7 @@ class Challenges(app.AppBase):
         for i in self.__dlgs.all:
             if i is not None and not i.hidden:
                 i.hide()
+                self.__show_listview()
                 return
         if 'start_challenge' in self.fsm_global_data \
               and self.fsm_global_data['start_challenge']:
@@ -462,7 +504,6 @@ class Challenges(app.AppBase):
         self.__nodes.listview.hide()
         self.__nodes.resultview.hide()
         self.__nodes.gametypeview.show()
-        self.__nodes.gametypetitle.text = self.__data.data[self.__data.active]
         dcp = self.mps.dbh.available_draw(self.__data.idmap[self.__data.active])
         if len(dcp) == 2 or 1 in dcp:
             self.__data.gtdraw = 0
@@ -489,6 +530,12 @@ class Challenges(app.AppBase):
         else:
             self.__nodes.gametypereject.show()
             self.__nodes.gametypestart.x = -0.255
+        self.__nodes.gametypetxt.text = f'Choose the game type\n' \
+                                        f'for round {roundno + 1}:\n\n'
+        oid = self.mps.dbh.opponent_id(self.__data.idmap[self.__data.active])
+        other = self.mps.dbh.get_username(oid)
+        rounds = self.mps.dbh.num_rounds(self.__data.idmap[self.__data.active])
+        self.__nodes.gametypetitle.text = f'{other} ({roundno + 1}/{rounds})'
 
     def __show_resultview(self) -> None:
         self.__send_pending_results(self.__show_resultviewcb)
@@ -533,43 +580,50 @@ class Challenges(app.AppBase):
         suffix = ('', 'moves', 'points')
 
         if roundwon == -1:
-            txt = 'Result not\navailable!\n\n\n'
-            hasres = False
-        elif res[0] == -2.0:
-            txt = f'Round {roundno}:\n\nForfeited Round {roundno}!\n\n'
-            hasres = False
-        else:
-            txt = f'Round {roundno}:\n\n'
-            hasres = True
+            return 'Result not\navailable!\n\n\n'
 
-        if gametype == 0:
-            if hasres:
-                mins, secs = int(res[0] // 60), res[0] % 60
-                txt += f'You => {mins}:{secs:05.2f}\n\n'
-            if other_result == -2:
-                txt += f'{other}\nForfeited!\n\n'
-            elif other_result == -1:
-                txt += f'{other}\nNot played yet\n\n'
-            elif other_result > -1:
-                mins, secs = int(other_result // 60), other_result % 60
-                txt += f'{other}\n{mins}:{secs:05.2f}\n\n'
-        else:
-            if hasres:
-                txt += f'You => {res[gametype]} ' \
-                    f'{suffix[gametype]}\n\n'
-            if other_result == -2:
-                txt += f'{other}\nForfeited!\n\n'
-            elif other_result == -1:
-                txt += f'{other}\nNot played yet\n\n'
-            elif other_result > -1:
-                txt += f'{other}\n{other_result} {suffix[gametype]}\n\n'
-
+        txt = f'Round {roundno}'
         if roundwon == 0:
-            txt += 'WON\n\n'
+            txt += ' WON ' + chr(0xf118)
         elif roundwon == 1:
-            txt += 'LOST\n\n'
+            txt += ' LOST ' + chr(0xf119)
         elif roundwon == 2:
-            txt += 'DRAW\n\n'
+            txt += ' DRAW ' + chr(0xf11a)
+
+        if res[0] == -2.0:
+            usertxt = 'Forfeit'
+        elif gametype == 0:
+            mins, secs = int(res[0] // 60), res[0] % 60
+            usertxt = f'{mins}:{secs:05.2f}'
+        else:
+            usertxt = f'{res[gametype]}'
+
+        if other_result == -2:
+            othertxt = 'Forfeit'
+        elif other_result == -1:
+            othertxt = 'N/A'
+        elif gametype == 0:
+            mins, secs = int(other_result // 60), other_result % 60
+            othertxt = f'{mins}:{secs:05.2f}'
+        else:
+            othertxt = f'{other_result}'
+        lpad = len(usertxt) - 3
+        rpad = len(othertxt) + len(suffix[gametype]) + 1 - len(other)
+        rpad = max(0, rpad)
+        txt += f'\n\n{" " * lpad}You - {other}{" " * rpad}\n'
+        txt += f'{usertxt} - {othertxt} {suffix[gametype]}\n\n'
+
+        res = self.mps.dbh.challenge_result(self.state.challenge)
+        if res[-1]:
+            if res[0] > res[1]:
+                txt += 'Challenge Won\n'
+            elif res[1] > res[0]:
+                txt += 'Challenge Lost\n'
+            else:
+                txt += 'Challenge Draw\n'
+        else:
+            txt += 'Challenge Score\n'
+        txt += f'Rounds won {res[0]}, lost {res[1]}, draw {res[2]}\n\n'
         return txt
 
     def __toggle_gt(self, event: str, value: int = None) -> None:
@@ -606,8 +660,11 @@ class Challenges(app.AppBase):
         self.statuslbl.hide()
         if rescode:
             logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
-            self.__show_listview()  # TODO: Display an error to the user...
+            self.__nodes.gametypeview.hide()
+            self.__gen_dlg('error', f'Unable to start new round\n\n'
+                                    f'Error: "{mpctrl.RESTXT[rescode]}"')
             return
+        self.__show_listview()
         self.state.challenge = self.__data.idmap[self.__data.active]
         self.__data.active = None
         self.request('game')
@@ -654,6 +711,22 @@ class Challenges(app.AppBase):
             self.__data.idmap[i] = user_id
         self.__nodes.newviewbtnlist.update_content(True)
 
+    def __start_round(self) -> None:
+        self.__dlgs.round.hide()
+        self.state.challenge = self.__data.idmap[self.__data.active]
+        self.__data.active = None
+        self.request('game')
+
+    def __show_rounddlg(self) -> None:
+        _, draw, score = self.mps.dbh \
+            .get_round_info(self.__data.idmap[self.__data.active])
+        roundno = self.mps.dbh.roundno(self.__data.idmap[self.__data.active])
+        draw = 'One' if draw == 1 else 'Three'
+        score = ('Fastest', 'Least moves', 'Most points')[score]
+        self.__gen_dlg('round', f'Round {roundno}\n\n\nDraw count: {draw}\n\n'
+                                f'{score} wins!\n\n\n')
+        self.__nodes.listview.hide()
+
     def __filter(self, fltr: int = None) -> None:
         self.__data.fltr = fltr or 0
         self.__update_list()
@@ -665,9 +738,7 @@ class Challenges(app.AppBase):
                 if self.mps.dbh.newround(self.__data.idmap[self.__data.active]):
                     self.__show_gametypeview()
                 else:
-                    self.state.challenge = self.__data.idmap[self.__data.active]
-                    self.__data.active = None
-                    self.request('game')
+                    self.__show_rounddlg()
             print(f'listview clicked on "{self.__data.data[pos]}"')
             return
         if not self.__nodes.newview.hidden:

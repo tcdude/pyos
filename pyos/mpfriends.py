@@ -450,7 +450,7 @@ class Friends(app.AppBase):
             self.__nodes.userchallenge.enabled = True
         else:
             self.__nodes.userchallenge.enabled = False
-        req = self.mps.ctrl.challenge_stats(userid)
+        req = self.mps.ctrl.update_other_user(userid)
         self.mps.ctrl.register_callback(req, self.__gen_userstat)
         self.statuslbl.show()
         self.statuslbl.text = 'Loading user stats...'

@@ -407,9 +407,12 @@ class Multiplayer:
         draw_count_preference = self.mpc.get_draw_count_pref(otherid)
         logger.debug(f'user {otherid} {draw_count_preference}')
         rank, points = self.mpc.userranking(otherid)
+        res = self.mpc.challenge_stats(otherid)
+        if sum(res) < 0:
+            return FAILURE
         if self.mpdbh.update_user(otherid, username=username,
                                   draw_count_preference=draw_count_preference,
-                                  rank=rank, points=points):
+                                  rank=rank, points=points, stats=res):
             return SUCCESS
         return FAILURE
 
