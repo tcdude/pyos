@@ -230,6 +230,28 @@ class Stats:
             return duration, moves, points, 0
         return None
 
+    def attempt_total(self, seed: int, draw: int, challenge: int,
+                      gametype: int, current: bool) -> Union[int, float]:
+        """Returns the previous made moves or duration for a challenge round."""
+        if gametype == 2:  # No accumulation for points
+            return 0
+        game = self._session.query(Game) \
+            .filter(Game.challenge == challenge, Game.seed == seed,
+                    Game.draw == draw).first()
+        if game is None:
+            return 0
+        res = self._session.query(Attempt) \
+            .filter(Attempt.game_id == game.id) \
+            .order_by(Attempt.id.desc()).all()
+        duration, moves = 0.0, 0
+        for i in res:
+            if not current:
+                current = True
+                continue
+            duration += i.duration
+            moves += i.moves
+        return duration if gametype == 0 else moves
+
     def highscore(self, draw: int, with_bonus: Optional[bool] = True) -> int:
         """
         Returns the highest score achieved for the specified draw count.

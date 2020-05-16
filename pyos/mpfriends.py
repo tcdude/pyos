@@ -469,7 +469,8 @@ class Friends(app.AppBase):
         self.__nodes.userview.show()
         values = self.mps.dbh \
             .userstats(self.__data.idmap[self.__data.active])
-        txt = ['Rank ', 'Points ', 'Rounds won ', 'Rounds lost ',
+        txt = ['Rank ', 'Points ', 'Challenges won ', 'Challenges lost ',
+               'Challenges draw ', 'Rounds won ', 'Rounds lost ',
                'Rounds draw ']
         numlen = len(str(max(values)))
         txtlen = [len(i) for i in txt]

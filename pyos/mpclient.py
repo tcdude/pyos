@@ -549,20 +549,22 @@ class MultiplayerClient:
             return False
         return True
 
-    def challenge_stats(self, otherid: int) -> Tuple[int, int, int]:
+    def challenge_stats(self, otherid: int
+                        ) -> Tuple[int, int, int, int, int, int]:
         """Retrieve challenge stats against another user (won, lost, draw)."""
         self._verify_connected()
         req = REQ[139] + util.encode_id(otherid)
         self._conn.sendall(req)
         data = self._recv()
-        if len(data) != 13:
-            return 0, 0, 0
+        if len(data) != 25:
+            logger.error('Invalid response size.')
+            return (-1, ) * 6
         try:
-            won, lost, draw = struct.unpack('<III', data[1:])
+            ret = struct.unpack('<IIIIII', data[1:])
         except struct.error as err:
             logger.error(f'Unable to unpack data: {err}')
-            return 0, 0, 0
-        return won, lost, draw
+            return (-1, ) * 6
+        return ret
 
     def pending(self, timestamp: int = 0) -> List[int]:
         """Retrieve a list of pending information to be retrieved."""

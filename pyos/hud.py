@@ -88,18 +88,55 @@ class HUD:
             size[1] * 0.45
         )
         self._moves_value.pos = size[0] - 0.2, size[1] * 0.51
+        self._gametype = None
+
+    def set_gametype(self, gametype: int = None) -> None:
+        """Set the game type to display."""
+        self._gametype = gametype
+        if gametype is None:
+            self._points_title.show()
+            self._time_title.show()
+            self._moves_title.show()
+            self._points_value.show()
+            self._time_value.show()
+            self._moves_value.show()
+            self._points_title.text = 'Points:'
+            self._time_title.text = 'Time:'
+            self._moves_title.text = 'Moves:'
+        else:
+            self._points_title.hide()
+            self._moves_title.hide()
+            self._points_value.hide()
+            self._moves_value.hide()
+            self._time_title.show()
+            self._time_value.show()
+
+        if gametype == 0:
+            self._time_title.text = chr(0xf9e4) + ' Time: ' + chr(0xf9e4)
+        elif gametype == 1:
+            self._time_title.text = chr(0xf9e4) + ' Moves: ' + chr(0xf9e4)
+        elif gametype == 2:
+            self._time_title.text = chr(0xf9e4) + ' Points: ' + chr(0xf9e4)
 
     def update(self, points: int, time: int, moves: int) -> None:
         """
         Update the HUD.
         """
-        self._points_value.text = f'{points}'
-        self._time_value.text = f'{time // 60}:{time % 60:02d}'
+        if self._gametype is None:
+            self._points_value.text = f'{points}'
+            self._time_value.text = f'{time // 60}:{time % 60:02d}'
+            self._moves_value.text = f'{moves}'
+            self._moves_value.x = self._size[0] - self._moves_value.size[0]
+            self._moves_title.x = self._size[0] - self._moves_title.size[0]
+        elif self._gametype == 0:
+            self._time_value.text = f'{time // 60}:{time % 60:02d}'
+        elif self._gametype == 1:
+            self._time_value.text = f'{moves}'
+        elif self._gametype == 2:
+            self._time_value.text = f'{points}'
+
         self._time_value.x = self._size[0] / 2 - self._time_value.size[0] / 2
         self._time_title.x = self._size[0] / 2 - self._time_title.size[0] / 2
-        self._moves_value.text = f'{moves}'
-        self._moves_value.x = self._size[0] - self._moves_value.size[0]
-        self._moves_title.x = self._size[0] - self._moves_title.size[0]
 
     def set_titles(self, points: str, time: str, moves: str) -> None:
         """

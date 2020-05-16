@@ -81,6 +81,10 @@ class GameState:
     drag_info: DragInfo = DragInfo(-1, -1, common.TableArea.STACK)
     fresh_state: bool = True
     day_deal: bool = True
+    gametype: int = None
+    # Need to hold the previous moves or duration for challenges for proper
+    # HUD totalization.
+    prev_value: Union[int, float] = 0
 
 
 class Game(app.AppBase):
@@ -98,10 +102,13 @@ class Game(app.AppBase):
     # State
     def enter_game(self):
         """Tasks to be performed when this state is activated."""
-        logger.debug('Enter state game')
+        logger.info('Enter state game')
+        logger.debug(f'__active is: {self.__active}')
         self.__setup()
         self.__state.fresh_state = True
+        logger.debug(f'state.challenge is: {self.state.challenge}')
         if self.state.challenge > 0:
+            logger.debug(f'Playing a round in challenge {self.state.challenge}')
             self.__new_deal(*self.mps.dbh.get_round_info(self.state.challenge))
             chg = True
         else:
@@ -117,11 +124,9 @@ class Game(app.AppBase):
 
     def exit_game(self):
         """Tasks to be performed when this state is left."""
-        logger.debug('Exit state game')
+        logger.info('Exit state game')
         self.__disable_all()
-        dlg = self.__systems.windlg
-        if dlg is not None and not dlg.hidden:
-            dlg.hide()
+        self.__hide_dlg()
         self.__systems.layout.root.hide()
         self.__systems.toolbar.hide()
         self.__systems.game_table.pause()
@@ -159,10 +164,12 @@ class Game(app.AppBase):
         self.__systems.toolbar.show()
         self.__load()
         self.__systems.game_table.pause()
+        logger.debug('Setup complete')
         self.__active = True
 
     def __setup_events_tasks(self):
         """Setup Events and Tasks."""
+        logger.debug('Setup events and tasks')
         if self.isandroid:
             down = sdl2.SDL_FINGERDOWN
             upe = sdl2.SDL_FINGERUP
@@ -176,7 +183,7 @@ class Game(app.AppBase):
         self.event_handler.listen('mouse_up', upe, self.__mouse_up, priority=-5)
 
         self.task_manager.add_task('HUD_Update', self.__update_hud, 0.2)
-        self.task_manager.add_task('auto_save', self.__auto_save_task, 5, False)
+        self.task_manager.add_task('auto_save', self.__auto_save_task, 1, False)
         self.task_manager.add_task('auto_complete', self.__auto_complete,
                                    0.05)
         self.task_manager.add_task('layout_process',
@@ -186,6 +193,7 @@ class Game(app.AppBase):
         """One time setup of the scene."""
         if not self.__need_setup:
             return
+        logger.debug('Setup layout')
         stat_size = self.config['pyos']['status_size'].split(',')
         tool_size = self.config['pyos']['toolbar_size'].split(',')
         layout = TableLayout(self.config.getfloat('pyos', 'card_ratio'),
@@ -214,6 +222,8 @@ class Game(app.AppBase):
         if not self.__systems.game_table.is_paused:
             logger.debug('Auto Save')
             self.__save()
+            if self.state.challenge != -1:
+                self.__update_attempt(duration_only=True)
 
     def __auto_complete(self, dt):
         """Task to auto solve a game."""
@@ -268,6 +278,8 @@ class Game(app.AppBase):
             self.__systems.game_table.refresh_table()
             logger.debug('refresh_table')
         moves, elapsed_time, points = self.__systems.game_table.stats
+        moves += self.__state.prev_value
+        elapsed_time += self.__state.prev_value
         self.__systems.hud.update(points, int(elapsed_time + 0.5), moves)
         if self.__systems.game_table.win_condition:
             self.__systems.layout.setup(self.__state.last_window_size,
@@ -476,12 +488,12 @@ class Game(app.AppBase):
 
     # Game State
 
-    def __update_attempt(self, solved=False, bonus=0):
+    def __update_attempt(self, solved=False, bonus=0, duration_only=False):
         if self.__systems.game_table.is_paused and not solved:
             return
         mvs, tim, pts = self.__systems.game_table.stats
         undo, invalid = self.__systems.game_table.undo_invalid
-        if mvs == 1:
+        if mvs == 1 and not duration_only:
             seed = self.__systems.game_table.seed
             draw = self.__systems.game_table.draw_count
             win_deal = self.config.getboolean('pyos', 'winner_deal',
@@ -515,7 +527,7 @@ class Game(app.AppBase):
     def __show_score(self):
         """Show the result screen."""
         self.__save()
-        if self.state.challenge > -1:
+        if self.state.challenge > -1 and not self.__state.fresh_state:
             self.__update_attempt(solved=True)
             res = self.systems \
                 .stats.result(self.__systems.game_table.seed,
@@ -524,7 +536,7 @@ class Game(app.AppBase):
             if res is None:
                 raise RuntimeError('Win state but no solved result')
             dur, moves, pts, _ = res
-            self.fsm_global_data['result'] = dur, pts, moves
+            self.fsm_global_data['result'] = dur, moves, pts
             self.request('challenges')
             return
         dur, pts, bonus, moves = self.__systems.game_table.result
@@ -585,6 +597,7 @@ class Game(app.AppBase):
         elif dlgtype == 'sure':
             if self.__systems.suredlg is None:
                 fnt = self.config.get('font', 'bold')
+                dlgkw['size'] = 0.2, 0.1
                 buttons = [DialogueButton(text='Yes', fmtkwargs=dlgkw,
                                           callback=self.__giveupdo),
                            DialogueButton(text='No', fmtkwargs=dlgkw,
@@ -652,6 +665,7 @@ class Game(app.AppBase):
             dlg.hide()
             self.__setup()
         self.__systems.game_table.reset()
+        self.__update_prev_value(self.__state.gametype)
         self.__state.refresh_next_frame = 2
 
     def __new_deal(self, seed: int = None, draw: int = None, score: int = None):
@@ -660,6 +674,9 @@ class Game(app.AppBase):
         if dlg is not None and not dlg.hidden:
             dlg.hide()
             self.__setup()
+        logger.debug(f'New deal called with {seed=} {draw=} {score=}')
+        self.__state.gametype = score
+        self.__systems.hud.set_gametype(score)
         if seed is not None:
             if self.__systems.game_table.seed != seed \
                   or self.__systems.game_table.draw_count != draw \
@@ -669,7 +686,8 @@ class Game(app.AppBase):
                 self.systems.stats.new_deal(seed, draw, True, False,
                                             self.state.challenge)
                 self.state.daydeal = None
-                self.__state.day_deal = True
+                self.__state.day_deal = False
+            self.__update_prev_value(score)
             self.__systems.toolbar.toggle(False)
             logger.debug('Started a challenge round')
         elif self.state.daydeal is not None:
@@ -684,7 +702,8 @@ class Game(app.AppBase):
                 self.__state.day_deal = True
             self.__systems.toolbar.toggle(True)
             logger.debug('Started a daydeal')
-        elif self.__state.day_deal and self.state.need_new_game:
+        elif (self.__state.day_deal or self.state.challenge != -1) \
+              and self.state.need_new_game:
             pass
         else:
             if self.config.getboolean('pyos', 'draw_one'):
@@ -701,6 +720,19 @@ class Game(app.AppBase):
             logger.debug('Started a regular deal')
         self.__state.refresh_next_frame = 2
         self.state.need_new_game = False
+
+    def __update_prev_value(self, gametype: int):
+        """Update the previous attempt total depending on the game type."""
+        if gametype == 2 or gametype is None:
+            self.__state.prev_value = 0
+            return
+        count_current = True
+        if sum(self.__systems.game_table.stats):
+            count_current = False
+        self.__state.prev_value = self.systems.stats \
+            .attempt_total(self.__systems.game_table.seed,
+                           self.__systems.game_table.draw_count,
+                           self.state.challenge, gametype, count_current)
 
     def __menu(self):
         """On Menu click."""
@@ -722,4 +754,3 @@ class Game(app.AppBase):
         for dlg in (self.__systems.windlg, self.__systems.suredlg):
             if dlg is not None and not dlg.hidden:
                 dlg.hide()
-        self.__setup()

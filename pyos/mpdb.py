@@ -61,9 +61,12 @@ class User(Base):
     draw_count_preference = Column(SmallInteger)
     rank = Column(Integer, default=0)
     points = Column(Integer, default=0)
-    won = Column(Integer, default=0)
-    lost = Column(Integer, default=0)
-    draw = Column(Integer, default=0)
+    chwon = Column(Integer, default=0)
+    chlost = Column(Integer, default=0)
+    chdraw = Column(Integer, default=0)
+    rwon = Column(Integer, default=0)
+    rlost = Column(Integer, default=0)
+    rdraw = Column(Integer, default=0)
 
     def __repr__(self):
         return f'User(id={self.user_id}, name={self.name}, ' \
@@ -210,8 +213,8 @@ class MPDBHandler:
 
     def update_user(self, userid: int, username: str = None, rtype: int = None,
                     draw_count_preference: int = None, rank: int = None,
-                    points: int = None, stats: Tuple[int, int, int] = None
-                    ) -> bool:
+                    points: int = None,
+                    stats: Tuple[int, int, int, int, int, int] = None) -> bool:
         """Update user."""
         # pylint: disable=too-many-arguments
         user = self._session.query(User).filter(User.user_id == userid).first()
@@ -232,7 +235,8 @@ class MPDBHandler:
         user.rank = rank or user.rank
         user.points = points or user.points
         if stats is not None:
-            user.won, user.lost, user.draw = stats
+            (user.chwon, user.chlost, user.chdraw, user.rwon, user.rlost,
+             user.rdraw) = stats
         self._session.commit()
         return True
 
@@ -429,7 +433,6 @@ class MPDBHandler:
         """
         Round result: 0=won, 1=lost, 2=draw, 3=first result, -1=invalid round.
         """
-        # pylint: disable=too-many-branches
         if roundno is None:
             chround = self._session.query(ChallengeRound) \
                 .filter(ChallengeRound.challenge_id == challenge_id) \
@@ -438,41 +441,26 @@ class MPDBHandler:
             chround = self._session.query(ChallengeRound) \
                 .filter(ChallengeRound.challenge_id == challenge_id,
                         ChallengeRound.roundno == roundno).first()
+        ret = None
         if chround is None:
             logger.error('Requested unknown round info')
-            return -1
-        if -1.0 in (chround.other_duration, chround.user_duration):
-            return 3
-        if chround.chtype == 0:  # quickest
-            if chround.other_duration == -2.0 \
-                  or chround.user_duration < chround.other_duration:
-                ret = 0
-            elif chround.user_duration == -2.0 \
-                  or chround.user_duration > chround.other_duration:
-                ret = 1
-            else:
-                ret = 2
-        elif chround.chtype == 1:  # moves
-            if chround.other_duration == -2.0 \
-                  or chround.user_moves < chround.other_moves:
-                ret = 0
-            elif chround.user_duration == -2.0 \
-                  or chround.user_moves > chround.other_moves:
-                ret = 1
-            else:
-                ret = 2
-        elif chround.chtype == 2:  # points
-            if chround.other_duration == -2.0 \
-                  or chround.user_points > chround.other_points:
-                ret = 0
-            elif chround.user_duration == -2.0 \
-                  or chround.user_points < chround.other_points:
-                ret = 1
-            else:
-                ret = 2
-        else:
-            raise ValueError('Wrong chtype')
-        return ret
+            ret = -1
+        elif -1.0 in (chround.other_duration, chround.user_duration):
+            ret = 3
+        elif chround.user_duration == chround.other_duration == -2.0:
+            ret = 2
+        elif chround.other_duration == -2.0:
+            ret = 0
+        elif chround.user_duration == -2.0:
+            ret = 1
+        if ret is not None:
+            return ret
+        comp = (
+            (chround.user_duration, chround.user_moves, chround.other_points),
+            (chround.other_duration, chround.other_moves, chround.user_points))
+        if comp[0][chround.chtype] == comp[1][chround.chtype]:
+            return 2
+        return 0 if comp[0][chround.chtype] < comp[1][chround.chtype] else 1
 
     def round_other_result(self, challenge_id: int, roundno: int
                            ) -> Union[int, float]:
@@ -494,13 +482,18 @@ class MPDBHandler:
                chround.other_points)
         return ret[chround.chtype]
 
-    def userstats(self, userid: int) -> Tuple[int, int, int, int, int]:
-        """Returns the stats for a user (rank, points, won, lost, draw)."""
+    def userstats(self, userid: int) -> Tuple[int, int, int, int, int, int, int,
+                                              int]:
+        """
+        Return the stats for a user (rank, points, challenges [won, lost, draw],
+        rounds [won, lost, draw]).
+        """
         user = self._session.query(User).filter(User.user_id == userid).first()
         if user is None:
             logger.error('Unknown user')
             return (0, ) * 5
-        return user.rank, user.points, user.won, user.lost, user.draw
+        return (user.rank, user.points, user.chwon, user.chlost, user.chdraw,
+                user.rwon, user.rlost, user.rdraw)
 
     def canchallenge(self, userid: int) -> bool:
         """Returns `True` when the user can be sent a challenge request."""
@@ -541,9 +534,8 @@ class MPDBHandler:
         if self._session.query(Challenge) \
               .filter(Challenge.challenge_id == challenge_id).count() != 1:
             return -1
-        cnt = self._session.query(ChallengeRound) \
+        return self._session.query(ChallengeRound) \
             .filter(ChallengeRound.challenge_id == challenge_id).count()
-        return cnt
 
     def newround(self, challenge_id: int) -> bool:
         """Whether the user can choose a gametype."""

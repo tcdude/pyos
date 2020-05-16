@@ -389,10 +389,10 @@ class Multiplayer:
             otherid = int(data.decode('utf8'))
         except ValueError:
             return WRONG_FORMAT
-        won, lost, draw = self.mpc.challenge_stats(otherid)
-        if won == lost == draw == 0:
+        res = self.mpc.challenge_stats(otherid)
+        if sum(res) < 0:
             return FAILURE
-        if self.mpdbh.update_user(otherid, stats=(won, lost, draw)):
+        if self.mpdbh.update_user(otherid, stats=res):
             return SUCCESS
         return FAILURE
 
@@ -443,7 +443,7 @@ class Multiplayer:
         else:
             seed = self.mpc.new_round(challenge_id, gamet)
         if seed > 0:
-            roundno = max(1, roundno)
+            roundno += 1
             if not self.mpdbh.update_challenge_round(challenge_id, roundno,
                                                      draw, score, seed):
                 logger.error('Something went wrong during add_challenge_round')
