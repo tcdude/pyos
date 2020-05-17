@@ -386,9 +386,9 @@ class MultiplayerSettings(app.AppBase):
                 self.__gen_dlg('CANNOT BE EMPTY\n\nPlease insert\n'
                                'a valid username\nand password\n\n\n')
                 return
-            if not 2 < len(self.__nodes.username.text) < 31:
+            if not 2 < len(self.__nodes.username.text) < 14:
                 self.__gen_dlg('Username must\nbe between 3\n'
-                               'and 30 characters\n\n\n')
+                               'and 13 characters\n\n\n')
                 return
             req = self.mps.ctrl \
                 .create_new_account(self.__nodes.username.text.strip(),
@@ -400,9 +400,9 @@ class MultiplayerSettings(app.AppBase):
                 self.__gen_dlg('CANNOT BE EMPTY\n\nPlease insert\n'
                                'a valid username\nand password\n\n\n')
                 return
-            if not 2 < len(self.__nodes.username.text) < 31:
+            if not 2 < len(self.__nodes.username.text) < 14:
                 self.__gen_dlg('Username must\nbe between 3\n'
-                               'and 30 characters\n\n\n')
+                               'and 13 characters\n\n\n')
                 return
             if self.__nodes.username.text == self.config.get('mp', 'user',
                                                              fallback='') \
@@ -450,6 +450,8 @@ class MultiplayerSettings(app.AppBase):
         if rescode != 0:
             msg = f'ERROR\n\nFailed to change\nusername\n' \
                   f'{self.__update_data["msg"]}'
+        username = self.config.get('mp', 'user', fallback='')
+        self.global_nodes.set_mpstatus(f'Logged in as {username}')
         self.__gen_dlg(msg)
         self.__update_data['user'] = False
         self.__nodes.username.text = self.config.get('mp', 'user', fallback='')
@@ -469,6 +471,8 @@ class MultiplayerSettings(app.AppBase):
         if rescode != 0:
             msg = f'ERROR\n\nFailed to change\npassword\n' \
                   f'{self.__update_data["msg"]}'
+        username = self.config.get('mp', 'user', fallback='')
+        self.global_nodes.set_mpstatus(f'Logged in as {username}')
         self.__gen_dlg(msg)
         self.__update_data['password'] = False
         self.__nodes.password.text = UNCHANGED
