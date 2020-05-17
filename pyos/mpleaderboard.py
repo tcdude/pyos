@@ -103,7 +103,7 @@ class Leaderboard(app.AppBase):
             reset = True
         else:
             start = page * ITPP
-            req = self.mps.ctrl.update_leaderboard(start, start + ITPP)
+            req = self.mps.ctrl.update_leaderboard(start, start + 2 * ITPP)
             reset = False
         self.mps.ctrl.register_callback(req, self.__update_datacb, reset)
         self.global_nodes.show_status('Updating Leaderboard...')
