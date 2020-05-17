@@ -513,6 +513,7 @@ class MultiplayerSettings(app.AppBase):
             self.__useraction.change_text('Update')
             self.__nodes.password.text = UNCHANGED
             self.__update_drawpref(0)
+            self.mps.dbh.update_timestamp(0)
         else:
             logger.info(f'Unable to create account, got return code {rescode}')
             self.config.set('mp', 'user', self.__nodes.username.text)
@@ -535,6 +536,7 @@ class MultiplayerSettings(app.AppBase):
             self.__update_drawpref()
             self.__useraction.change_text('Update')
             self.__nodes.password.text = UNCHANGED
+            self.mps.dbh.update_timestamp(0)
             return
         else:
             self.__gen_dlg('LOGIN FAILED!\n\ncheck provided\n'
