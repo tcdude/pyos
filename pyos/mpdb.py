@@ -101,6 +101,7 @@ class Challenge(Base):
     rounds = Column(SmallInteger, nullable=False)
     active = Column(Boolean, default=True)
     userturn = Column(Boolean, default=False)
+    unseen = Column(Boolean, default=True)
     start_date = Column(DateTime(timezone=True),
                         server_default=func.now())
 
@@ -885,9 +886,13 @@ class MPDBHandler:
             if user is None:
                 logger.error('User in challenge not present in DB')
                 continue
-            txt = f'{common.ACC_SYM} ({user.name} / {i.rounds} / ' \
-                  f'{i.start_date.strftime("%d.%m.%Y")})'
+            txt = '* ' if i.unseen else ''
+            txt += f'{common.ACC_SYM} ({user.name} / {i.rounds} / ' \
+                   f'{i.start_date.strftime("%d.%m.%Y")})'
             ret.append((i.challenge_id, txt))
+            if i.unseen:
+                i.unseen = False
+        self._session.commit()
         return ret
 
     @property
@@ -947,3 +952,15 @@ class MPDBHandler:
         """Returns the highest rank number, stored in the leaderboard."""
         rank = self._session.query(func.max(Leaderboard.rank)).first()
         return 0 if rank[0] is None else rank[0]
+
+    @property
+    def challenge_actions(self) -> int:
+        """How many challenges require the users attention."""
+        return len(self.chmyturn) + self._session.query(Challenge) \
+            .filter(Challenge.active != true(),
+                    Challenge.unseen == true()).count()
+
+    @property
+    def friend_actions(self) -> int:
+        """How many pending friend requests."""
+        return self._session.query(User).filter(User.rtype == 1).count()

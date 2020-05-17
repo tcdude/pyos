@@ -82,6 +82,7 @@ class MultiplayerMenu(app.AppBase):
         tit.reparent_to(self.__frame)
         tit.origin = Origin.CENTER
         self.__buttons: MenuButtons = None
+        self.__pending_sync: int = 0
         self.__setup_menu_buttons()
         self.__dlg: Dialogue = None
         self.__root.hide()
@@ -126,6 +127,31 @@ class MultiplayerMenu(app.AppBase):
         self.__buttons.back.enabled = False
         req = self.mps.ctrl.nop()
         self.mps.ctrl.register_callback(req, self.__enable_back)
+        req = self.mps.ctrl.sync_challenges()
+        self.mps.ctrl.register_callback(req, self.__update_notificationscb)
+        req = self.mps.ctrl.sync_relationships()
+        self.mps.ctrl.register_callback(req, self.__update_notificationscb)
+        self.__pending_sync = 2
+
+    def __update_notificationscb(self, rescode: int) -> None:
+        if rescode:
+            logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
+        self.__pending_sync -= 1
+        if self.__pending_sync:
+            return
+        for but, num, txt, sym in zip((self.__buttons.challenges,
+                                       self.__buttons.friends),
+                                      (self.mps.dbh.challenge_actions,
+                                       self.mps.dbh.friend_actions),
+                                      ('  Challenges  ',
+                                       ' ' * 3 + 'Friends' + ' ' * 3),
+                                      (chr(0xf9e4), chr(0xf0c0))):
+            atxt = f' ({num})'
+            if num:
+                txt = ' ' * len(atxt) + sym + txt + sym + atxt
+            else:
+                txt = sym + txt + sym
+            but.change_text(txt)
 
     def __enable_back(self, unused_rescode: int) -> None:
         self.__buttons.back.enabled = True

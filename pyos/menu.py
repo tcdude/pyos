@@ -7,9 +7,11 @@ from typing import Tuple
 
 from foolysh.scene.node import Origin
 from foolysh.ui import button, frame, label
+from loguru import logger
 
 import app
 import common
+import mpctrl
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = """
@@ -68,6 +70,7 @@ class MainMenu(app.AppBase):
                                             text_color=common.TITLE_TXT_COLOR)
         tit.pos = -0.41, -0.3
         self.__buttons: MenuButtons = None
+        self.__pending_sync: int = 0
         self.__setup_menu_buttons()
         self.__root.hide()
 
@@ -90,6 +93,26 @@ class MainMenu(app.AppBase):
 
     def __enable_quit(self, unused_rescode: int) -> None:
         self.__buttons.quit.enabled = True
+        if self.mps.login == 0:
+            req = self.mps.ctrl.sync_challenges()
+            self.mps.ctrl.register_callback(req, self.__update_notifications)
+            req = self.mps.ctrl.sync_relationships()
+            self.mps.ctrl.register_callback(req, self.__update_notifications)
+            self.__pending_sync = 2
+
+    def __update_notifications(self, rescode: int) -> None:
+        if rescode:
+            logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
+        self.__pending_sync -= 1
+        if self.__pending_sync == 0:
+            act = self.mps.dbh.challenge_actions + self.mps.dbh.friend_actions
+            atxt = f' ({act})'
+            if act:
+                txt = ' ' * len(atxt) + chr(0xf6e6) + ' Multiplayer '
+                txt += chr(0xf6e6) + atxt
+            else:
+                txt = chr(0xf6e6) + ' Multiplayer ' + chr(0xf6e6)
+            self.__buttons.multiplayer.change_text(txt)
 
     def __setup_menu_buttons(self):
         kwargs = common.get_menu_txt_btn_kw(size=(0.8, 0.1))

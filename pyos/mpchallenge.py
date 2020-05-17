@@ -215,8 +215,6 @@ class Challenges(app.AppBase):
             self.mps.ctrl.register_callback(req, self.__empty_pending, req,
                                             callback)
             self.__data.pending[req] = challenge_id, roundno
-        if not self.__data.pending:
-            callback(0)
 
     def __empty_pending(self, rescode: int, req: int, callback: Callable
                         ) -> None:
