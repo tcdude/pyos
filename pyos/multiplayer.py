@@ -596,6 +596,8 @@ class Multiplayer:
             if self.mpc.challenge_active(i):
                 continue
             logger.debug(f'Challenge {i} marked as inactive')
+            if not self.mpdbh.challenge_complete(i):
+                self._update_challenge_rounds(i, self.mpdbh.num_rounds(i) - 1)
             self.mpdbh.inactive_challenge(i)
 
 

@@ -4,7 +4,8 @@ Provides multiplayer data storage in a sqlite3 db file locally.
 
 from typing import List, Tuple, Union
 
-from sqlalchemy import Boolean, Column, Float, Integer, Unicode, SmallInteger
+from sqlalchemy import (Boolean, Column, DateTime, Float, Integer, Unicode,
+                        SmallInteger, func)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql.expression import true
 from sqlalchemy.orm import sessionmaker
@@ -100,6 +101,8 @@ class Challenge(Base):
     rounds = Column(SmallInteger, nullable=False)
     active = Column(Boolean, default=True)
     userturn = Column(Boolean, default=False)
+    start_date = Column(DateTime(timezone=True),
+                        server_default=func.now())
 
     def __repr__(self):
         return f'Challenge(id={self.challenge_id}, status={self.status}, ' \
@@ -608,6 +611,104 @@ class MPDBHandler:
             return -1
         return other.user_id
 
+    def challenge_view(self, challenge_id: int) -> str:
+        """Generates an overview text of a challenge."""
+        challenge = self._session.query(Challenge) \
+            .filter(Challenge.challenge_id == challenge_id).first()
+        if challenge is None:
+            logger.error('Invalid challenge')
+            return 'Challenge not found!'
+        other = self._session.query(User) \
+            .filter(User.user_id == challenge.otherid).first()
+        if other is None:
+            logger.error('Unable to find other user')
+            return 'Unable to find other user!'
+        other = other.name
+        roundno = self.roundno(challenge_id)
+        txt = f'{other} ({roundno}/{challenge.rounds}) '
+        txt += f'{challenge.start_date.strftime("%d.%m.%Y")}\n\n'
+        res = self.challenge_result(challenge_id)
+        txt += f'Rounds won {res[0]}, lost {res[1]}, draw {res[2]}\n'
+        txt += 'Status: '
+        if not res[3]:
+            txt += 'Active'
+        elif res[0] > res[1]:
+            txt += 'You WON'
+        elif res[0] < res[1]:
+            txt += 'You LOST'
+        else:
+            txt += 'DRAW'
+        txt += '\n\n'
+        if len(other) > 9:
+            other = other[:8] + '.'
+        rounds = self._session.query(ChallengeRound) \
+            .filter(ChallengeRound.challenge_id == challenge_id) \
+            .order_by(ChallengeRound.roundno).all()
+        res = []
+        mxt, mxu, mxo = 0, 0, 0
+        for i in rounds:
+            if i.user_duration == -1.0:
+                continue
+            res.append([])
+            ltxt = f'{i.roundno}/{i.draw}: '
+            ltxt += ('Time', 'Moves', 'Points')[i.chtype]
+            res[-1].append(ltxt)
+            if i.user_duration == -2.0:
+                res[-1].append('Forfeit')
+            elif i.chtype == 0:
+                mins, secs = int(i.user_duration / 60), i.user_duration % 60
+                res[-1].append(f'{mins}:{secs:05.2f}')
+            else:
+                if i.chtype == 1:
+                    res[-1].append(f'{i.user_moves}')
+                else:
+                    res[-1].append(f'{i.user_points}')
+            ores = self.round_other_result(challenge_id, i.roundno)
+            if ores == -2:
+                res[-1].append('Forfeit')
+            elif ores == -1:
+                res[-1].append('N/A')
+            elif i.chtype == 0:
+                mins, secs = int(ores / 60), ores % 60
+                res[-1].append(f'{mins}:{secs:05.2f}')
+            else:
+                res[-1].append(f'{ores}')
+            res[-1].append(
+                (chr(0xf118), chr(0xf119), chr(0xf11a), chr(0xf252),
+                 chr(0xf128))[self.round_won(challenge_id, i.roundno)])
+            mxt = max(mxt, len(res[-1][0]))
+            mxu = max(mxu, len(res[-1][1]))
+            mxo = max(mxo, len(res[-1][2]))
+        leftlen = mxt + mxu + 1
+        rightlen = mxo + 2
+        txt += f'Round/Draw{" " * max(leftlen - 13, 1)}You - '
+        if len(other) > rightlen:
+            tpad = 0
+            rpad = len(other) - rightlen
+        else:
+            tpad = rightlen - len(other)
+            rpad = 0
+        txt += f'{other}{" " * tpad}\n\n'
+        for i in res:
+            txt += f'{i[0]}{" " * (leftlen - len(i[0]) - len(i[1]) - 1)}'
+            txt += f' {i[1]} - {i[2]} ' + ' ' * (mxo - len(i[2]) + rpad)
+            txt += f'{i[3]}\n'
+        txt += '\n'
+        return txt
+
+    def challenge_complete(self, challenge_id: int) -> bool:
+        """Returns True if all round results are present."""
+        challenge = self._session.query(Challenge) \
+            .filter(Challenge.challenge_id == challenge_id).first()
+        if challenge is None:
+            logger.error('Challenge not found')
+            return False
+        return self._session.query(ChallengeRound) \
+            .filter(ChallengeRound.challenge_id == challenge_id,
+                    ChallengeRound.user_duration != -1.0,
+                    ChallengeRound.other_duration != -1.0) \
+            .count() == challenge.rounds
+
     def _check_challenge_complete(self, challenge_id: int) -> None:
         """Finalizes a challenge if all rounds have been played."""
         count = self._session.query(ChallengeRound) \
@@ -770,7 +871,8 @@ class MPDBHandler:
             if user is None:
                 logger.error('User in challenge not present in DB')
                 continue
-            txt = f'{common.ACC_SYM} ({user.name} / {i.rounds})'
+            txt = f'{common.ACC_SYM} ({user.name} / {i.rounds} / ' \
+                  f'{i.start_date.strftime("%d.%m.%Y")})'
             ret.append((i.challenge_id, txt))
         return ret
 

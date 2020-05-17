@@ -93,11 +93,12 @@ class ChallengesDlg:
     newchallenge: Dialogue = None
     round: Dialogue = None
     error: Dialogue = None
+    challenge: Dialogue = None
 
     @property
     def all(self) -> Tuple[Dialogue, ...]:
         """Helper property to get all members."""
-        return self.newchallenge, self.round, self.error
+        return self.newchallenge, self.round, self.error, self.challenge
 
 
 class Challenges(app.AppBase):
@@ -324,6 +325,24 @@ class Challenges(app.AppBase):
             else:
                 self.__dlgs.error.text = txt
                 self.__dlgs.error.show()
+        elif dlg == 'challenge':
+            if self.__dlgs.challenge is None:
+                fnt = self.config.get('font', 'bold')
+                bkwa = common.get_dialogue_btn_kw(size=(0.25, 0.11))
+                buttons = [DialogueButton(text='Back', fmtkwargs=bkwa,
+                                          callback=self.__back)]
+                dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
+                               size=(0.7, 0.9), font=fnt, align='center',
+                               frame_color=common.CHALLENGES_FRAME_COLOR,
+                               border_thickness=0.01, font_size=0.035,
+                               corner_radius=0.05, multi_sampling=2)
+                dlg.pos = -0.35, -0.45
+                dlg.reparent_to(self.ui.center)
+                dlg.depth = 1000
+                self.__dlgs.challenge = dlg
+            else:
+                self.__dlgs.challenge.text = txt
+                self.__dlgs.challenge.show()
 
     def __challenge_req(self, rounds: int) -> None:
         self.__dlgs.newchallenge.hide()
@@ -731,7 +750,10 @@ class Challenges(app.AppBase):
                     self.__show_gametypeview()
                 else:
                     self.__show_rounddlg()
-            print(f'listview clicked on "{self.__data.data[pos]}"')
+            else:
+                self.__gen_dlg('challenge',
+                               self.mps.dbh.challenge_view(
+                                   self.__data.idmap[self.__data.active]))
             return
         if not self.__nodes.newview.hidden:
             print(f'newview clicked on "{self.__data.data[pos]}"')
