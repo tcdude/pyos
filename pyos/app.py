@@ -113,7 +113,7 @@ class GlobalNodes:
         self.statuslbl.text = text
         self.statuslbl.show()
 
-    def hide_status(self) -> None:
+    def hide_status(self, *unused_args, **unused_kwargs) -> None:
         """Hides the statuslbl."""
         self.statuslbl.hide()
 
