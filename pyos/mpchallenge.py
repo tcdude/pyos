@@ -758,4 +758,3 @@ class Challenges(app.AppBase):
             self.__gen_dlg('new', f'Select the number\nof rounds to play\n'
                                   f'or {common.BACK_SYM} to go back.\n\n')
             return
-        # TODO: Handle click
