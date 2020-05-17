@@ -709,6 +709,20 @@ class MPDBHandler:
                     ChallengeRound.other_duration != -1.0) \
             .count() == challenge.rounds
 
+    def userid(self, username: str) -> int:
+        """
+        Returns the user id if present as friend, -1 if present as blocked user,
+        -2 if a friendrequest is pending or -3 if not present in user table.
+        """
+        user = self._session.query(User).filter(User.name == username).first()
+        if user is None:
+            return -3
+        if user.rtype == 2:
+            return user.user_id
+        if user.rtype == 3:
+            return -1
+        return -2
+
     def _check_challenge_complete(self, challenge_id: int) -> None:
         """Finalizes a challenge if all rounds have been played."""
         count = self._session.query(ChallengeRound) \
@@ -917,3 +931,19 @@ class MPDBHandler:
             .filter(Challenge.active == true(),
                     ChallengeRound.result_sent != true(),
                     ChallengeRound.seed != 0).all()
+
+    @property
+    def leaderboard(self) -> List[Tuple[int, int, str]]:
+        """
+        Returns the leaderboard as a list of tuples, containing rank, points and
+        name.
+        """
+        return self._session \
+            .query(Leaderboard.rank, Leaderboard.points, Leaderboard.name) \
+            .order_by(Leaderboard.rank).all()
+
+    @property
+    def rankmax(self) -> int:
+        """Returns the highest rank number, stored in the leaderboard."""
+        rank = self._session.query(func.max(Leaderboard.rank)).first()
+        return 0 if rank[0] is None else rank[0]

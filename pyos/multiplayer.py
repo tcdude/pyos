@@ -294,7 +294,7 @@ class Multiplayer:
             username = self.mpdbh.get_username(i[2])
             if not username:
                 try:
-                    self.mpc.get_username(i[2])
+                    username = self.mpc.get_username(i[2])
                 except mpclient.NotConnectedError:
                     return NO_CONNECTION
                 except mpclient.CouldNotLoginError:

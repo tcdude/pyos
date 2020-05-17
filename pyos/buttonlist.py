@@ -48,6 +48,7 @@ class FormatFields:
 @dataclass
 class DataFields:
     """Holds data fields and callbacks"""
+    # pylint: disable=too-many-instance-attributes
     itpp: int
     data: List[str]
     listcb: Callable
@@ -55,6 +56,7 @@ class DataFields:
     filtercb: Callable = None
     page: int = 0
     active_filter: int = 0
+    pagechangecb: Callable = None
 
 
 @dataclass
@@ -112,6 +114,14 @@ class ButtonList(frame.Frame):
         self._data = DataFields(itpp, data, onclick, filters, filtercb)
         self._layout = Layout([], [])
         self._setup_layout()
+
+    def onpagechange(self, callback: Callable[[int], int]) -> None:
+        """
+        Register a callback for page change. The callback has to accept a single
+        int representing the page after the page change and return the page
+        number, where to turn to instead.
+        """
+        self._data.pagechangecb = callback
 
     def _setup_layout(self) -> None:
         width, height = self.size
@@ -224,13 +234,17 @@ class ButtonList(frame.Frame):
         self._update_filter()
 
     def _change_page(self, direction: int) -> None:
-        max_page = int(ceil(len(self._data.data) / self._data.itpp)) - 1
+        max_page = self.numpages - 1
         if self._data.page + direction < 0:
             self._data.page = max_page
         elif self._data.page + direction > max_page:
             self._data.page = 0
         else:
             self._data.page += direction
+        if self._data.pagechangecb is not None:
+            new_page = self._data.pagechangecb(self._data.page)
+            if new_page != self._data.page:
+                self._data.page = new_page
         self.update_content()
         self.dirty = True
 
@@ -256,3 +270,13 @@ class ButtonList(frame.Frame):
                 bcol = self._format.filter_kwargs['border_color']
             for j in btn.labels:
                 j.border_color = bcol
+
+    @property
+    def page(self) -> int:
+        """The current page, starting at 0."""
+        return self._data.page
+
+    @property
+    def numpages(self) -> int:
+        """The the number of pages."""
+        return int(ceil(len(self._data.data) / self._data.itpp))
