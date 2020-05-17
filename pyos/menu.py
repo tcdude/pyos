@@ -84,6 +84,7 @@ class MainMenu(app.AppBase):
         self.__buttons.quit.pos = pos_x, -0.38
         self.__root.show()
         self.__buttons.quit.enabled = False
+        self.__buttons.multiplayer.enabled = False
         req = self.mps.ctrl.nop()
         self.mps.ctrl.register_callback(req, self.__enable_quit)
 
@@ -91,28 +92,33 @@ class MainMenu(app.AppBase):
         """Exit state -> Setup."""
         self.__root.hide()
 
-    def __enable_quit(self, unused_rescode: int) -> None:
+    def __enable_quit(self, rescode: int) -> None:
         self.__buttons.quit.enabled = True
+        if rescode == 0:
+            self.__buttons.multiplayer.enabled = True
         if self.mps.login == 0:
             req = self.mps.ctrl.sync_challenges()
             self.mps.ctrl.register_callback(req, self.__update_notifications)
             req = self.mps.ctrl.sync_relationships()
             self.mps.ctrl.register_callback(req, self.__update_notifications)
             self.__pending_sync = 2
+            self.global_nodes.show_status('Updating notifications...')
 
     def __update_notifications(self, rescode: int) -> None:
         if rescode:
             logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
         self.__pending_sync -= 1
-        if self.__pending_sync == 0:
-            act = self.mps.dbh.challenge_actions + self.mps.dbh.friend_actions
-            atxt = f' ({act})'
-            if act:
-                txt = ' ' * len(atxt) + chr(0xf6e6) + ' Multiplayer '
-                txt += chr(0xf6e6) + atxt
-            else:
-                txt = chr(0xf6e6) + ' Multiplayer ' + chr(0xf6e6)
-            self.__buttons.multiplayer.change_text(txt)
+        if self.__pending_sync:
+            return
+        self.global_nodes.hide_status()
+        act = self.mps.dbh.challenge_actions + self.mps.dbh.friend_actions
+        atxt = f' ({act})'
+        if act:
+            txt = ' ' * len(atxt) + chr(0xf6e6) + ' Multiplayer '
+            txt += chr(0xf6e6) + atxt
+        else:
+            txt = chr(0xf6e6) + ' Multiplayer ' + chr(0xf6e6)
+        self.__buttons.multiplayer.change_text(txt)
 
     def __setup_menu_buttons(self):
         kwargs = common.get_menu_txt_btn_kw(size=(0.8, 0.1))
