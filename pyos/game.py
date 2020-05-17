@@ -530,13 +530,13 @@ class Game(app.AppBase):
         self.__save()
         if self.state.challenge > -1 and not self.__state.fresh_state:
             self.__update_attempt(solved=True)
-            res = self.systems \
-                .stats.result(self.__systems.game_table.seed,
-                              self.__systems.game_table.draw_count, True, False,
-                              self.state.challenge)
-            if res is None:
+            try:
+                dur, moves, pts, _ = self.systems \
+                    .stats.result(self.__systems.game_table.seed,
+                                  self.__systems.game_table.draw_count, True,
+                                  False, self.state.challenge)
+            except ValueError:
                 raise RuntimeError('Win state but no solved result')
-            dur, moves, pts, _ = res
             self.fsm_global_data['result'] = dur, moves, pts
             self.request('challenges')
             return
