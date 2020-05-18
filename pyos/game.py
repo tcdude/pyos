@@ -80,6 +80,7 @@ class GameState:
     mouse_down_pos: Vec2 = Vec2()
     drag_info: DragInfo = DragInfo(-1, -1, common.TableArea.STACK)
     fresh_state: bool = True
+    first_move: bool = False
     day_deal: bool = True
     gametype: int = None
     # Need to hold the previous moves or duration for challenges for proper
@@ -89,7 +90,7 @@ class GameState:
 
 class Game(app.AppBase):
     """
-    Entry point of the App.
+    Game State.
     """
     def __init__(self, config_file):
         super().__init__(config_file=config_file)
@@ -119,8 +120,9 @@ class Game(app.AppBase):
             self.__state.day_deal = True
         if not chg and (self.state.need_new_game
                         or self.systems.stats.first_launch
-                        or self.state.daydeal is not None):
+                        or self.__state.day_deal):
             self.__new_deal()
+        logger.debug(f'{repr(self.__state)}')
 
     def exit_game(self):
         """Tasks to be performed when this state is left."""
@@ -434,7 +436,7 @@ class Game(app.AppBase):
         if self.config.getboolean('pyos', 'tap_move'):
             table_click = self.__systems.layout.click_area(self.mouse_pos)
             if table_click is not None:
-                logger.info(f'Table: {repr(table_click)}')
+                logger.debug(f'Table: {repr(table_click)}')
                 res = self.__table_click(table_click)
                 if not res:
                     nd = self.__systems.layout.root
@@ -494,7 +496,9 @@ class Game(app.AppBase):
             return
         mvs, tim, pts = self.__systems.game_table.stats
         undo, invalid = self.__systems.game_table.undo_invalid
-        if mvs == 1 and not duration_only:
+        logger.debug(f'{repr(self.__state)}')
+        if self.__state.first_move and not duration_only:
+            self.__state.first_move = False
             seed = self.__systems.game_table.seed
             draw = self.__systems.game_table.draw_count
             win_deal = self.config.getboolean('pyos', 'winner_deal',
@@ -522,8 +526,6 @@ class Game(app.AppBase):
             with open(path, 'rb') as f_handler:
                 self.__systems.game_table.set_state(f_handler.read())
             self.__state.refresh_next_frame = 2
-        else:
-            self.__new_deal()
 
     def __show_score(self):
         """Show the result screen."""
@@ -541,9 +543,17 @@ class Game(app.AppBase):
             self.request('challenges')
             return
         dur, pts, bonus, moves = self.__systems.game_table.result
+        if self.__state.day_deal and not self.__state.fresh_state:
+            self.__update_attempt(solved=True, bonus=bonus)
+            daydeal = (self.__systems.game_table.draw_count,
+                       self.__systems.game_table.seed)
+            self.fsm_global_data['daydeal'] = daydeal
+            self.__state.day_deal = False
+            self.state.daydeal = None
+            self.request('day_deal')
+            return
         mins, secs = int(dur // 60), dur % 60
-        txt = f'Daily deal WON!' if self.__state.day_deal else f'You WON!'
-        txt += '\n\n'
+        txt = 'You WON!\n\n'
         scr = f'{pts + bonus}'
         top = False
         i = self.systems.stats.highscore(self.__systems.game_table.draw_count)
@@ -575,7 +585,6 @@ class Game(app.AppBase):
             self.__win_animation()
             self.__update_attempt(solved=True, bonus=bonus)
         self.__disable_all()
-        self.state.day_deal = None
 
     def __gen_dlg(self, txt: str, dlgtype: str = 'newgame'):
         dlgkw = common.get_dialogue_btn_kw()
@@ -668,6 +677,7 @@ class Game(app.AppBase):
         self.__systems.game_table.reset()
         self.__update_prev_value(self.__state.gametype)
         self.__state.refresh_next_frame = 2
+        self.__state.first_move = True
 
     def __new_deal(self, seed: int = None, draw: int = None, score: int = None):
         """On New Deal click: Deal new game."""
@@ -688,8 +698,11 @@ class Game(app.AppBase):
                                             self.state.challenge)
                 self.state.daydeal = None
                 self.__state.day_deal = False
+                self.state.daydeal = None
+                self.__state.first_move = True
             self.__update_prev_value(score)
             self.__systems.toolbar.toggle(False)
+            self.__state.fresh_state = False
             logger.debug('Started a challenge round')
         elif self.state.daydeal is not None:
             draw, seed = self.state.daydeal
@@ -699,9 +712,10 @@ class Game(app.AppBase):
                 self.__systems.game_table.draw_count = draw
                 self.__systems.game_table.deal(seed, win_deal=True)
                 self.systems.stats.new_deal(seed, draw, True, True)
-                self.state.daydeal = None
-                self.__state.day_deal = True
+                self.__state.first_move = True
+            self.__state.day_deal = True
             self.__systems.toolbar.toggle(True)
+            self.__state.fresh_state = False
             logger.debug('Started a daydeal')
         elif (self.__state.day_deal or self.state.challenge != -1) \
               and self.state.need_new_game:
@@ -717,7 +731,10 @@ class Game(app.AppBase):
             draw = self.__systems.game_table.draw_count
             self.systems.stats.new_deal(seed, draw, win_deal)
             self.__state.day_deal = False
+            self.state.daydeal = None
             self.__systems.toolbar.toggle(True)
+            self.__state.fresh_state = False
+            self.__state.first_move = True
             logger.debug('Started a regular deal')
         self.__state.refresh_next_frame = 2
         self.state.need_new_game = False

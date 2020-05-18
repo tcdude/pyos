@@ -274,7 +274,7 @@ class MPDBHandler:
         return True
 
     def update_dd_score(self, draw: int, dayoffset: int, result: Result = None,
-                        sent: bool = False):
+                        sent: bool = None):
         """Update DDScore."""
         dds = self._session.query(DDScore)\
             .filter(DDScore.draw == draw,
@@ -284,7 +284,8 @@ class MPDBHandler:
             dds.draw = draw
             dds.dayoffset = dayoffset
             self._session.add(dds)
-        dds.score_sent = sent
+        if sent is not None:
+            dds.score_sent = sent
         if result is not None:
             dds.duration, dds.moves, dds.points = result
         self._session.commit()

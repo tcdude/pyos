@@ -102,6 +102,8 @@ class DayDeal(app.AppBase):
                 dur = f'{chr(0xf007)} {int(ndur / 60)}:{ndur % 60:05.2f}'
                 moves = f'{chr(0xf007)} {nmoves}'
                 pts = f'{chr(0xf007)} {npts}'
+                if dayoffset < 0:
+                    dayoffset = self.__get_dayoffset(draw, seed)
                 odur, omoves, opoints = self.mps.dbh.dd_score(draw, dayoffset)
                 if odur == -1.0:
                     odur = chr(0xf6e6) + ' N/A'
@@ -143,6 +145,14 @@ class DayDeal(app.AppBase):
             self.systems.shuffler.request_deal(draw, seed)
             self.request('game')
 
+    def __get_dayoffset(self, draw: int, seed: int) -> int:
+        today = datetime.datetime.utcnow()
+        start_i = today - common.START_DATE - datetime.timedelta(days=9)
+        for i in range(10):
+            if self.__dailyseeds[draw][start_i.days + i] == seed:
+                return start_i.days + i
+        return -1
+
     def __hide_dlg(self):
         self.__dlg.hide()
         self.__frame.show()
@@ -169,9 +179,6 @@ class DayDeal(app.AppBase):
 
     def __update(self):
         if self.mps.login == 0:
-            req = self.mps.ctrl.update_dd_scores()
-            self.mps.ctrl.register_callback(req, self.__submit_ddcb)
-            self.__pending_sync += 1
             reqs = common.submit_dd_results(self.systems.stats, self.mps.dbh,
                                             self.mps.ctrl)
             for req, day, draw in reqs:
@@ -179,6 +186,9 @@ class DayDeal(app.AppBase):
                 self.__pending_sync += 1
                 self.mps.ctrl.register_callback(req, self.__submit_ddcb, day,
                                                 draw)
+            req = self.mps.ctrl.update_dd_scores()
+            self.mps.ctrl.register_callback(req, self.__submit_ddcb)
+            self.__pending_sync += 1
             self.global_nodes.show_status('Updating best scores...')
         today = datetime.datetime.utcnow()
         start_i = today - common.START_DATE - datetime.timedelta(days=9)
@@ -209,6 +219,16 @@ class DayDeal(app.AppBase):
         if self.__pending_sync:
             return
         self.global_nodes.hide_status()
+        if 'daydeal' in self.fsm_global_data \
+              and self.fsm_global_data['daydeal']:
+            req = self.mps.ctrl.nop()
+            self.mps.ctrl.register_callback(req, self.__show_result)
+
+    def __show_result(self, rescode: int) -> None:
+        if rescode:
+            logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
+        self.__click(*self.fsm_global_data['daydeal'], True)
+        self.fsm_global_data['daydeal'] = None
 
     def __setup(self):
         kwargs = common.get_daydeal_cell_btn_kw()
