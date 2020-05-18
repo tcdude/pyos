@@ -3,16 +3,17 @@ Provides the daily deal menu.
 """
 
 import datetime
-import struct
 from typing import Dict, List
 
 from foolysh.scene.layout import GridLayout
 from foolysh.scene.node import Origin
 from foolysh.ui import button, frame, UIState
+from loguru import logger
 
 import app
 import common
 from dialogue import Dialogue, DialogueButton
+import mpctrl
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = """
@@ -39,20 +40,6 @@ SOFTWARE.
 
 __license__ = 'MIT'
 __version__ = '0.3'
-
-
-def unpack_seeds(fpath: str) -> Dict[int, List[int]]:
-    """Unpack the seeds file."""
-    ones, threes = [], []
-    with open(fpath, 'rb') as fptr:
-        while True:
-            k = fptr.read(8)
-            if not k:
-                break
-            one, three = struct.unpack('<ii', k)
-            ones.append(one)
-            threes.append(three)
-    return {1: ones, 3: threes}
 
 
 class DayDeal(app.AppBase):
@@ -84,8 +71,10 @@ class DayDeal(app.AppBase):
                                    (5,), (0.01, 0.01))
         self.__grid_t._root.pos = -0.4, 0.12
         self.__buttons: Dict[int, List[button.Button]] = {1: [], 3: []}
-        self.__dailyseeds = unpack_seeds(self.config.get('pyos', 'dailyseeds'))
+        self.__dailyseeds = common \
+            .unpack_seeds(self.config.get('pyos', 'dailyseeds'))
         self.__dlg: Dialogue = None
+        self.__pending_sync: int = 0
         self.__setup()
         self.__root.hide()
 
@@ -101,22 +90,53 @@ class DayDeal(app.AppBase):
             self.__hide_dlg()
 
     def __click(self, draw: int, seed: int, score: bool = False,
-                day: str = '') -> None:
+                day: str = '', dayoffset: int = -1) -> None:
+        # pylint: disable=too-many-arguments
         if score:
             txt = f'{day}\n\n'
-            dur, moves, pts, bonus = self.systems.stats.result(seed, draw, True,
-                                                             True)
-            dur = f'{int(dur / 60)}:{dur % 60:05.2f}'
-            moves = f'{moves}'
-            score = f'{bonus + pts}'
-            pts = f'{pts}'
+            ndur, nmoves, npts, bonus = self.systems.stats.result(seed, draw,
+                                                                  True, True)
+            score = f'{bonus + npts}'
             bonus = f'{bonus}'
+            if self.mps.login == 0:
+                dur = f'{chr(0xf007)} {int(ndur / 60)}:{ndur % 60:05.2f}'
+                moves = f'{chr(0xf007)} {nmoves}'
+                pts = f'{chr(0xf007)} {npts}'
+                odur, omoves, opoints = self.mps.dbh.dd_score(draw, dayoffset)
+                if odur == -1.0:
+                    odur = chr(0xf6e6) + ' N/A'
+                    omoves = chr(0xf6e6) + ' N/A'
+                    opoints = chr(0xf6e6) + ' N/A'
+                    dur = f'{chr(0xfa38)} ' + dur
+                    moves = f'{chr(0xfa38)} ' + moves
+                    pts = f'{chr(0xfa38)} ' + pts
+                else:
+                    if round(odur, 2) >= round(ndur, 2):
+                        dur = f'{chr(0xfa38)} ' + dur
+                    if omoves >= nmoves:
+                        moves = f'{chr(0xfa38)} ' + moves
+                    if opoints <= npts:
+                        pts = f'{chr(0xfa38)} ' + pts
+                    odur = f'{chr(0xf6e6)} {int(odur / 60)}:{odur % 60:05.2f}'
+                    omoves = chr(0xf6e6) + f' {omoves}'
+                    opoints = chr(0xf6e6) + f' {opoints}'
+            else:
+                odur = omoves = opoints = ''
+                dur = f'{int(dur / 60)}:{dur % 60:05.2f}'
+                moves = f'{moves}'
+                pts = f'{pts}'
             mlen = max([len(dur), len(moves), len(pts), len(bonus)])
-            txt += f'Time:    {" " * (mlen - len(dur))}{dur}\n'
-            txt += f'Moves:   {" " * (mlen - len(moves))}{moves}\n'
-            txt += f'Points:  {" " * (mlen - len(pts))}{pts}\n'
-            txt += f'Bonus:   {" " * (mlen - len(bonus))}{bonus}\n'
-            txt += f'Score:   {" " * (mlen - len(score))}{score}\n'
+            txt += f'Time:   {" " * (mlen - len(dur))}{dur}\n'
+            if odur:
+                txt += f'        {" " * (mlen - len(odur))}{odur}\n'
+            txt += f'Moves:  {" " * (mlen - len(moves))}{moves}\n'
+            if omoves:
+                txt += f'        {" " * (mlen - len(omoves))}{omoves}\n'
+            txt += f'Points: {" " * (mlen - len(pts))}{pts}\n'
+            if opoints:
+                txt += f'        {" " * (mlen - len(opoints))}{opoints}\n'
+            txt += f'Bonus:  {" " * (mlen - len(bonus))}{bonus}\n'
+            txt += f'Score:  {" " * (mlen - len(score))}{score}\n\n'
             self.__gen_dlg(txt)
         else:
             self.state.daydeal = draw, seed
@@ -134,11 +154,11 @@ class DayDeal(app.AppBase):
                                       fmtkwargs=common.get_dialogue_btn_kw(),
                                       callback=self.__hide_dlg)]
             dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
-                           size=(0.7, 0.7), font=fnt, align='center',
+                           size=(0.7, 0.9), font=fnt, align='center',
                            frame_color=common.FRAME_COLOR_STD,
                            border_thickness=0.01,
                            corner_radius=0.05, multi_sampling=2)
-            dlg.pos = -0.35, -0.35
+            dlg.pos = -0.35, -0.49
             dlg.reparent_to(self.ui.center)
             dlg.depth = 1000
             self.__dlg = dlg
@@ -148,6 +168,18 @@ class DayDeal(app.AppBase):
         self.__frame.hide()
 
     def __update(self):
+        if self.mps.login == 0:
+            req = self.mps.ctrl.update_dd_scores()
+            self.mps.ctrl.register_callback(req, self.__submit_ddcb)
+            self.__pending_sync += 1
+            reqs = common.submit_dd_results(self.systems.stats, self.mps.dbh,
+                                            self.mps.ctrl)
+            for req, day, draw in reqs:
+                logger.debug(f'Sending result for D{draw} #{day}')
+                self.__pending_sync += 1
+                self.mps.ctrl.register_callback(req, self.__submit_ddcb, day,
+                                                draw)
+            self.global_nodes.show_status('Updating best scores...')
         today = datetime.datetime.utcnow()
         start_i = today - common.START_DATE - datetime.timedelta(days=9)
         for i in range(10):
@@ -157,7 +189,8 @@ class DayDeal(app.AppBase):
                 seed = self.__dailyseeds[k][start_i.days + i]
                 btn = self.__buttons[k][i]
                 if self.systems.stats.issolved(seed, k, True, True):
-                    btn.onclick(self.__click, k, seed, True, sday)
+                    btn.onclick(self.__click, k, seed, True, sday,
+                                start_i.days + i)
                     btn.labels[UIState.NORMAL].frame_color = (40, 150, 20)
                 else:
                     btn.onclick(self.__click, k, seed)
@@ -165,6 +198,17 @@ class DayDeal(app.AppBase):
                 for lbl in btn.labels:
                     lbl.text = sday
 
+    def __submit_ddcb(self, rescode: int, day: int = None, draw: int = None
+                      ) -> None:
+        if rescode:
+            logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
+        elif day is not None and rescode == 0:
+            logger.debug(f'Result D{draw} #{day} submitted')
+            self.mps.dbh.update_dd_score(draw, day, sent=True)
+        self.__pending_sync -= 1
+        if self.__pending_sync:
+            return
+        self.global_nodes.hide_status()
 
     def __setup(self):
         kwargs = common.get_daydeal_cell_btn_kw()

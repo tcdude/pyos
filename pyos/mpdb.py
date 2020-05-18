@@ -2,6 +2,7 @@
 Provides multiplayer data storage in a sqlite3 db file locally.
 """
 
+import datetime
 from typing import List, Tuple, Union
 
 from sqlalchemy import (Boolean, Column, DateTime, Float, Integer, Unicode,
@@ -158,9 +159,10 @@ class DDScore(Base):
     __tablename__ = 'dd_score'
     draw = Column(SmallInteger, primary_key=True)
     dayoffset = Column(SmallInteger, primary_key=True)
-    duration = Column(Float)
-    points = Column(SmallInteger)
-    moves = Column(SmallInteger)
+    duration = Column(Float, default=-1.0)
+    points = Column(SmallInteger, default=0)
+    moves = Column(SmallInteger, default=0)
+    score_sent = Column(Boolean, default=False)
 # pylint: enable=too-few-public-methods
 
 
@@ -271,7 +273,8 @@ class MPDBHandler:
         self._session.commit()
         return True
 
-    def update_dd_score(self, draw: int, dayoffset: int, result: Result):
+    def update_dd_score(self, draw: int, dayoffset: int, result: Result = None,
+                        sent: bool = False):
         """Update DDScore."""
         dds = self._session.query(DDScore)\
             .filter(DDScore.draw == draw,
@@ -281,7 +284,9 @@ class MPDBHandler:
             dds.draw = draw
             dds.dayoffset = dayoffset
             self._session.add(dds)
-        dds.duration, dds.points, dds.moves = result
+        dds.score_sent = sent
+        if result is not None:
+            dds.duration, dds.moves, dds.points = result
         self._session.commit()
 
     def update_leaderboard(self, rank: int, points: int, username: str) -> None:
@@ -724,6 +729,17 @@ class MPDBHandler:
             return -1
         return -2
 
+    def dd_score(self, draw: int, dayoffset: int) -> Result:
+        """
+        Returns a dd best score if available, otherwise -1.0 in duration.
+        """
+        res = self._session.query(DDScore) \
+            .filter(DDScore.draw == draw,
+                    DDScore.dayoffset == dayoffset).first()
+        if res is None or res.duration == -1.0:
+            return -1.0, 0, 0
+        return res.duration, res.moves, res.points
+
     def _check_challenge_complete(self, challenge_id: int) -> None:
         """Finalizes a challenge if all rounds have been played."""
         count = self._session.query(ChallengeRound) \
@@ -964,3 +980,22 @@ class MPDBHandler:
     def friend_actions(self) -> int:
         """How many pending friend requests."""
         return self._session.query(User).filter(User.rtype == 1).count()
+
+    @property
+    def unsent_dd_scores(self) -> List[Tuple[int, int]]:
+        """
+        Returns a list of unsent dd scores as list of tuples containing day and
+        draw count.
+        """
+        today = datetime.datetime.utcnow()
+        start_i = today - common.START_DATE - datetime.timedelta(days=9)
+        unsent = []
+        for i in range(10):
+            for k in (1, 3):
+                if self._session.query(DDScore) \
+                      .filter(DDScore.draw == k,
+                              DDScore.dayoffset == start_i.days + i,
+                              DDScore.score_sent == true()).count() == 1:
+                    continue
+                unsent.append((start_i.days + i, k))
+        return unsent

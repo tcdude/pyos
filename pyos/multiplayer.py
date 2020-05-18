@@ -131,6 +131,7 @@ class Multiplayer:
                 conn.sendall(NO_CONNECTION)
             else:
                 conn.sendall(self._handler_methods[req](data[1:]))
+                logger.debug(f'Request {req} processed')
         else:
             logger.warning(f'Invalid request {req}')
             conn.sendall(ILLEGAL_REQUEST)
@@ -254,14 +255,14 @@ class Multiplayer:
         for i in range(10):
             for k in (1, 3):
                 try:
-                    res = self.mpc.daily_best_score(k, start_i + i)
+                    res = self.mpc.daily_best_score(k, start_i.days + i)
                 except mpclient.NotConnectedError:
                     return NO_CONNECTION
                 except mpclient.CouldNotLoginError:
                     return NOT_LOGGED_IN
                 if sum(res) == 0:
-                    return FAILURE
-                self.mpdbh.update_dd_score(k, start_i + i, res)
+                    continue
+                self.mpdbh.update_dd_score(k, start_i.days + i, res)
         return SUCCESS
 
     def _update_challenge_leaderboard(self, data: bytes) -> bytes:

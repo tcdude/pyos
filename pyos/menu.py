@@ -119,6 +119,24 @@ class MainMenu(app.AppBase):
         else:
             txt = chr(0xf6e6) + ' Multiplayer ' + chr(0xf6e6)
         self.__buttons.multiplayer.change_text(txt)
+        reqs = common.submit_dd_results(self.systems.stats, self.mps.dbh,
+                                        self.mps.ctrl)
+        for req, day, draw in reqs:
+            logger.debug(f'Sending result for D{draw} #{day}')
+            self.global_nodes.show_status('Submitting Daydeal Scores...')
+            self.__pending_sync += 1
+            self.mps.ctrl.register_callback(req, self.__submit_ddcb, day, draw)
+
+    def __submit_ddcb(self, rescode: int, day: int, draw: int) -> None:
+        if rescode:
+            logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
+        elif day is not None and rescode == 0:
+            logger.debug(f'Result D{draw} #{day} submitted')
+            self.mps.dbh.update_dd_score(draw, day, sent=True)
+        self.__pending_sync -= 1
+        if self.__pending_sync:
+            return
+        self.global_nodes.hide_status()
 
     def __setup_menu_buttons(self):
         kwargs = common.get_menu_txt_btn_kw(size=(0.8, 0.1))

@@ -6,6 +6,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 import datetime
 from enum import Enum
+import struct
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import buttonlist
@@ -304,3 +305,35 @@ def gen_btnlist(item_font: str, filter_font: str, data: List[str],
                                  border_color=BTNLIST_BORDER_COLOR,
                                  border_thickness=0.005, corner_radius=0.03,
                                  multi_sampling=2)
+
+
+# Helper functions
+
+def submit_dd_results(stats: "Stats", mpdbh: "MPDBHandler", ctrl: "MPControl"
+                      ) -> List[Tuple[int, int, int]]:
+    """
+    Submits outstanding daydeal results and returns a list of tuples containing
+    request id, dayoffset and draw count.
+    """
+    seeds = unpack_seeds(DEFAULTCONFIG['pyos']['dailyseeds'])
+    reqs = []
+    for day, draw in mpdbh.unsent_dd_scores:
+        res = stats.result(seeds[draw][day], draw, True, True)
+        if res is None:
+            continue
+        reqs.append((ctrl.submit_dd_score(draw, day, res[:3]), day, draw))
+    return reqs
+
+
+def unpack_seeds(fpath: str) -> Dict[int, List[int]]:
+    """Unpack the seeds file."""
+    ones, threes = [], []
+    with open(fpath, 'rb') as fptr:
+        while True:
+            k = fptr.read(8)
+            if not k:
+                break
+            one, three = struct.unpack('<ii', k)
+            ones.append(one)
+            threes.append(three)
+    return {1: ones, 3: threes}
