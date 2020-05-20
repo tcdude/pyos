@@ -62,6 +62,8 @@ class PyOS(menu.MainMenu, menu.SettingsMenu, game.Game, statsmenu.Statistics,
 def verify_config(cfg: configparser.ConfigParser, cfg_file: str):
     """Check if all default keys are in the stored configuration."""
     for sec in common.DEFAULTCONFIG:
+        if sec not in cfg:
+            cfg.add_section(sec)
         for k in common.DEFAULTCONFIG[sec]:
             if cfg.get(sec, k, fallback=None) is None:
                 cfg.set(sec, k, common.DEFAULTCONFIG[sec][k])
