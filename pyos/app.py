@@ -227,9 +227,9 @@ class AppBase(app.App):
         """Called when the app enters background."""
         # pylint: disable=unused-argument
         logger.info('Resume app')
+        self.login()
         self.request('main_menu')
         self.systems.stats.start_session()
-        self.login()
 
     def __event_will_enter_bg(self, event=None):
         """Called when the os announces that the app will enter background."""
