@@ -7,8 +7,9 @@ import os
 import selectors
 import socket
 import struct
+import threading
 import time
-from typing import Callable, Dict
+from typing import Callable, Dict, Union
 
 from foolysh.tools import config
 from loguru import logger
@@ -108,10 +109,15 @@ class Request:
 @dataclass
 class CtrlData:
     """Holds the dicts for MPControl."""
-    pending: Dict[int, Request] = field(default_factory=dict)
+    # pylint: disable=too-many-instance-attributes
+    pending: Dict[int, Union[Request, bytes]] = field(default_factory=dict)
+    retry: Dict[int, int] = field(default_factory=dict)
     results: Dict[int, int] = field(default_factory=dict)
     callbacks: Dict[int, Callable[[int], None]] = field(default_factory=dict)
     reload_cfg: Dict[int, int] = field(default_factory=dict)
+    start_thread: threading.Thread = None
+    active: bool = False
+    lock: threading.Lock = threading.Lock()
 
 
 class MPControl:
@@ -128,9 +134,12 @@ class MPControl:
         self.cfg = cfg
         self._reqid = 0
         self._data = CtrlData()
-        self._active = False
         self._proc = None
         self._port = 0
+        if 'autoclass' in globals():
+            self._service = autoclass('com.tizilogic.pyos.ServiceMultiplayer')
+        else:
+            self._service = None
 
     # Requests
 
@@ -266,12 +275,34 @@ class MPControl:
         Method to call regularly to process pending jobs and execute registered
         callbacks.
         """
-        if not self._active:
+        if not self._data.active:
+            logger.debug('Update called before the service has come online')
             return
         events = SEL.select(timeout=-1)
         for key, _ in events:
             callback = key.data
             callback(key.fileobj)
+
+        self._data.lock.acquire()
+
+        need_req = []
+        for k in self._data.pending:
+            if isinstance(self._data.pending[k], (bytes, type(None))):
+                need_req.append(k)
+                self._data.retry[k] -= 1
+        for k in need_req:
+            req = self._data.pending[k]
+            if self._data.retry:
+                self._data.pending[k] = Request(k, self._port, req,
+                                                self._data.results)
+            else:
+                if req:
+                    logger.warning(f'Request [{req[0]}] reached max retries')
+                else:
+                    logger.warning('Empty Request reached max retries')
+                self._data.pending.pop(k)
+                self._data.retry.pop(k)
+                self._data.results[k] = RESMAP[FAILURE]
         drop = []
         for k in self._data.results:
             if k in self._data.pending:
@@ -288,6 +319,8 @@ class MPControl:
         for k in drop:
             self._data.results.pop(k)
 
+        self._data.lock.release()
+
     def result(self, reqid: int) -> int:
         """
         Returns:
@@ -300,38 +333,39 @@ class MPControl:
             return -1
         return -2
 
-    def start_service(self) -> bool:
+    def start_service(self) -> None:
         """Start the solver service."""
-        if self._proc is not None:
-            return False
-        if self._active:
-            return True
+        if self._proc is not None and self._proc.poll() is None:
+            return
+        if self._data.active:
+            return
         if 'autoclass' in globals():
             logger.info('Starting Android Service multiplayer')
-            service = autoclass('com.tizilogic.pyos.ServiceMultiplayer')
             # pylint: disable=invalid-name
             mActivity = autoclass('org.kivy.android.PythonActivity').mActivity
             # pylint: enable=invalid-name
-            service.start(mActivity, '')
+            self._service.start(mActivity, '')
         elif 'autoclass' not in globals():
             logger.info('Starting multiplayer subprocess')
             self._proc = subprocess.Popen(['python', 'multiplayer.py'])
         while not os.path.exists(self.cfg.get('mp', 'uds')):
-            time.sleep(0.1)
+            time.sleep(0.01)
         with open(self.cfg.get('mp', 'uds'), 'r') as fhandler:
             self._port = int(fhandler.read())
+        self._data.lock.acquire()
         for _ in range(10):
-            time.sleep(0.3)
-            reqid = self._request()
+            reqid = self._start_request(force=True)
             if reqid > -1:
                 _ = self.result(reqid)
-                self._active = True
-                return True
-        return False
+                self._data.active = True
+                break
+            time.sleep(0.3)
+        self._data.lock.release()
+        self._data.start_thread = None  # Clean up after itself
 
     def stop(self):
         """Stop the service, if it is currently running."""
-        if not self._active:
+        if not self._data.active:
             return
         logger.debug('Cancel pending requests')
         for k in self._data.pending:
@@ -349,32 +383,34 @@ class MPControl:
                 self._proc.kill()
 
     def _request(self, req: bytes = None) -> int:
-        for i in range(2):
-            try:
-                self._data.pending[self._reqid] = Request(
-                    self._reqid, self._port, req,
-                    self._data.results)
-            except (NameError, FileNotFoundError, ConnectionRefusedError):
-                if req == STOP or i > 0 or not self.start_service():
-                    self._active = False
-                    return -1
-                if i:
-                    logger.warning('Multiplayer Service not responding')
-            else:
-                break
+        if not self._data.active:
+            if self._data.start_thread is None \
+                  or not self._data.start_thread.is_alive():
+                self._data.start_thread = threading \
+                    .Thread(target=self.start_service)
+                self._data.start_thread.start()
+        return self._start_request(req)
+
+    def _start_request(self, req: bytes = None, force: bool = False) -> int:
+        try:
+            self._data.pending[self._reqid] = Request(self._reqid, self._port,
+                                                      req, self._data.results)
+        except (NameError, FileNotFoundError, ConnectionRefusedError):
+            if force:
+                return -1
+            self._data.pending[self._reqid] = req
+            self._data.retry[self._reqid] = 5
+            self._data.active = False
+        return self._inc_reqid()
+
+    def _inc_reqid(self) -> int:
         self._reqid += 1
         return self._reqid - 1
 
     @property
     def active(self) -> bool:
         """Whether the service is running."""
-        reqid = self._request()
-        if reqid > -1:
-            _ = self.result(reqid)
-            self._active = True
-            return True
-        self._active = False
-        return False
+        return self._data.active
 
     @property
     def noaccount(self) -> bool:
