@@ -124,9 +124,9 @@ class DayDeal(app.AppBase):
                     opoints = chr(0xf6e6) + f' {opoints}'
             else:
                 odur = omoves = opoints = ''
-                dur = f'{int(dur / 60)}:{dur % 60:05.2f}'
-                moves = f'{moves}'
-                pts = f'{pts}'
+                dur = f'{int(ndur / 60)}:{ndur % 60:05.2f}'
+                moves = f'{nmoves}'
+                pts = f'{npts}'
             mlen = max([len(dur), len(moves), len(pts), len(bonus)])
             txt += f'Time:   {" " * (mlen - len(dur))}{dur}\n'
             if odur:
