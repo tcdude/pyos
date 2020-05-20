@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <include domain="file" path=".foolysh/foolysh.ini"/>
+    <include domain="file" path="gamedata.db"/>
+    <include domain="file" path="mp.db"/>
+    <include domain="file" path="cache/state.bin"/>
+    <include domain="file" path="cache/app_state.bin"/>
+</full-backup-content>

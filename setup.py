@@ -33,7 +33,7 @@ OPTIONS = {'apk': {'debug': None,
                    'bootstrap': 'sdl2',
                    'requirements': 'libffi,sdl2,sdl2_image,sdl2_ttf,python3,'
                                    'pysdl2,pyksolve,Pillow,plyer,loguru,'
-                                   'foolysh,pyjnius,sqlalchemy',
+                                   'foolysh,pyjnius,sqlalchemy,certifi',
                    'package': 'com.tizilogic.pyos',
                    'android-api': 28,
                    # 'arch': 'arm64-v8a',    # Pass one on the cmd line
@@ -44,6 +44,8 @@ OPTIONS = {'apk': {'debug': None,
                    'presplash-color': '#224422',
                    'local-recipes': './p4a-recipes',
                    'orientation': 'fullUser',
+                   'permission': 'INTERNET',
+                   'backup-rules': '/home/userhome/workspace/backup_rules.xml',
                    # Service args to be passed on the cmd line
                    # --service=solver:service/solver.py
                    # --service=multiplayer:multiplayer.py
@@ -51,7 +53,7 @@ OPTIONS = {'apk': {'debug': None,
 
 setup(
     name='Simple Solitaire',
-    version='0.3.4',
+    version='0.3.5',
     description='An ad free, simple solitaire game',
     author='tcdude',
     author_email='tizilogic@gmail.com',
