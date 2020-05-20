@@ -319,6 +319,7 @@ class Friends(app.AppBase):
                 self.__data.data.append(username)
             self.__data.idmap[i] = user_id
         self.__nodes.btnlist.update_content(True)
+        self.__update_filter()
 
     def __setup(self):
         # listview
@@ -419,6 +420,14 @@ class Friends(app.AppBase):
     def __filter(self, fltr: int = None) -> None:
         self.__data.fltr = fltr or 0
         self.__update_data()
+
+    def __update_filter(self) -> None:
+        fra = self.mps.dbh.friend_actions
+        if fra:
+            sym = chr(0xf8a5 + (fra - 1) * 3)
+            self.__nodes.btnlist.update_filter(1, f'{sym} Pending')
+        else:
+            self.__nodes.btnlist.update_filter(1, f'Pending')
 
     def __listclick(self, pos: int) -> None:
         self.__data.active = pos

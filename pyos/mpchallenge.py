@@ -253,6 +253,7 @@ class Challenges(app.AppBase):
             self.__data.data.append(txt)
             self.__data.idmap[i] = challenge_id
         self.__nodes.btnlist.update_content(True)
+        self.__update_filter()
 
     def __gen_dlg(self, dlg: str, txt: str) -> None:
         if dlg == 'new':
@@ -739,6 +740,20 @@ class Challenges(app.AppBase):
     def __filter(self, fltr: int = None) -> None:
         self.__data.fltr = fltr or 0
         self.__update_list()
+
+    def __update_filter(self) -> None:
+        cha = self.mps.dbh.challenge_actions
+        myt = len(self.mps.dbh.chmyturn)
+        if myt:
+            sym = chr(0xf8a5 + (myt - 1) * 3)
+            self.__nodes.btnlist.update_filter(0, f'{sym} My Turn')
+        else:
+            self.__nodes.btnlist.update_filter(0, f'My Turn')
+        if cha - myt:
+            sym = chr(0xf8a5 + ((cha - myt) - 1) * (cha - myt))
+            self.__nodes.btnlist.update_filter(2, f'{sym} Finished')
+        else:
+            self.__nodes.btnlist.update_filter(2, f'Finished')
 
     def __listclick(self, pos: int) -> None:
         self.__data.active = pos
