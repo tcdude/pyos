@@ -754,7 +754,6 @@ class Challenges(app.AppBase):
                                    self.__data.idmap[self.__data.active]))
             return
         if not self.__nodes.newview.hidden:
-            print(f'newview clicked on "{self.__data.data[pos]}"')
             self.__gen_dlg('new', f'Select the number\nof rounds to play\n'
                                   f'or {common.BACK_SYM} to go back.\n\n')
             return
