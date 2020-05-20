@@ -123,9 +123,13 @@ class ButtonList(frame.Frame):
         """
         self._data.pagechangecb = callback
 
+    def update_filter(self, index: int, text: str) -> None:
+        """Update the text of one of the filter buttons in the list."""
+        self._layout.filter_buttons[index].change_text(text)
+
     def _setup_layout(self) -> None:
         width, height = self.size
-        margin = max(self.corner_radius, self.border_thickness)
+        margin = max(self.corner_radius / 2, self.border_thickness)
         btn_width = (width - 2 * margin)
         if self._data.filters:
             offset = 1
@@ -164,8 +168,9 @@ class ButtonList(frame.Frame):
 
     def _generate_filters(self, pos_y: float, margin: float,
                           width: float, btn_height: float) -> None:
-        btn_width = (width -  2 * margin) / (len(self._data.filters) + 0.5)
-        spacing = btn_width / 2 / (len(self._data.filters) - 1)
+        btn_width = (width - 2 * margin) / (len(self._data.filters) + 0.2)
+        spacing = (width - 2 * margin) - len(self._data.filters) * btn_width
+        spacing /= len(self._data.filters) - 1
         pos_x = (width - 2 * margin) / -2
         btn_kw = self._format.filter_kwargs
         btn_kw['size'] = btn_width, btn_height
