@@ -166,6 +166,8 @@ class AppBase(app.App):
             req = self.mps.ctrl.update_user_ranking()
             self.mps.ctrl.register_callback(req, self.__logincb)
             self.global_nodes.show_status('Connecting to server...')
+        else:
+            self.mps.ctrl.nop()
 
     def __logincb(self, rescode: int) -> None:
         self.global_nodes.hide_status()

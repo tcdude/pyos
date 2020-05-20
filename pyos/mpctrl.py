@@ -3,6 +3,7 @@ Provides the control interface for the multiplayer service.
 """
 
 from dataclasses import dataclass, field
+import os
 import selectors
 import socket
 import struct
@@ -51,7 +52,8 @@ __version__ = '0.3'
 RESMAP = {SUCCESS: 0, FAILURE: 1, ILLEGAL_REQUEST: 2, WRONG_FORMAT: 3,
           NO_CONNECTION: 4, NOT_LOGGED_IN: 5}
 RESTXT = {0: 'Success', 1: 'Request Failed', 2: 'Illegal request',
-          3: 'Wrong Format', 4: 'No Connection', 5: 'Not Logged In'}
+          3: 'Wrong Format', 4: 'No Connection', 5: 'Not Logged In',
+          6: 'Socket file not present'}
 REQ = [struct.pack('<B', i) for i in range(256)]
 STOP = REQ[255]
 SEL = selectors.DefaultSelector()
@@ -61,15 +63,15 @@ SEL = selectors.DefaultSelector()
 class Request:
     """Handles a single request."""
     reqid: int
-    addr: str
+    port: int
     req: bytes
     res_dict: Dict[int, int]
     sock: socket.socket = field(init=False)
     retry: int = 3
 
     def __post_init__(self) -> None:
-        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.sock.connect(self.addr)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.connect(('', self.port))
         if self.req is None:  # Service alive check
             self.sock.close()
             self.res_dict[self.reqid] = 0
@@ -128,6 +130,7 @@ class MPControl:
         self._data = CtrlData()
         self._active = False
         self._proc = None
+        self._port = 0
 
     # Requests
 
@@ -304,13 +307,19 @@ class MPControl:
         if self._active:
             return True
         if 'autoclass' in globals():
+            logger.info('Starting Android Service multiplayer')
             service = autoclass('com.tizilogic.pyos.ServiceMultiplayer')
             # pylint: disable=invalid-name
             mActivity = autoclass('org.kivy.android.PythonActivity').mActivity
             # pylint: enable=invalid-name
             service.start(mActivity, '')
-        else:
+        elif 'autoclass' not in globals():
+            logger.info('Starting multiplayer subprocess')
             self._proc = subprocess.Popen(['python', 'multiplayer.py'])
+        while not os.path.exists(self.cfg.get('mp', 'uds')):
+            time.sleep(0.1)
+        with open(self.cfg.get('mp', 'uds'), 'r') as fhandler:
+            self._port = int(fhandler.read())
         for _ in range(10):
             time.sleep(0.3)
             reqid = self._request()
@@ -343,12 +352,14 @@ class MPControl:
         for i in range(2):
             try:
                 self._data.pending[self._reqid] = Request(
-                    self._reqid, self.cfg.get('mp', 'uds'), req,
+                    self._reqid, self._port, req,
                     self._data.results)
-            except (FileNotFoundError, ConnectionRefusedError):
+            except (NameError, FileNotFoundError, ConnectionRefusedError):
                 if req == STOP or i > 0 or not self.start_service():
                     self._active = False
                     return -1
+                if i:
+                    logger.warning('Multiplayer Service not responding')
             else:
                 break
         self._reqid += 1

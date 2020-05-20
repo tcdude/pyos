@@ -8,6 +8,7 @@ import ssl
 import struct
 from typing import List, Tuple, Union
 
+import certifi
 from foolysh.tools import config
 from loguru import logger
 
@@ -88,7 +89,7 @@ class MultiplayerClient:
 
     def connect(self) -> bool:
         """Attempts to connect to the server."""
-        ctx = ssl.create_default_context()
+        ctx = ssl.create_default_context(cafile=certifi.where())
         server = self.cfg.get('mp', 'server')
         port = self.cfg.getint('mp', 'port')
         addrinfo = socket.getaddrinfo(server, port, proto=socket.IPPROTO_TCP)
@@ -101,7 +102,8 @@ class MultiplayerClient:
             except socket.timeout:
                 logger.warning('Unable to connect')
                 return False
-            except OSError:  # Most likely wrong protocol family
+            except OSError as err:  # Most likely wrong protocol family
+                logger.warning(f'Got an OSError while trying to connect {err}')
                 continue
             else:
                 self._conn = conn

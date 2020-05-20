@@ -57,7 +57,7 @@ class Multiplayer:
     """Multiplayer service."""
     def __init__(self, cfg_file: str) -> None:
         self.cfg = config.Config(cfg_file)
-        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.mpc = mpclient.MultiplayerClient(cfg_file)
         self.mpdbh = mpdb.MPDBHandler(common.MPDATAFILE)
         self._login = False
@@ -89,8 +89,10 @@ class Multiplayer:
             if os.path.exists(uds):
                 raise
         logger.debug('Start listening')
-        self.sock.bind(uds)
+        self.sock.bind(('', 0))
         self.sock.listen()
+        with open(self.cfg.get('mp', 'uds'), 'w') as fhandler:
+            fhandler.write(f'{self.sock.getsockname()[1]}')
         while True:
             conn, _ = self.sock.accept()
             logger.debug('New connection')
@@ -120,6 +122,10 @@ class Multiplayer:
             except socket.timeout:
                 logger.error('Unable to confirm stop request.')
             conn.close()
+            try:
+                os.unlink(self.cfg.get('mp', 'uds'))
+            except FileNotFoundError:
+                pass
             return False
         if req == 254:  # NOP
             logger.debug('NOP')
@@ -605,7 +611,7 @@ class Multiplayer:
 if __name__ == '__main__':
     try:
         import android  # pylint: disable=unused-import
-        CFG = 'com.tizilogic.pyos/files/.foolysh/foolysh.ini'
+        CFG = '../.foolysh/foolysh.ini'
     except ImportError:
         CFG = '.foolysh/foolysh.ini'
     Multiplayer(CFG).start()

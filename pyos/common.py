@@ -53,10 +53,12 @@ try:
     CACHEDIR = '../cache'
     DATAFILE = '../gamedata.db'
     MPDATAFILE = '../mp.db'
+    UDS = '../tcp_port'
 except ImportError:
     CACHEDIR = 'cache/'
     DATAFILE = 'gamedata.db'
     MPDATAFILE = 'mp.db'
+    UDS = './tcp_port'
 
 # Config
 DEFAULTCONFIG = {
@@ -81,12 +83,12 @@ DEFAULTCONFIG = {
                          ('app_state_file', 'app_state.bin')]),
     'mp': OrderedDict([('server', 'pyos.tizilogic.com'), ('port', '22864'),
                        ('user', ''), ('password', ''), ('bufsize', '4096'),
-                       ('uds', './mp.sock'), ('datafile', 'mp.db')]),
+                       ('uds', UDS), ('datafile', MPDATAFILE)]),
     'font': OrderedDict([('normal', 'fonts/SpaceMono.ttf'),
                          ('bold', 'fonts/SpaceMonoBold.ttf')])
 }
 OVERWRITE_PYOS = ['card_ratio', 'padding', 'status_size', 'toolbar_size',
-                  'click_threshold', 'auto_solve_delay',
+                  'click_threshold', 'auto_solve_delay', 'log_level',
                   'datafile', 'dailyseeds', 'app_state_file']
 OVERWRITE_MP = ['server', 'port', 'bufsize', 'uds', 'datafile']
 OVERWRITE_FONT = ['normal', 'bold']
