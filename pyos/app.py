@@ -221,6 +221,7 @@ class AppBase(app.App):
         self.request('app_base')
         self.systems.stats.end_session()
         self.state.save()
+        self.mps.ctrl.stop()
 
     def __event_resume(self, event=None):
         """Called when the app enters background."""
@@ -228,6 +229,7 @@ class AppBase(app.App):
         logger.info('Resume app')
         self.request('main_menu')
         self.systems.stats.start_session()
+        self.login()
 
     def __event_will_enter_bg(self, event=None):
         """Called when the os announces that the app will enter background."""

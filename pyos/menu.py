@@ -97,6 +97,8 @@ class MainMenu(app.AppBase):
         if rescode == 0:
             self.__buttons.multiplayer.enabled = True
         if self.mps.login == 0:
+            user = self.config.get('mp', 'user')
+            self.global_nodes.set_mpstatus(f'Logged in as {user}')
             req = self.mps.ctrl.sync_challenges()
             self.mps.ctrl.register_callback(req, self.__update_notifications)
             req = self.mps.ctrl.sync_relationships()
