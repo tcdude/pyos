@@ -334,7 +334,7 @@ class MPControl:
         return -2
 
     def start_service(self) -> None:
-        """Start the solver service."""
+        """Start the multiplayer service."""
         if self._proc is not None and self._proc.poll() is None:
             return
         if self._data.active:
