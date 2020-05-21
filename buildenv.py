@@ -65,7 +65,7 @@ def _build(arch: int, release: bool) -> Union[Popen, None]:
     else:
         barch = 'arm64-v8a'
     cmd = ['python3', 'setup.py', 'apk', '--arch', barch,
-           '--service=solver:service/solver.py',
+           '--service=solver:solver.py',
            '--service=multiplayer:multiplayer.py']
     if release:
         cmd.append('--release')

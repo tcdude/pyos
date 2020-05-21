@@ -3,16 +3,19 @@ Data collection and preparation.
 """
 
 import datetime
-from typing import Optional, Tuple, Union
+import time
+from typing import Dict, List, Optional, Tuple, Union
 
 from sqlalchemy import (Boolean, Column, DateTime, Float, ForeignKey, Integer,
-                        func)
+                        Unicode, func)
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql.expression import true
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy import create_engine
 from loguru import logger
+
+import common
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = """
@@ -98,10 +101,49 @@ class Session(Base):
     def __repr__(self):
         return f'Session(id={self.id}, start={self.start}, ' \
                f'start_local={self.start_local}, end={self.end})'
+
+
+class Statistic(Base):
+    """Holds statistical information that are calculated in the background."""
+    __tablename__ = 'statistic'
+    id = Column(Integer, primary_key=True)
+    last_update = Column(DateTime)
+    deals_played_offline = Column(Integer, default=0)
+    deals_solved_offline = Column(Integer, default=0)
+    solved_ratio_offline = Column(Float, default=1.0)
+    avg_attempts_offline = Column(Float, default=1.0)
+    median_attempts_offline = Column(Float, default=1.0)
+    win_streak = Column(Integer, default=0)
+    deals_played_online = Column(Integer, default=0)
+    deals_solved_online = Column(Integer, default=0)
+    solved_ratio_online = Column(Float, default=1.0)
+    avg_attempts_online = Column(Float, default=1.0)
+    median_attempts_online = Column(Float, default=1.0)
+
+    def __repr__(self):
+        return f'Statistic(id={self.id}, ...)'
+
+
+class Seed(Base):
+    """Holds winable game seeds and the corresponding solution."""
+    __tablename__ = 'seed'
+    id = Column(Integer, primary_key=True)
+    draw = Column(Integer)
+    seed = Column(Integer)
+    solution = Column(Unicode(500), default='')
+    keep = Column(Boolean, default=True)
+    played = Column(Boolean, default=False)
+    need = Column(Boolean, default=False)
+
+
+class Communication(Base):
+    """Holds communication variables between the App and the solver threads."""
+    __tablename__ = 'communication'
+    id = Column(Integer, primary_key=True)
+    exit_solver = Column(Boolean, default=False)
+    exit_confirm = Column(Boolean, default=True)
+    solver_running = Column(Boolean, default=False)
 # pylint: enable=too-few-public-methods
-
-
-AllTables = Union[Game, Attempt]
 
 
 class Stats:
@@ -111,6 +153,7 @@ class Stats:
     Args:
         db_file: The sqlite file to load/store data in.
     """
+    # pylint: disable=too-many-public-methods
     def __init__(self, db_file: str) -> None:
         engine = create_engine(f'sqlite:///{db_file}')
         Base.metadata.create_all(engine)
@@ -301,6 +344,159 @@ class Stats:
                     Game.draw == draw, Game.windeal == windeal,
                     Game.daydeal == daydeal).count() > 0
 
+    def request_solution(self, draw: int, seed: int) -> None:
+        """Request a solution for a specific deal."""
+        res = self._session.query(Seed) \
+            .filter(Seed.draw == draw, Seed.seed == seed).first()
+        if res is None:
+            res = Seed()
+            res.draw = draw
+            res.seed = seed
+            self._session.add(res)
+        res.need = True
+        self._session.commit()
+
+    def update_seed(self, draw: int, seed: int, solution: str = None,
+                    keep: bool = None) -> None:
+        """Update a seed in the database."""
+        res = self._session.query(Seed) \
+            .filter(Seed.draw == draw, Seed.seed == seed).first()
+        if res is None:
+            res = Seed()
+            res.draw = draw
+            res.seed = seed
+            self._session.add(res)
+        if solution is not None:
+            res.solution = solution
+        if keep is not None:
+            res.keep = keep
+        self._session.commit()
+
+    def clean_seeds(self) -> None:
+        """Deletes all seeds that aren't needed anymore."""
+        self._session.query(Seed).filter(Seed.keep != true()).delete()
+        self._session.commit()
+
+    def get_seed(self, draw: int) -> None:
+        """Retrieves a seed from the database and marks it as played."""
+        while True:
+            res = self._session.query(Seed) \
+                .filter(Seed.draw == draw,
+                        Seed.played != true(),
+                        Seed.need != true()).first()
+            if res is not None:
+                res.played = True
+                self._session.commit()
+                return res.seed
+            time.sleep(0.05)
+
+    def get_solution(self, draw: int, seed: int) -> str:
+        """
+        Retrieves a solution from the database and marks the game as solution
+        shown.
+        """
+        game = self._session.query(Game) \
+            .filter(Game.draw == draw, Game.seed == seed).first()
+        if game is None:
+            logger.error('Requested solution for an unknown game.')
+            return ''
+        game.solution = True
+        res = self._session.query(Seed) \
+            .filter(Seed.draw == draw, Seed.seed == seed).first()
+        if res is None or not res.solution:
+            self.request_solution(draw, seed)
+        else:
+            if not res.played:
+                res.played = True
+                self._session.commit()
+            return res.solution
+        while True:
+            res = self._session.query(Seed) \
+                .filter(Seed.draw == draw, Seed.seed == seed).first()
+            if res is not None:
+                res.played = True
+                self._session.commit()
+                return res.solution
+            time.sleep(0.05)
+
+    def update_statistics(self) -> None:
+        """Update statistics if necessary."""
+        last_move = self._session.query(func.max(Attempt.last_move)).first()
+        if last_move is None:
+            return
+        last_move = last_move[0] - datetime.timedelta(minutes=1)
+        stat: Statistic = self._session.query(Statistic).first()
+        if stat is None:
+            stat = Statistic()
+            stat.last_update = common.START_DATE
+            self._session.add(stat)
+        if stat.last_update >= last_move:
+            self._session.commit()
+            return
+        stat.deals_played_offline = self._session.query(Attempt, Game) \
+            .filter(Attempt.moves > 0, Game.challenge == -1) \
+            .group_by(Attempt.game_id).count()
+        stat.deals_solved_offline = self._session.query(Game.id) \
+            .join(Attempt, Attempt.game_id == Game.id) \
+            .filter(Attempt.solved == true(),
+                    Game.challenge == -1) \
+            .group_by(Game.id).count()
+        if stat.deals_played_offline:
+            self._update_offline_stats(stat)
+
+        # TODO: stat.win_streak =
+
+        stat.deals_played_online = self._session.query(Attempt, Game) \
+            .filter(Attempt.moves > 0, Game.challenge > -1) \
+            .group_by(Attempt.game_id).count()
+        stat.deals_solved_online = self._session.query(Game.id) \
+            .join(Attempt, Attempt.game_id == Game.id) \
+            .filter(Attempt.solved == true(),
+                    Game.challenge > -1) \
+            .group_by(Game.id).count()
+        if stat.deals_played_online:
+            self._update_online_stats(stat)
+        stat.last_update = datetime.datetime.utcnow()
+        self._session.commit()
+
+    def _update_offline_stats(self, stat: Statistic) -> None:
+        stat.solved_ratio_offline = (stat.deals_solved_offline
+                                     / stat.deals_played_offline)
+        attempts = self._session.query(Attempt, Game) \
+            .join(Game, Game.id == Attempt.game_id) \
+            .filter(Attempt.moves > 0, Game.challenge == -1).count()
+        stat.avg_attempts_offline = attempts / stat.deals_played_offline
+        games = self._session.query(func.count(Attempt.id)) \
+            .join(Game, Game.id == Attempt.game_id) \
+            .filter(Game.challenge == -1, Attempt.moves > 1) \
+            .group_by(Game.id).order_by(func.count(Attempt.id)).all()
+        numgames = len(games)
+        if numgames % 2:
+            med = games[numgames // 2][0]
+        else:
+            med = (games[numgames // 2 - 1][0]
+                   + games[numgames // 2 - 1][0]) / 2
+        stat.median_attempts_offline = med
+
+    def _update_online_stats(self, stat: Statistic) -> None:
+        stat.solved_ratio_online = (stat.deals_solved_online
+                                    / stat.deals_played_online)
+        attempts = self._session.query(Attempt, Game) \
+            .join(Game, Game.id == Attempt.game_id) \
+            .filter(Attempt.moves > 0, Game.challenge > -1).count()
+        stat.avg_attempts_online = attempts / stat.deals_played_online
+        games = self._session.query(func.count(Attempt.id)) \
+            .join(Game, Game.id == Attempt.game_id) \
+            .filter(Game.challenge > -1, Attempt.moves > 1) \
+            .group_by(Game.id).order_by(func.count(Attempt.id)).all()
+        numgames = len(games)
+        if numgames % 2:
+            med = games[numgames // 2][0]
+        else:
+            med = (games[numgames // 2 - 1][0]
+                   + games[numgames // 2 - 1][0]) / 2
+        stat.median_attempts_online = med
+
     def _check_migrate(self, engine):
         try:
             _ = self.first_launch
@@ -330,46 +526,115 @@ class Stats:
         Returns the number of individual games played, that have at least one
         attempt.
         """
-        return self._session.query(Attempt, Game) \
-            .filter(Attempt.moves > 0, Game.challenge == -1) \
-            .group_by(Attempt.game_id).count()
+        res: Statistic = self._session.query(Statistic).first()
+        if res is None:
+            return 0
+        return res.deals_played_offline
 
     @property
     def deals_solved(self) -> int:
         """Returns the number of individual games solved."""
-        return self._session.query(Game.id) \
-            .join(Attempt, Attempt.game_id == Game.id) \
-            .filter(Attempt.solved == true(),
-                    Game.challenge == -1) \
-            .group_by(Game.id).count()
+        res: Statistic = self._session.query(Statistic).first()
+        if res is None:
+            return 0
+        return res.deals_solved_offline
 
     @property
     def solved_ratio(self) -> float:
         """Returns the ratio of games played to games solved."""
-        deals = self.deals_played
-        if deals:
-            return self.deals_solved / self.deals_played
-        return 0.0
+        res: Statistic = self._session.query(Statistic).first()
+        if res is None:
+            return 0
+        return res.solved_ratio_offline
 
     @property
     def avg_attempts(self) -> float:
         """Returns average attempts per deal."""
-        attempts = self._session.query(Attempt, Game) \
-            .join(Game, Game.id == Attempt.game_id) \
-            .filter(Attempt.moves > 0, Game.challenge == -1).count()
-        deals = self.deals_played
-        if deals:
-            return attempts / deals
-        return 0.0
+        res: Statistic = self._session.query(Statistic).first()
+        if res is None:
+            return 0
+        return res.avg_attempts_offline
 
     @property
     def median_attempts(self) -> float:
         """Returns median attempts per deal."""
-        games = self._session.query(func.count(Attempt.id)) \
-            .join(Game, Game.id == Attempt.game_id) \
-            .filter(Game.challenge == -1, Attempt.moves > 1) \
-            .group_by(Game.id).order_by(func.count(Attempt.id)).all()
-        numgames = len(games)
-        if numgames % 2:
-            return games[numgames // 2][0]
-        return (games[numgames // 2 - 1][0] + games[numgames // 2 - 1][0]) / 2
+        res: Statistic = self._session.query(Statistic).first()
+        if res is None:
+            return 0
+        return res.median_attempts_offline
+
+    @property
+    def exit_solver(self) -> bool:
+        """Whether the solver thread should exit."""
+        comm = self._session.query(Communication).first()
+        if comm is None:
+            comm = Communication()
+            self._session.add(comm)
+            self._session.commit()
+        return comm.exit_solver
+
+    @exit_solver.setter
+    def exit_solver(self, value: bool) -> None:
+        comm = self._session.query(Communication).first()
+        if comm is None:
+            comm = Communication()
+            self._session.add(comm)
+        comm.exit_solver = value
+        if value:
+            comm.exit_confirm = False
+        self._session.commit()
+
+    @property
+    def exit_confirm(self) -> bool:
+        """Whether the solver thread has exited."""
+        comm = self._session.query(Communication).first()
+        if comm is None:
+            comm = Communication()
+            self._session.add(comm)
+            self._session.commit()
+        return comm.exit_confirm
+
+    @exit_confirm.setter
+    def exit_confirm(self, value: bool) -> None:
+        comm = self._session.query(Communication).first()
+        if comm is None:
+            comm = Communication()
+            self._session.add(comm)
+        comm.exit_confirm = value
+        self._session.commit()
+
+    @property
+    def solver_running(self) -> bool:
+        """Whether the solver thread is running."""
+        comm = self._session.query(Communication).first()
+        if comm is None:
+            comm = Communication()
+            self._session.add(comm)
+            self._session.commit()
+        return comm.solver_running
+
+    @solver_running.setter
+    def solver_running(self, value: bool) -> None:
+        comm = self._session.query(Communication).first()
+        if comm is None:
+            comm = Communication()
+            self._session.add(comm)
+        comm.solver_running = value
+        self._session.commit()
+
+    @property
+    def solutions_needed(self) -> List[Tuple[int, int]]:
+        """Returns all requested seeds that have no solution yet."""
+        return self._session.query(Seed.draw, Seed.seed) \
+            .filter(Seed.need == true(), Seed.solution == '').all()
+
+    @property
+    def seed_count(self) -> Dict[int, int]:
+        """Returns a dict mapping the number of seeds per draw count."""
+        ret = {1: 0, 3: 0}
+        for i in self._session.query(Seed.draw, func.count(Seed.id)) \
+              .filter(Seed.keep == true(),
+                      Seed.solution != '',
+                      Seed.played != true()).group_by(Seed.draw).all():
+            ret[i[0]] = i[1]
+        return ret

@@ -91,7 +91,7 @@ class State:
         """Saves the current state to the statefile."""
         daydeal = self.daydeal or (0, 0)
         with open(self.statefile, 'wb') as fhandler:
-            fhandler.write(struct.pack('<iBi??', *daydeal, self.challenge,
+            fhandler.write(struct.pack('<Bii??', *daydeal, self.challenge,
                                        self.layout_refresh, self.need_new_game))
 
 

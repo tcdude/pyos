@@ -47,13 +47,13 @@ OPTIONS = {'apk': {'debug': None,
                    'permission': 'INTERNET',
                    'backup-rules': '/home/userhome/workspace/backup_rules.xml',
                    # Service args to be passed on the cmd line
-                   # --service=solver:service/solver.py
+                   # --service=solver:solver.py
                    # --service=multiplayer:multiplayer.py
                    }}
 
 setup(
     name='Simple Solitaire',
-    version='0.3.11',
+    version='0.3.13',
     description='An ad free, simple solitaire game',
     author='tcdude',
     author_email='tizilogic@gmail.com',

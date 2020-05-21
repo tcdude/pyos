@@ -34,7 +34,7 @@ except ImportError:
     from subprocess import Popen
 
 import common
-from service.solver import SOLUTION_PATH, STOP_FILE
+import stats
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = 'Copyright (C) 2020 Tiziano Bettio'
@@ -73,12 +73,11 @@ class Shuffler:
     """
     def __init__(self):
         self._solitaire = solver.Solitaire()
+        self._stats = stats.Stats(common.DATAFILE)
         self.start_service()
 
     def start_service(self):
         """Start the solver service."""
-        if os.path.exists(STOP_FILE):
-            os.remove(STOP_FILE)
         if 'autoclass' in globals():
             service = autoclass('com.tizilogic.pyos.ServiceSolver')
             # pylint: disable=invalid-name
@@ -88,16 +87,14 @@ class Shuffler:
             service.start(mActivity, argument)
         else:
             self.stop()
-            time.sleep(0.5)
-            if os.path.exists(STOP_FILE):
-                os.remove(STOP_FILE)
-            self.__proc = Popen(['python', 'service/solver.py'])
+            self.__proc = Popen(['python', 'solver.py'])
 
-    @staticmethod
-    def stop():
+    def stop(self):
         """Stop the solver service."""
-        with open(STOP_FILE, 'w') as fptr:
-            fptr.write('1')
+        if self._stats.solver_running:
+            self._stats.exit_solver = True
+            while not self._stats.exit_confirm:
+                time.sleep(0.05)
 
     @staticmethod
     def deal(random_seed=None):
@@ -120,26 +117,13 @@ class Shuffler:
                 first = False
         return seed, tableau, stack
 
-    @staticmethod
-    def request_deal(draw, random_seed):
+    def request_deal(self, draw, random_seed):
         """Request a solution of a specific deal."""
-        pth = os.path.join(SOLUTION_PATH, str(draw))
-        spth = os.path.join(pth, f'solution{random_seed}')
-        if not os.path.exists(spth):
-            rpth = os.path.join(pth, f'request{random_seed}')
-            with open(rpth, 'w') as fptr:
-                fptr.write('1')
+        self._stats.request_solution(draw, random_seed)
 
-    @staticmethod
-    def get_solution(draw, random_seed):
+    def get_solution(self, draw, random_seed) -> str:
         """Retrieve solution of a previously requested deal."""
-        pth = os.path.join(SOLUTION_PATH, str(draw))
-        spth = os.path.join(pth, f'rsolution{random_seed}')
-        while True:
-            if os.path.exists(spth):
-                with open(spth, 'r') as fptr:
-                    return fptr.read()
-            time.sleep(0.001)
+        return self._stats.get_solution(draw, random_seed)
 
     def winner_deal(self, random_seed=None, draw=1):
         # type: (Optional[Seed], Optional[int]) -> Tuple[Seed, List, List]
@@ -177,22 +161,7 @@ class Shuffler:
         return seed, tableau, stack
 
     def _get_deal(self, draw: int) -> Tuple[int, str]:
-        pth = os.path.join(SOLUTION_PATH, str(draw))
-        solutions = []
-        i = 0
-        while not solutions:
-            solutions = glob.glob(pth + '/solution*')
-            time.sleep(0.001)
-            i += 1
-            if i > 2000:
-                self.stop()
-                time.sleep(0.5)
-                if os.path.exists(STOP_FILE):
-                    os.remove(STOP_FILE)
-                self.start_service()
-                i = 0
-        seed = int(solutions[0].split(pth + '/solution')[1])
-        os.remove(solutions[0])
+        seed = self._stats.get_seed(draw)
         self._solitaire.shuffle1(seed)
         self._solitaire.reset_game()
         return seed, self._solitaire.game_diagram()
