@@ -7,6 +7,7 @@ from typing import Dict, List, Tuple
 
 from foolysh.scene.node import Node, Origin
 from foolysh.ui import button, frame, label
+from loguru import logger
 
 import app
 import buttonlist
@@ -93,6 +94,7 @@ class Statistics(app.AppBase):
             pos_x = 0.38
         self.__nodes.back.pos = pos_x, -0.38
         self.__nodes.root.show()
+        logger.info('Enter statistics')
         self.__filter(self.__data.fltr)
 
     def exit_statistics(self):

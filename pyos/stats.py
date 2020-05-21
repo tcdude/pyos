@@ -266,7 +266,7 @@ class Stats:
             field = Attempt.points
         res = self._session.query(Attempt, Game) \
             .filter(Attempt.game_id == Game.id, Game.draw == draw,
-                    Attempt.solved == true()) \
+                    Attempt.solved == true(), Game.challenge == -1) \
             .order_by(field.desc()).first()
         if res is None:
             return 0
@@ -276,7 +276,7 @@ class Stats:
         """Returns fastest time achieved for the specified draw count."""
         res = self._session.query(Attempt, Game) \
             .filter(Attempt.game_id == Game.id, Game.draw == draw,
-                    Attempt.solved == true()) \
+                    Attempt.solved == true(), Game.challenge == -1) \
             .order_by(Attempt.duration.asc()).first()
         if res is None:
             return float('inf')
@@ -286,7 +286,7 @@ class Stats:
         """Returns least moves achieved for the specified draw count."""
         res = self._session.query(Attempt, Game) \
             .filter(Attempt.game_id == Game.id, Game.draw == draw,
-                    Attempt.solved == true()) \
+                    Attempt.solved == true(), Game.challenge == -1) \
             .order_by(Attempt.moves.asc()).first()
         if res is None:
             return 2**32
@@ -329,15 +329,16 @@ class Stats:
         Returns the number of individual games played, that have at least one
         attempt.
         """
-        return self._session.query(Attempt) \
-            .filter(Attempt.moves > 0) \
+        return self._session.query(Attempt, Game) \
+            .filter(Attempt.moves > 0, Game.challenge == -1) \
             .group_by(Attempt.game_id).count()
 
     @property
     def solved_ratio(self) -> float:
         """Returns the ratio of attempts to attempts_solved."""
-        solved = self._session.query(Attempt) \
-            .filter(Attempt.solved == true()).group_by(Attempt.game_id).count()
+        solved = self._session.query(Attempt, Game) \
+            .filter(Attempt.moves > 0, Game.challenge == -1) \
+            .group_by(Attempt.game_id).count()
         attempts = self.deals_played
         if attempts:
             return solved / attempts
@@ -346,8 +347,8 @@ class Stats:
     @property
     def avg_attempts(self) -> float:
         """Returns average attempts per deal."""
-        attempts = self._session.query(Attempt) \
-            .filter(Attempt.moves > 0).count()
+        attempts = self._session.query(Attempt, Game) \
+            .filter(Attempt.moves > 0, Game.challenge == -1).count()
         deals = self.deals_played
         if deals:
             return attempts / deals
@@ -357,7 +358,8 @@ class Stats:
     def median_attempts(self) -> float:
         """Returns median attempts per deal."""
         attempts = []
-        for i in self._session.query(Game).all():
+        for i in self._session.query(Game) \
+              .filter(Game.challenge == -1).all():
             cnt = self._session.query(Attempt) \
                 .filter(Attempt.game_id == i.id).count()
             if cnt:
