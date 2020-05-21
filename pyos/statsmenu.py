@@ -46,9 +46,10 @@ class StatsData:
     fltr: int = None
     idmap: Dict[int, int] = field(default_factory=dict)
     text: Tuple[str] = ('Deals played', 'Solved ratio', 'Avg attempts/deal',
-                        'Draw one highscore', 'Draw one quickest',
-                        'Draw one least moves', 'Draw three highscore',
-                        'Draw three quickest', 'Draw three least moves')
+                        'Median attempts/deal', 'Draw one highscore',
+                        'Draw one quickest', 'Draw one least moves',
+                        'Draw three highscore', 'Draw three quickest',
+                        'Draw three least moves')
 
 
 @dataclass
@@ -102,7 +103,7 @@ class Statistics(app.AppBase):
         fnt = self.config.get('font', 'bold')
         self.__nodes.btnlist = common \
             .gen_btnlist(self.config.get('font', 'normal'), fnt,
-                         self.__data.data, (self.__listclick, self.__filter), 6,
+                         self.__data.data, (self.__listclick, self.__filter), 7,
                          (0.85, 0.7), self.__nodes.frame,
                          ['Offline', 'Online', 'Misc'])
         self.__nodes.btnlist.pos = 0, 0.06
@@ -126,7 +127,8 @@ class Statistics(app.AppBase):
     def __update_offline(self) -> None:
         vals = [f'{self.systems.stats.deals_played}',
                 f'{self.systems.stats.solved_ratio * 100:.3f}%',
-                f'{self.systems.stats.avg_attempts + 0.05:.1f}']
+                f'{self.systems.stats.avg_attempts + 0.04:.1f}',
+                f'{self.systems.stats.median_attempts:.1f}']
         for i in (1, 3):
             val = self.systems.stats.highscore(i)
             if val:
