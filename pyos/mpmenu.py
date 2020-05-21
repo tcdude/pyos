@@ -130,8 +130,10 @@ class MultiplayerMenu(app.AppBase):
         req = self.mps.ctrl.sync_relationships()
         self.mps.ctrl.register_callback(req, self.__update_notificationscb)
         self.__pending_sync = 2
+        self.global_nodes.show_status('Updating notifications...')
 
     def __update_notificationscb(self, rescode: int) -> None:
+        self.global_nodes.hide_status()
         if rescode:
             logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
         self.__pending_sync -= 1
