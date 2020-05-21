@@ -55,6 +55,7 @@ class MPSystems:
     ctrl: mpctrl.MPControl
     dbh: mpdb.MPDBHandler
     login: int = -1
+    last_check: int = 0
 
 
 @dataclass
@@ -75,7 +76,7 @@ class State:
             logger.warning('State file does not exist')
             return
         try:
-            seed, draw, chg, ref, nng = struct.unpack('<iBi??', data)
+            seed, draw, chg, ref, nng = struct.unpack('<Bii??', data)
         except struct.error as err:
             logger.error(f'Unable to unpack data {err}')
             return
@@ -91,8 +92,14 @@ class State:
         """Saves the current state to the statefile."""
         daydeal = self.daydeal or (0, 0)
         with open(self.statefile, 'wb') as fhandler:
-            fhandler.write(struct.pack('<Bii??', *daydeal, self.challenge,
-                                       self.layout_refresh, self.need_new_game))
+            try:
+                fhandler.write(struct.pack('<Bii??', *daydeal, self.challenge,
+                                           self.layout_refresh,
+                                           self.need_new_game))
+            except struct.error as err:
+                data = (*daydeal, self.challenge, self.layout_refresh,
+                        self.need_new_game)
+                logger.error(f'Unable to pack data={data} {err}')
 
 
 @dataclass
@@ -163,7 +170,7 @@ class AppBase(app.App):
     def login(self) -> None:
         """Attempts to login to multiplayer."""
         if not self.mps.ctrl.noaccount:
-            req = self.mps.ctrl.update_user_ranking()
+            req = self.mps.ctrl.nop()
             self.mps.ctrl.register_callback(req, self.__logincb)
             self.global_nodes.show_status('Connecting to server...')
         else:
@@ -187,6 +194,8 @@ class AppBase(app.App):
                                   blocking=False)
         self.event_handler.listen('android_back', sdl2.SDL_KEYUP, self.__back)
         self.task_manager.add_task('MPUPDATE', self.mps.ctrl.update, 0.1, False)
+        self.task_manager.add_task('CONNCHK', self.__conn_check, 10, False)
+        self.__conn_check()
         if self.isandroid:
             plyer.gravity.enable()
             self.event_handler.listen('APP_TERMINATING',
@@ -205,6 +214,13 @@ class AppBase(app.App):
                                       self.__event_low_memory)
             self.task_manager.add_task('ORIENTATION', self.__orientation, 0.2,
                                        False)
+
+    def __conn_check(self):
+        req = self.mps.ctrl.nop()
+        self.mps.ctrl.register_callback(req, self.__conn_checkcb)
+
+    def __conn_checkcb(self, rescode: int) -> None:
+        self.mps.login = rescode
 
     def __back(self, event):
         """Handles Android Back, Escape and Backspace Events"""

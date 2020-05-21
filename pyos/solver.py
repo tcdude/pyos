@@ -2,10 +2,9 @@
 Service to run pyksolve in separately from the main app.
 """
 
-import os
-import glob
 import time
 import random
+import traceback
 from typing import Tuple
 
 from loguru import logger
@@ -54,8 +53,10 @@ class Solver:
         self.solitaire = solver.Solitaire()
         self.stats = stats.Stats(common.DATAFILE)
 
+    @logger.catch
     def run(self):
         """Run the main loop until stop is called."""
+        logger.info('Solver started')
         try:
             while not self.stats.exit_solver:
                 self.stats.solver_running = True
@@ -63,6 +64,9 @@ class Solver:
                 if not self._generate_solution():
                     self.stats.update_statistics()
                     time.sleep(3)
+        except Exception as err:  # pylint: disable=broad-except
+            logger.error(f'Unhandled exception in solver {err}\n'
+                         f'{traceback.format_exc()}')
         finally:
             self.stats.solver_running = False
             self.stats.exit_confirm = True

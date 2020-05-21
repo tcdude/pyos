@@ -348,19 +348,22 @@ class MPControl:
         elif 'autoclass' not in globals():
             logger.info('Starting multiplayer subprocess')
             self._proc = subprocess.Popen(['python', 'multiplayer.py'])
-        while not os.path.exists(self.cfg.get('mp', 'uds')):
+        cnt = 0
+        while not os.path.exists(self.cfg.get('mp', 'uds')) and cnt < 100:
+            cnt += 1
             time.sleep(0.01)
-        with open(self.cfg.get('mp', 'uds'), 'r') as fhandler:
-            self._port = int(fhandler.read())
-        self._data.lock.acquire()
-        for _ in range(10):
-            reqid = self._start_request(force=True)
-            if reqid > -1:
-                _ = self.result(reqid)
-                self._data.active = True
-                break
-            time.sleep(0.3)
-        self._data.lock.release()
+        if os.path.exists(self.cfg.get('mp', 'uds')):
+            with open(self.cfg.get('mp', 'uds'), 'r') as fhandler:
+                self._port = int(fhandler.read())
+            self._data.lock.acquire()
+            for _ in range(10):
+                reqid = self._start_request(force=True)
+                if reqid > -1:
+                    _ = self.result(reqid)
+                    self._data.active = True
+                    break
+                time.sleep(0.3)
+            self._data.lock.release()
         self._data.start_thread = None  # Clean up after itself
 
     def stop(self):

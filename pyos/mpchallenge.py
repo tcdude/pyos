@@ -243,12 +243,12 @@ class Challenges(app.AppBase):
             logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
         self.__data.data.clear()
         self.__data.idmap.clear()
-        if self.__data.fltr == 0:
-            data = self.mps.dbh.chmyturn
-        elif self.__data.fltr == 1:
+        if self.__data.fltr == 1:
             data = self.mps.dbh.chwaiting
         elif self.__data.fltr == 2:
             data = self.mps.dbh.chfinished
+        else:
+            data = self.mps.dbh.chmyturn
         for i, (challenge_id, txt) in enumerate(data):
             self.__data.data.append(txt)
             self.__data.idmap[i] = challenge_id

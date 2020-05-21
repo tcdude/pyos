@@ -21,11 +21,11 @@ SOFTWARE.
 """
 
 import os
-import glob
 import time
 from typing import Optional, Union, Tuple, List
 import random
 
+from loguru import logger
 from pyksolve import solver
 try:
     import android  # pylint: disable=unused-import
@@ -78,6 +78,8 @@ class Shuffler:
 
     def start_service(self):
         """Start the solver service."""
+        logger.debug('Starting solver service')
+        self._stats.exit_solver = False
         if 'autoclass' in globals():
             service = autoclass('com.tizilogic.pyos.ServiceSolver')
             # pylint: disable=invalid-name

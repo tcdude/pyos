@@ -129,7 +129,12 @@ class Multiplayer:
             return False
         if req == 254:  # NOP
             logger.debug('NOP')
-            conn.sendall(SUCCESS)
+            if self.mpc.connected or self.mpc.login():
+                logger.info('NOP while client is connected')
+                conn.sendall(SUCCESS)
+            else:
+                logger.info('NOP while client is disconnected')
+                conn.sendall(NO_CONNECTION)
             return True
         if req in self._handler_methods:
             logger.debug(f'Valid request {req}')
