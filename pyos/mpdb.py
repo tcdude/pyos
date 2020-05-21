@@ -664,7 +664,12 @@ class MPDBHandler:
                 res[-1].append('Forfeit')
             elif i.chtype == 0:
                 mins, secs = int(i.user_duration / 60), i.user_duration % 60
-                res[-1].append(f'{mins}:{secs:05.2f}')
+                if i.user_duration < 600:
+                    res[-1].append(f'{mins}:{secs:05.2f}')
+                elif i.user_duration >= 6000:
+                    res[-1].append(f'{mins}:{int(secs):03d}')
+                else:
+                    res[-1].append(f'{mins}:{secs:04.1f}')
             else:
                 if i.chtype == 1:
                     res[-1].append(f'{i.user_moves}')
@@ -677,7 +682,12 @@ class MPDBHandler:
                 res[-1].append('N/A')
             elif i.chtype == 0:
                 mins, secs = int(ores / 60), ores % 60
-                res[-1].append(f'{mins}:{secs:05.2f}')
+                if ores < 600:
+                    res[-1].append(f'{mins}:{secs:05.2f}')
+                elif ores >= 6000:
+                    res[-1].append(f'{mins}:{int(secs):03d}')
+                else:
+                    res[-1].append(f'{mins}:{secs:04.1f}')
             else:
                 res[-1].append(f'{ores}')
             res[-1].append(

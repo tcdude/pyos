@@ -607,7 +607,12 @@ class Challenges(app.AppBase):
             usertxt = 'Forfeit'
         elif gametype == 0:
             mins, secs = int(res[0] // 60), res[0] % 60
-            usertxt = f'{mins}:{secs:05.2f}'
+            if res[0] < 600:
+                usertxt = f'{mins}:{secs:05.2f}'
+            elif res[0] >= 6000:
+                usertxt = f'{mins}:{int(secs):03d}'
+            else:
+                usertxt = f'{mins}:{secs:04.1f}'
         else:
             usertxt = f'{res[gametype]}'
 
@@ -617,7 +622,13 @@ class Challenges(app.AppBase):
             othertxt = 'N/A'
         elif gametype == 0:
             mins, secs = int(other_result // 60), other_result % 60
-            othertxt = f'{mins}:{secs:05.2f}'
+            if res[0] < 600:
+                othertxt = f'{mins}:{secs:05.2f}'
+            elif res[0] >= 6000:
+                othertxt = f'{mins}:{int(secs):03d}'
+            else:
+                othertxt = f'{mins}:{secs:04.1f}'
+
         else:
             othertxt = f'{other_result}'
         lpad = len(usertxt) - 3
