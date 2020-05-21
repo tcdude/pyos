@@ -5,7 +5,8 @@ Data collection and preparation.
 import datetime
 from typing import Optional, Tuple, Union
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer
+from sqlalchemy import (Boolean, Column, DateTime, Float, ForeignKey, Integer,
+                        func)
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql.expression import true
@@ -334,20 +335,27 @@ class Stats:
             .group_by(Attempt.game_id).count()
 
     @property
+    def deals_solved(self) -> int:
+        """Returns the number of individual games solved."""
+        return self._session.query(Game.id) \
+            .join(Attempt, Attempt.game_id == Game.id) \
+            .filter(Attempt.solved == true(),
+                    Game.challenge == -1) \
+            .group_by(Game.id).count()
+
+    @property
     def solved_ratio(self) -> float:
-        """Returns the ratio of attempts to attempts_solved."""
-        solved = self._session.query(Attempt, Game) \
-            .filter(Attempt.moves > 0, Game.challenge == -1) \
-            .group_by(Attempt.game_id).count()
-        attempts = self.deals_played
-        if attempts:
-            return solved / attempts
+        """Returns the ratio of games played to games solved."""
+        deals = self.deals_played
+        if deals:
+            return self.deals_solved / self.deals_played
         return 0.0
 
     @property
     def avg_attempts(self) -> float:
         """Returns average attempts per deal."""
         attempts = self._session.query(Attempt, Game) \
+            .join(Game, Game.id == Attempt.game_id) \
             .filter(Attempt.moves > 0, Game.challenge == -1).count()
         deals = self.deals_played
         if deals:
@@ -357,15 +365,11 @@ class Stats:
     @property
     def median_attempts(self) -> float:
         """Returns median attempts per deal."""
-        attempts = []
-        for i in self._session.query(Game) \
-              .filter(Game.challenge == -1).all():
-            cnt = self._session.query(Attempt) \
-                .filter(Attempt.game_id == i.id).count()
-            if cnt:
-                attempts.append(cnt)
-        attempts.sort()
-        numattempts = len(attempts)
-        if numattempts % 2:
-            return attempts[numattempts // 2]
-        return sum(attempts[numattempts // 2 - 1:numattempts // 2 + 1]) / 2
+        games = self._session.query(func.count(Attempt.id)) \
+            .join(Game, Game.id == Attempt.game_id) \
+            .filter(Game.challenge == -1, Attempt.moves > 1) \
+            .group_by(Game.id).order_by(func.count(Attempt.id)).all()
+        numgames = len(games)
+        if numgames % 2:
+            return games[numgames // 2][0]
+        return (games[numgames // 2 - 1][0] + games[numgames // 2 - 1][0]) / 2
