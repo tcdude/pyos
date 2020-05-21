@@ -606,14 +606,19 @@ class MultiplayerClient:
                 return
             raise CouldNotLoginError
 
-    def _recv(self):
+    def _recv(self, check_connection: bool = False):
+        if check_connection:
+            self._conn.settimeout(0.001)
         try:
             data = self._conn.recv(self.cfg.getint('mp', 'bufsize',
                                                    fallback=4096))
         except socket.timeout:
-            self._conn.close()
-            self._conn = None
-            return b''
+            if not check_connection:
+                self._conn.close()
+                self._conn = None
+                return b''
+            self._conn.settimeout(1)
+            return b'ALIVE'
         if not data:
             self._conn.close()
             self._conn = None
@@ -622,4 +627,6 @@ class MultiplayerClient:
     @property
     def connected(self) -> bool:
         """Returns whether the client is connected."""
+        if self._conn is not None and self._recv(True) != b'ALIVE':
+            logger.warning('Not connected')
         return self._conn is not None
