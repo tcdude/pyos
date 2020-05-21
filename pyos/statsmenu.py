@@ -107,7 +107,7 @@ class Statistics(app.AppBase):
             .gen_btnlist(self.config.get('font', 'normal'), fnt,
                          self.__data.data, (self.__listclick, self.__filter), 7,
                          (0.85, 0.7), self.__nodes.frame,
-                         ['Offline', 'Online', 'Misc'])
+                         ['Offline', 'Online', 'Misc'], item_font_ratio=0.55)
         self.__nodes.btnlist.pos = 0, 0.06
         self.__nodes.btnlist.update_filter(1, enabled=False)
         self.__nodes.btnlist.update_filter(2, enabled=False)

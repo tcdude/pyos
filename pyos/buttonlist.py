@@ -92,8 +92,8 @@ class ButtonList(frame.Frame):
                  button_kwargs: Dict[str, Any], parent: uinode.UINode = None,
                  filters: List[str] = None, filtercb: Callable = None,
                  filter_kwargs: Dict[str, Any] = None,
-                 filter_active: Tuple[int, int, int] = (240, ) * 3, **kwargs
-                 ) -> None:
+                 filter_active: Tuple[int, int, int] = (240, ) * 3,
+                 item_font_ratio: int = 0.43, **kwargs) -> None:
         # pylint: disable=too-many-arguments
         super().__init__(**kwargs)
         if filters and filtercb is None:
@@ -109,6 +109,7 @@ class ButtonList(frame.Frame):
                 filter_kwargs['border_color'] = (200, ) * 3
             if 'text_color' not in filter_kwargs:
                 filter_kwargs['text_color'] = (200, 220, 200)
+        self._item_font_ratio = item_font_ratio
         self.origin = Origin.CENTER
         self._format = FormatFields(button_kwargs, filter_kwargs, filter_active)
         self._data = DataFields(itpp, data, onclick, filters, filtercb)
@@ -149,7 +150,7 @@ class ButtonList(frame.Frame):
         spacing = btn_height / (self._data.itpp + offset)
         btn_kw = self._format.button_kwargs
         btn_kw['size'] = btn_width, btn_height
-        btn_kw['font_size'] = btn_height * 0.42
+        btn_kw['font_size'] = btn_height * self._item_font_ratio
         if 'align' not in btn_kw:
             btn_kw['align'] = 'left'
         self._generate_list(btn_kw, height, offset, spacing, margin)
