@@ -134,7 +134,7 @@ class AppBase(app.App):
         self.global_nodes = GlobalNodes()
         self.global_nodes.statuslbl = label \
             .Label(text='', **common.STATUS_TXT_KW)
-        self.global_nodes.statuslbl.reparent_to(self.ui.center)
+        self.global_nodes.statuslbl.reparent_to(self.ui.top_center)
         self.global_nodes.statuslbl.origin = Origin.CENTER
         self.global_nodes.statuslbl.depth = 2000
         self.global_nodes.statuslbl.hide()
