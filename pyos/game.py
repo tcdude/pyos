@@ -225,6 +225,9 @@ class Game(app.AppBase):
 
     def __auto_save_task(self):
         """Auto save task."""
+        if not self.global_nodes.mpstatus.hidden:
+            self.global_nodes.hide_status()
+            self.global_nodes.mpstatus.hide()
         if not self.__systems.game_table.is_paused:
             logger.debug('Auto Save')
             self.__save()
@@ -533,6 +536,9 @@ class Game(app.AppBase):
     def __show_score(self):
         """Show the result screen."""
         self.__save()
+        self.systems.stats.update_seed(self.__systems.game_table.draw_count,
+                                       self.__systems.game_table.seed,
+                                       keep=False)
         if self.state.challenge > -1 and not self.__state.fresh_state:
             self.__update_attempt(solved=True)
             try:

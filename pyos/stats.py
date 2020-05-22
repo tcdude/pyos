@@ -362,7 +362,7 @@ class Stats:
         """Update a seed in the database."""
         res = self._session.query(Seed) \
             .filter(Seed.draw == draw, Seed.seed == seed).first()
-        if res is None:
+        if res is None and keep in (True, None):
             res = Seed()
             res.draw = draw
             res.seed = seed
@@ -375,6 +375,12 @@ class Stats:
 
     def clean_seeds(self) -> None:
         """Deletes all seeds that aren't needed anymore."""
+        pcnt = self._session.query(Seed).filter(Seed.played == true()).count()
+        if pcnt > 2:
+            for i in self._session.query(Seed) \
+                  .filter(Seed.played == true()) \
+                  .order_by(Seed.id).limit(pcnt - 2).all():
+                self._session.delete(i)
         self._session.query(Seed).filter(Seed.keep != true()).delete()
         self._session.commit()
 
