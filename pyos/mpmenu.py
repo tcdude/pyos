@@ -94,6 +94,8 @@ class MultiplayerMenu(app.AppBase):
             pos_x = -0.38
         else:
             pos_x = 0.38
+        cbk = self.__update_buttons, (), {}
+        self.mps.notification_callback['mpmenu'] = cbk
         self.__buttons.settings.pos = pos_x, 0.38
         self.__buttons.back.pos = pos_x, -0.38
         if self.mps.login != 0:
@@ -117,6 +119,7 @@ class MultiplayerMenu(app.AppBase):
     def exit_multiplayer_menu(self):
         """Exit state -> Setup."""
         logger.debug('Exit Multiplayer Menu')
+        self.mps.notification_callback.pop('mpmenu')
         self.__root.hide()
         if self.__dlg is not None:
             self.__dlg.hide()
@@ -139,10 +142,14 @@ class MultiplayerMenu(app.AppBase):
         self.__pending_sync -= 1
         if self.__pending_sync:
             return
+        self.__update_buttons()
+
+    def __update_buttons(self, cha: int = None, fra: int = None) -> None:
+        act = cha, fra
+        if None in act:
+            act = self.mps.dbh.challenge_actions, self.mps.dbh.friend_actions
         for but, num, txt, sym in zip((self.__buttons.challenges,
-                                       self.__buttons.friends),
-                                      (self.mps.dbh.challenge_actions,
-                                       self.mps.dbh.friend_actions),
+                                       self.__buttons.friends), act,
                                       ('  Challenges  ',
                                        ' ' * 3 + 'Friends' + ' ' * 3),
                                       (chr(0xf9e4), chr(0xf0c0))):

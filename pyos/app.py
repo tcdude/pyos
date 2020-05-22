@@ -3,11 +3,11 @@ Provides the base class for all states and all attributes/methods that are
 shared with all the states.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import os
 import struct
 import time
-from typing import Tuple
+from typing import Any, Callable, Dict, Tuple
 
 from loguru import logger
 import sdl2
@@ -49,6 +49,8 @@ SOFTWARE.
 __license__ = 'MIT'
 __version__ = '0.3'
 
+CBDictT = Dict[str, Tuple[Callable, Tuple[Any, ...], Dict[str, Any]]]
+
 
 @dataclass
 class MPSystems:
@@ -58,6 +60,7 @@ class MPSystems:
     login: int = -1
     last_check: int = 0
     conncheck: bool = True
+    notification_callback: CBDictT = field(default_factory=dict)
 
 
 @dataclass
@@ -248,12 +251,18 @@ class AppBase(app.App):
             self.global_nodes.set_mpstatus('Not logged in')
         elif update_status:
             self.mps.last_check = time.time()
-            sym = common.bubble_number(self.mps.dbh.challenge_actions
-                                       + self.mps.dbh.friend_actions)
+            cha = self.mps.dbh.challenge_actions
+            fra = self.mps.dbh.friend_actions
+            sym = common.bubble_number(cha + fra)
             user = self.config.get('mp', 'user')
             txt = user
             txt += f' {sym}' if sym else ''
+            fnt = self.config.get('font', 'bold' if sym else 'normal')
+            self.global_nodes.mpstatus.font = fnt
             self.global_nodes.set_mpstatus(f'Logged in as {txt}')
+            for k in self.mps.notification_callback:
+                callback, args, kwargs = self.mps.notification_callback[k]
+                callback(cha, fra, *args, **kwargs)
 
     def __back(self, event):
         """Handles Android Back, Escape and Backspace Events"""

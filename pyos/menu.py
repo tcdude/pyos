@@ -80,6 +80,8 @@ class MainMenu(app.AppBase):
             pos_x = -0.38
         else:
             pos_x = 0.38
+        cbk = self.__update_btns, (), {}
+        self.mps.notification_callback['main_menu'] = cbk
         self.__buttons.settings.pos = pos_x, 0.38
         self.__buttons.quit.pos = pos_x, -0.38
         self.__root.show()
@@ -90,6 +92,7 @@ class MainMenu(app.AppBase):
 
     def exit_main_menu(self):
         """Exit state -> Setup."""
+        self.mps.notification_callback.pop('main_menu')
         self.__root.hide()
 
     def __enable_quit(self, rescode: int) -> None:
@@ -112,12 +115,8 @@ class MainMenu(app.AppBase):
         if self.__pending_sync:
             return
         self.global_nodes.hide_status()
-        act = self.mps.dbh.challenge_actions + self.mps.dbh.friend_actions
-        txt = chr(0xf6e6) + ' Multiplayer '
-        txt += common.bubble_number(act) if act else chr(0xf6e6)
-        self.__buttons.multiplayer.change_text(txt)
-        col = common.NTFY_MENU_TXT_COLOR if act else common.STD_MENU_TXT_COLOR
-        self.__buttons.multiplayer.labels[0].text_color = col
+        self.__update_btns(self.mps.dbh.challenge_actions,
+                           self.mps.dbh.friend_actions)
         reqs = common.submit_dd_results(self.systems.stats, self.mps.dbh,
                                         self.mps.ctrl)
         for req, day, draw in reqs:
@@ -125,6 +124,14 @@ class MainMenu(app.AppBase):
             self.global_nodes.show_status('Submitting Daydeal Scores...')
             self.__pending_sync += 1
             self.mps.ctrl.register_callback(req, self.__submit_ddcb, day, draw)
+
+    def __update_btns(self, cha: int, fra: int) -> None:
+        act = cha + fra
+        txt = chr(0xf6e6) + ' Multiplayer '
+        txt += common.bubble_number(act) if act else chr(0xf6e6)
+        self.__buttons.multiplayer.change_text(txt)
+        col = common.NTFY_MENU_TXT_COLOR if act else common.STD_MENU_TXT_COLOR
+        self.__buttons.multiplayer.labels[0].text_color = col
 
     def __submit_ddcb(self, rescode: int, day: int, draw: int) -> None:
         if rescode:
