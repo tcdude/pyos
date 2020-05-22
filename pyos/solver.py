@@ -6,6 +6,7 @@ import time
 import random
 import traceback
 from typing import Tuple
+import sys
 
 from loguru import logger
 from pyksolve import solver
@@ -113,4 +114,10 @@ class Solver:
 
 
 if __name__ == '__main__':
+    logger.remove()
+    try:
+        import android  # pylint: disable=unused-import
+        logger.add(sys.stderr, level='INFO')
+    except ImportError:
+        logger.add(sys.stderr, level='DEBUG')
     Solver().run()
