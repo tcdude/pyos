@@ -129,11 +129,12 @@ class Multiplayer:
             return False
         if req == 254:  # NOP
             logger.debug('NOP')
-            if self.mpc.connected or self.mpc.login():
-                logger.info('NOP while client is connected')
+            account = self.cfg.get('mp', 'user', fallback='').strip()
+            if self.mpc.connected or (account and self._check_login()):
+                logger.debug('NOP while client is connected')
                 conn.sendall(SUCCESS)
             else:
-                logger.info('NOP while client is disconnected')
+                logger.warning('NOP while client is disconnected')
                 conn.sendall(NO_CONNECTION)
             return True
         if req in self._handler_methods:
@@ -473,7 +474,6 @@ class Multiplayer:
         except (mpclient.NotConnectedError, mpclient.CouldNotLoginError):
             res = False
         self._login = res
-        self._sync_local_database()
         return res
 
     def _sync_local_database(self) -> bytes:
@@ -614,9 +614,12 @@ class Multiplayer:
 
 
 if __name__ == '__main__':
+    logger.remove()
     try:
         import android  # pylint: disable=unused-import
         CFG = '../.foolysh/foolysh.ini'
+        logger.add(sys.stderr, level='INFO')
     except ImportError:
         CFG = '.foolysh/foolysh.ini'
+        logger.add(sys.stderr, level='DEBUG')
     Multiplayer(CFG).start()
