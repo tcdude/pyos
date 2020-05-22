@@ -195,7 +195,7 @@ class AppBase(app.App):
         self.event_handler.listen('quit', sdl2.SDL_QUIT, self.quit,
                                   blocking=False)
         self.event_handler.listen('android_back', sdl2.SDL_KEYUP, self.__back)
-        self.task_manager.add_task('MPUPDATE', self.mps.ctrl.update, 0.2, False)
+        self.task_manager.add_task('MPUPDATE', self.mps.ctrl.update, 0, False)
         self.task_manager.add_task('CONNCHK', self.__conn_check, 10, False)
         if self.isandroid:
             plyer.gravity.enable()
@@ -218,16 +218,16 @@ class AppBase(app.App):
 
     def disable_connection_check(self) -> None:
         """Disable the connection check task."""
-        self.task_manager.remove_task('CONNCHK')
-        self.task_manager['MPUPDATE'].delay = 2.0
+        self.task_manager['CONNCHK'].pause()
+        self.task_manager['MPUPDATE'].delay = 5.0
         self.mps.conncheck = False
 
     def enable_connection_check(self) -> None:
         """Enable the connection check task."""
         if self.mps.conncheck:
             return
-        self.task_manager.add_task('CONNCHK', self.__conn_check, 10, False)
-        self.task_manager['MPUPDATE'].delay = 0.2
+        self.task_manager['CONNCHK'].resume()
+        self.task_manager['MPUPDATE'].delay = 0
         self.mps.conncheck = True
 
     def __conn_check(self) -> None:
