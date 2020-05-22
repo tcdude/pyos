@@ -146,11 +146,8 @@ class MultiplayerMenu(app.AppBase):
                                       ('  Challenges  ',
                                        ' ' * 3 + 'Friends' + ' ' * 3),
                                       (chr(0xf9e4), chr(0xf0c0))):
-            atxt = f' ({num})'
-            if num:
-                txt = ' ' * len(atxt) + sym + txt + sym + atxt
-            else:
-                txt = sym + txt + sym
+            txt = sym + txt
+            txt += common.bubble_number(num) if num else sym
             but.change_text(txt)
 
     def __enable_back(self, unused_rescode: int) -> None:

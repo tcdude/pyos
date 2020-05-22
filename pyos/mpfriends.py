@@ -422,9 +422,8 @@ class Friends(app.AppBase):
         self.__update_data()
 
     def __update_filter(self) -> None:
-        fra = self.mps.dbh.friend_actions
-        if fra:
-            sym = chr(0xf8a5 + (fra - 1) * 3)
+        sym = common.bubble_number(self.mps.dbh.friend_actions)
+        if sym:
             self.__nodes.btnlist.update_filter(1, f'{sym} Pending')
         else:
             self.__nodes.btnlist.update_filter(1, f'Pending')

@@ -756,12 +756,12 @@ class Challenges(app.AppBase):
         cha = self.mps.dbh.challenge_actions
         myt = len(self.mps.dbh.chmyturn)
         if myt:
-            sym = chr(0xf8a5 + (myt - 1) * 3)
+            sym = common.bubble_number(myt)
             self.__nodes.btnlist.update_filter(0, f'{sym} My Turn')
         else:
             self.__nodes.btnlist.update_filter(0, f'My Turn')
         if cha - myt:
-            sym = chr(0xf8a5 + ((cha - myt) - 1) * (cha - myt))
+            sym = common.bubble_number(cha - myt)
             self.__nodes.btnlist.update_filter(2, f'{sym} Finished')
         else:
             self.__nodes.btnlist.update_filter(2, f'Finished')

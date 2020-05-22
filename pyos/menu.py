@@ -94,16 +94,15 @@ class MainMenu(app.AppBase):
 
     def __enable_quit(self, rescode: int) -> None:
         self.__buttons.quit.enabled = True
-        if rescode == 0:
-            self.__buttons.multiplayer.enabled = True
+        self.__buttons.multiplayer.enabled = True
+        if rescode:
+            logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
         if self.mps.login == 0:
             user = self.config.get('mp', 'user')
             self.global_nodes.set_mpstatus(f'Logged in as {user}')
             req = self.mps.ctrl.sync_challenges()
             self.mps.ctrl.register_callback(req, self.__update_notifications)
-            req = self.mps.ctrl.sync_relationships()
-            self.mps.ctrl.register_callback(req, self.__update_notifications)
-            self.__pending_sync = 2
+            self.__pending_sync = 1
             self.global_nodes.show_status('Updating notifications...')
 
     def __update_notifications(self, rescode: int) -> None:
@@ -114,12 +113,8 @@ class MainMenu(app.AppBase):
             return
         self.global_nodes.hide_status()
         act = self.mps.dbh.challenge_actions + self.mps.dbh.friend_actions
-        atxt = f' ({act})'
-        if act:
-            txt = ' ' * len(atxt) + chr(0xf6e6) + ' Multiplayer '
-            txt += chr(0xf6e6) + atxt
-        else:
-            txt = chr(0xf6e6) + ' Multiplayer ' + chr(0xf6e6)
+        txt = chr(0xf6e6) + ' Multiplayer '
+        txt += common.bubble_number(act) if act else chr(0xf6e6)
         self.__buttons.multiplayer.change_text(txt)
         reqs = common.submit_dd_results(self.systems.stats, self.mps.dbh,
                                         self.mps.ctrl)

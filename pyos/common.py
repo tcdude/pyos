@@ -340,3 +340,10 @@ def unpack_seeds(fpath: str) -> Dict[int, List[int]]:
             ones.append(one)
             threes.append(three)
     return {1: ones, 3: threes}
+
+
+def bubble_number(num: int) -> str:
+    """Returns the appropriate bubble number symbol."""
+    if num == 0:
+        return ''
+    return chr(0xf8a5 + min((num - 1), 9) * 3)

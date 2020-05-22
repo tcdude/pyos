@@ -6,6 +6,7 @@ shared with all the states.
 from dataclasses import dataclass
 import os
 import struct
+import time
 from typing import Tuple
 
 from loguru import logger
@@ -193,9 +194,8 @@ class AppBase(app.App):
         self.event_handler.listen('quit', sdl2.SDL_QUIT, self.quit,
                                   blocking=False)
         self.event_handler.listen('android_back', sdl2.SDL_KEYUP, self.__back)
-        self.task_manager.add_task('MPUPDATE', self.mps.ctrl.update, 0.1, False)
-        self.task_manager.add_task('CONNCHK', self.__conn_check, 10, False)
-        self.__conn_check()
+        self.task_manager.add_task('MPUPDATE', self.mps.ctrl.update, 0.2, False)
+        self.task_manager.add_task('CONNCHK', self.__conn_check, 2, False)
         if self.isandroid:
             plyer.gravity.enable()
             self.event_handler.listen('APP_TERMINATING',
@@ -215,12 +215,30 @@ class AppBase(app.App):
             self.task_manager.add_task('ORIENTATION', self.__orientation, 0.2,
                                        False)
 
-    def __conn_check(self):
-        req = self.mps.ctrl.nop()
-        self.mps.ctrl.register_callback(req, self.__conn_checkcb)
+    def __conn_check(self) -> None:
+        if self.active_state == 'game':
+            return
+        if time.time() - self.mps.last_check > 60:
+            req = self.mps.ctrl.sync_challenges()
+            update_status = True
+        else:
+            req = self.mps.ctrl.nop()
+            update_status = False
+        self.mps.ctrl.register_callback(req, self.__conn_checkcb, update_status)
 
-    def __conn_checkcb(self, rescode: int) -> None:
+    def __conn_checkcb(self, rescode: int, update_status: bool) -> None:
         self.mps.login = rescode
+        if rescode:
+            logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
+            self.global_nodes.set_mpstatus('Not logged in')
+        elif update_status:
+            self.mps.last_check = time.time()
+            sym = common.bubble_number(self.mps.dbh.challenge_actions
+                                       + self.mps.dbh.friend_actions)
+            user = self.config.get('mp', 'user')
+            txt = user
+            txt += f' {sym}' if sym else ''
+            self.global_nodes.set_mpstatus(f'Logged in as {txt}')
 
     def __back(self, event):
         """Handles Android Back, Escape and Backspace Events"""
