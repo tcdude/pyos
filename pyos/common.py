@@ -56,12 +56,14 @@ try:
     MPDATAFILE = '../mp.db'
     UDS = '../tcp_port'
     GAMESTATE_LOCK = '../ingame'
+    DEBUG = 'INFO'
 except ImportError:
     CACHEDIR = 'cache/'
     DATAFILE = 'gamedata.db'
     MPDATAFILE = 'mp.db'
     UDS = './tcp_port'
     GAMESTATE_LOCK = './ingame'
+    DEBUG = 'DEBUG'
 
 # Config
 DEFAULTCONFIG = {
@@ -79,7 +81,7 @@ DEFAULTCONFIG = {
                          ('card_ratio', '1.3968253968253967'),
                          ('padding', '0.06'), ('status_size', '0.96, 0.08'),
                          ('toolbar_size', '0.96, 0.12'),
-                         ('click_threshold', '0.06'), ('log_level', 'INFO'),
+                         ('click_threshold', '0.06'), ('log_level', DEBUG),
                          ('auto_solve_delay', '0.25'), ('orientation', 'auto'),
                          ('datafile', DATAFILE),
                          ('dailyseeds', 'assets/other/dailyseeds.bin'),
@@ -159,8 +161,11 @@ TITLE_TXT_COLOR = 255, 255, 255, 255
 FRIENDS_TXT_COLOR = 40, 40, 40, 255
 STATUS_TXT_COLOR = 220, 220, 220, 240
 
+STD_MENU_TXT_COLOR = 0, 50, 0, 255
+NTFY_MENU_TXT_COLOR = 12, 175, 80, 255
+
 MENU_TXT_BTN_KW = {'font': DEFAULTCONFIG['font']['bold'],
-                   'text_color': (0, 50, 0, 255),
+                   'text_color': STD_MENU_TXT_COLOR,
                    'frame_color': (200, 220, 200),
                    'down_text_color': (255, 255, 255, 255),
                    'border_thickness': 0.005, 'down_border_thickness': 0.008,

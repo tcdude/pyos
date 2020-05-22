@@ -116,6 +116,8 @@ class MainMenu(app.AppBase):
         txt = chr(0xf6e6) + ' Multiplayer '
         txt += common.bubble_number(act) if act else chr(0xf6e6)
         self.__buttons.multiplayer.change_text(txt)
+        col = common.NTFY_MENU_TXT_COLOR if act else common.STD_MENU_TXT_COLOR
+        self.__buttons.multiplayer.labels[0].text_color = col
         reqs = common.submit_dd_results(self.systems.stats, self.mps.dbh,
                                         self.mps.ctrl)
         for req, day, draw in reqs:

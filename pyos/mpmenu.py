@@ -149,6 +149,10 @@ class MultiplayerMenu(app.AppBase):
             txt = sym + txt
             txt += common.bubble_number(num) if num else sym
             but.change_text(txt)
+            if num:
+                but.labels[0].text_color = common.NTFY_MENU_TXT_COLOR
+            else:
+                but.labels[0].text_color = common.STD_MENU_TXT_COLOR
 
     def __enable_back(self, unused_rescode: int) -> None:
         self.__buttons.back.enabled = True
