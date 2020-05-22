@@ -109,6 +109,7 @@ class Multiplayer:
 
     def handle(self, conn) -> bool:
         """Handle a request and return whether to keep listening."""
+        # pylint: disable=too-many-branches
         data = conn.recv(self.cfg.getint('mp', 'bufsize', fallback=4096))
         if not data:
             logger.debug('No data')
@@ -142,7 +143,14 @@ class Multiplayer:
             if not self.mpc.connected and not self.mpc.connect():
                 conn.sendall(NO_CONNECTION)
             else:
-                conn.sendall(self._handler_methods[req](data[1:]))
+                ret = FAILURE
+                try:
+                    ret = self._handler_methods[req](data[1:])
+                except mpclient.NotConnectedError:
+                    ret = NO_CONNECTION
+                except mpclient.CouldNotLoginError:
+                    ret = NOT_LOGGED_IN
+                conn.sendall(ret)
                 logger.debug(f'Request {req} processed')
         else:
             logger.warning(f'Invalid request {req}')
@@ -382,7 +390,8 @@ class Multiplayer:
             self.mpdbh.update_challenge_round(challenge_id, roundno,
                                               resuser=result)
         try:
-            if not self.mpc.submit_round_result(challenge_id, roundno, result):
+            if not self.mpc.ping_pong or not self.mpc \
+                  .submit_round_result(challenge_id, roundno, result):
                 return FAILURE
         except mpclient.NotConnectedError:
             return NO_CONNECTION
@@ -483,8 +492,9 @@ class Multiplayer:
 
     def _sync_local_database(self) -> bytes:
         timestamp = 0 if self._first_sync else self.mpdbh.timestamp
+        timestamp = max(timestamp - 60, 0)
         self._first_sync = False
-        now = util.timestamp()
+        now = util.timestamp() - 60
         ret = SUCCESS
         try:
             reqs = self.mpc.pending(timestamp)
@@ -493,9 +503,11 @@ class Multiplayer:
         except mpclient.CouldNotLoginError:
             ret = NOT_LOGGED_IN
         if ret == SUCCESS and sum([i in reqs for i in (3, 4, 5, 14, 15)]) > 0:
+            self._prune_user()
             if not self._update_user(timestamp, 14 in reqs):
                 ret = FAILURE
         if ret == SUCCESS and 129 in reqs or 130 in reqs or 136 in reqs:
+            self._prune_challenge()
             if not self._update_challenges(timestamp):
                 ret = FAILURE
         try:
@@ -507,8 +519,6 @@ class Multiplayer:
         if ret == SUCCESS:
             self.mpdbh.update_draw_count_pref(pref)
             self.mpdbh.update_timestamp(now)
-        self._prune_user()
-        self._prune_challenge()
         return ret
 
     def _update_user(self, timestamp, update_names: bool) -> bool:
