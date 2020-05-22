@@ -8,6 +8,7 @@ from typing import List
 from foolysh.scene.node import Origin
 from foolysh.ui import button, frame, entry, label
 from loguru import logger
+import sdl2
 
 import app
 import common
@@ -309,6 +310,7 @@ class MultiplayerSettings(app.AppBase):
         self.__frame.show()
 
     def __gen_dlg(self, txt: str):
+        sdl2.SDL_StopTextInput()
         if self.__dlg is None:
             fnt = self.config.get('font', 'bold')
             buttons = [DialogueButton(text='Ok',
@@ -415,6 +417,7 @@ class MultiplayerSettings(app.AppBase):
         self.__nodes.drawpref.append(btn)
 
     def __useractioncb(self) -> None:
+        sdl2.SDL_StopTextInput()
         if self.mps.ctrl.noaccount:
             if not self.__nodes.username.text or not self.__nodes.password.text:
                 self.__gen_dlg('CANNOT BE EMPTY\n\nPlease insert\n'

@@ -10,6 +10,7 @@ from foolysh.scene import node
 from foolysh.scene.node import Origin
 from foolysh.ui import button, frame, entry, label
 from loguru import logger
+import sdl2
 
 import app
 import buttonlist
@@ -389,11 +390,13 @@ class Friends(app.AppBase):
     def __back(self) -> None:
         logger.debug(f'back nodeid {self.__nodes.back.node_id}')
         if self.__nodes.listview.hidden:
+            sdl2.SDL_StopTextInput()
             self.__show_listview()
         else:
             self.request('multiplayer_menu')
 
     def __show_listview(self) -> None:
+        sdl2.SDL_StopTextInput()
         self.__data.active = None
         self.__nodes.newview.hide()
         self.__nodes.userview.hide()
