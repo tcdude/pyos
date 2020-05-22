@@ -450,10 +450,8 @@ class Stats:
 
         # TODO: stat.win_streak =
 
-        stat.deals_played_online = self._session.query(Attempt, Game) \
-            .join(Game, Game.id == Attempt.game_id) \
-            .filter(Attempt.moves > 0, Game.challenge > -1) \
-            .group_by(Attempt.game_id).count()
+        stat.deals_played_online = self._session.query(Game) \
+            .filter(Game.challenge > -1).count()
         stat.deals_solved_online = self._session.query(Game.id) \
             .join(Attempt, Attempt.game_id == Game.id) \
             .filter(Attempt.solved == true(),

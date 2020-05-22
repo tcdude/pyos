@@ -376,6 +376,9 @@ class Multiplayer:
             result = util.parse_result(data[-8:])
         except ValueError:
             return WRONG_FORMAT
+        if result[0] == -2.0:  # Ensure a result is saved locally
+            self.mpdbh.update_challenge_round(challenge_id, roundno,
+                                              resuser=result)
         try:
             if not self.mpc.submit_round_result(challenge_id, roundno, result):
                 return FAILURE

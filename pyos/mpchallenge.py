@@ -582,6 +582,9 @@ class Challenges(app.AppBase):
             self.__nodes.resultnext.enabled = False
             self.__nodes.resultback.x = -0.125
             self.__nodes.resultnext.hide()
+        self.state.challenge = -1
+        self.fsm_global_data['result'] = None
+        self.state.need_new_game = True
 
     def __gen_result_txt(self, roundno: int, roundwon: int, other: str) -> str:
         # pylint: disable=too-many-branches
