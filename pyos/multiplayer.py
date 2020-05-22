@@ -226,6 +226,7 @@ class Multiplayer:
             return NO_CONNECTION
         except mpclient.CouldNotLoginError:
             return NOT_LOGGED_IN
+        self.mpdbh.update_user(userid, rtype=3)
         return SUCCESS
 
     def _remove_friend(self, data: bytes) -> bytes:
@@ -241,6 +242,7 @@ class Multiplayer:
             return NO_CONNECTION
         except mpclient.CouldNotLoginError:
             return NOT_LOGGED_IN
+        self.mpdbh.delete_user(userid)
         return SUCCESS
 
     def _set_draw_count_pref(self, data: bytes) -> bytes:
@@ -486,7 +488,6 @@ class Multiplayer:
         ret = SUCCESS
         try:
             reqs = self.mpc.pending(timestamp)
-            self._prune_user()
         except mpclient.NotConnectedError:
             ret = NO_CONNECTION
         except mpclient.CouldNotLoginError:
@@ -506,6 +507,7 @@ class Multiplayer:
         if ret == SUCCESS:
             self.mpdbh.update_draw_count_pref(pref)
             self.mpdbh.update_timestamp(now)
+        self._prune_user()
         self._prune_challenge()
         return ret
 

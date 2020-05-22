@@ -280,6 +280,7 @@ class Friends(app.AppBase):
         if rescode:
             logger.warning(f'Request failed {mpctrl.RESTXT[rescode]}')
             return
+        self.mps.dbh.update_timestamp(0)
         if not self.__nodes.userview.hidden:
             self.__show_listview()
             return
