@@ -95,7 +95,11 @@ class Shuffler:
         """Stop the solver service."""
         if self._stats.solver_running:
             self._stats.exit_solver = True
+            cnt = 0
             while not self._stats.exit_confirm:
+                cnt += 1
+                if cnt > 30:
+                    break
                 time.sleep(0.05)
 
     @staticmethod

@@ -164,6 +164,7 @@ class MPControl:
 
     def friend_request(self, username: str) -> int:
         """Start a "Friend Request" request."""
+        logger.debug(f'friend request: "{username}"')
         return self._request(REQ[16] + username.encode('utf8'))
 
     def sync_relationships(self) -> int:

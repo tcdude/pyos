@@ -6,6 +6,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 import datetime
 from enum import Enum
+import os
 import struct
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -54,11 +55,13 @@ try:
     DATAFILE = '../gamedata.db'
     MPDATAFILE = '../mp.db'
     UDS = '../tcp_port'
+    GAMESTATE_LOCK = '../ingame'
 except ImportError:
     CACHEDIR = 'cache/'
     DATAFILE = 'gamedata.db'
     MPDATAFILE = 'mp.db'
     UDS = './tcp_port'
+    GAMESTATE_LOCK = './ingame'
 
 # Config
 DEFAULTCONFIG = {
@@ -347,3 +350,22 @@ def bubble_number(num: int) -> str:
     if num == 0:
         return ''
     return chr(0xf8a5 + min((num - 1), 9) * 3)
+
+
+def lock_gamestate() -> None:
+    """Touches the GAMESTATE_LOCK file, until release is called."""
+    if os.path.exists(GAMESTATE_LOCK):
+        return
+    with open(GAMESTATE_LOCK, 'w') as fhandler:
+        fhandler.write('lock')
+
+
+def release_gamestate() -> None:
+    """Releases/removes the GAMESTATE_LOCK file."""
+    if os.path.exists(GAMESTATE_LOCK):
+        os.unlink(GAMESTATE_LOCK)
+
+
+def gamestate_locked() -> bool:
+    """Indicate whether the GAMESTATE_LOCK is present."""
+    return os.path.exists(GAMESTATE_LOCK)

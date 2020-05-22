@@ -124,12 +124,19 @@ class Game(app.AppBase):
                         or self.systems.stats.first_launch
                         or self.__state.day_deal):
             self.__new_deal()
+        if self.__state.fresh_state:
+            self.__state.first_move = True
+        if not chg:
+            self.__systems.hud.set_gametype()
+        self.__systems.toolbar.toggle(not chg)
         logger.debug(f'{repr(self.__state)}')
+        common.lock_gamestate()
 
     def exit_game(self):
         """Tasks to be performed when this state is left."""
         logger.info('Exit state game')
         self.enable_connection_check()
+        common.release_gamestate()
         self.__disable_all()
         self.__hide_dlg()
         self.__systems.layout.root.hide()

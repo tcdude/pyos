@@ -195,7 +195,7 @@ class AppBase(app.App):
         self.event_handler.listen('quit', sdl2.SDL_QUIT, self.quit,
                                   blocking=False)
         self.event_handler.listen('android_back', sdl2.SDL_KEYUP, self.__back)
-        self.task_manager.add_task('MPUPDATE', self.mps.ctrl.update, 0.5, False)
+        self.task_manager.add_task('MPUPDATE', self.mps.ctrl.update, 0.2, False)
         self.task_manager.add_task('CONNCHK', self.__conn_check, 10, False)
         if self.isandroid:
             plyer.gravity.enable()
@@ -219,7 +219,7 @@ class AppBase(app.App):
     def disable_connection_check(self) -> None:
         """Disable the connection check task."""
         self.task_manager.remove_task('CONNCHK')
-        self.task_manager['MPUPDATE'].delay = 1.0
+        self.task_manager['MPUPDATE'].delay = 2.0
         self.mps.conncheck = False
 
     def enable_connection_check(self) -> None:
@@ -227,7 +227,7 @@ class AppBase(app.App):
         if self.mps.conncheck:
             return
         self.task_manager.add_task('CONNCHK', self.__conn_check, 10, False)
-        self.task_manager['MPUPDATE'].delay = 0.5
+        self.task_manager['MPUPDATE'].delay = 0.2
         self.mps.conncheck = True
 
     def __conn_check(self) -> None:
@@ -278,6 +278,7 @@ class AppBase(app.App):
         logger.info('Resume app')
         self.login()
         self.request('main_menu')
+        common.release_gamestate()
         self.systems.stats.start_session()
 
     def __event_will_enter_bg(self, event=None):
@@ -327,6 +328,7 @@ class AppBase(app.App):
     def on_quit(self):
         """Overridden on_quit event to make sure the state is saved."""
         logger.info('Saving state and quitting pyos')
+        common.release_gamestate()
         self.request('app_base')
         if self.isandroid:
             plyer.gravity.disable()

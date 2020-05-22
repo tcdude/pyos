@@ -362,11 +362,14 @@ class Stats:
         """Update a seed in the database."""
         res = self._session.query(Seed) \
             .filter(Seed.draw == draw, Seed.seed == seed).first()
-        if res is None and keep in (True, None):
-            res = Seed()
-            res.draw = draw
-            res.seed = seed
-            self._session.add(res)
+        if res is None:
+            if keep in (True, None):
+                res = Seed()
+                res.draw = draw
+                res.seed = seed
+                self._session.add(res)
+            else:
+                return
         if solution is not None:
             res.solution = solution
         if keep is not None:

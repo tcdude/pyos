@@ -94,6 +94,7 @@ def main(cfg_file):
     verify_config(cfg, cfg_file)
     logger.remove()
     logger.add(sys.stderr, level=cfg.get('pyos', 'log_level'))
+    common.release_gamestate()
     logger.info('pyos starting')
     pyos = PyOS(config_file=cfg_file)
     logger.debug('Request state main_menu')

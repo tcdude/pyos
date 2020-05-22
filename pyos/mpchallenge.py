@@ -493,7 +493,9 @@ class Challenges(app.AppBase):
         self.request('multiplayer_menu')
 
     def __show_listview(self) -> None:
-        self.state.challenge = -1
+        if 'result' not in self.fsm_global_data \
+              or self.fsm_global_data['result'] is None:
+            self.state.challenge = -1
         self.__nodes.newview.hide()
         self.__nodes.challengeview.hide()
         self.__nodes.gametypeview.hide()
@@ -582,7 +584,6 @@ class Challenges(app.AppBase):
             self.__nodes.resultnext.enabled = False
             self.__nodes.resultback.x = -0.125
             self.__nodes.resultnext.hide()
-        self.state.challenge = -1
         self.fsm_global_data['result'] = None
         self.state.need_new_game = True
 
@@ -709,8 +710,12 @@ class Challenges(app.AppBase):
         self.__show_listview()
 
     def __next_round(self) -> None:
+        if self.state.challenge < 0:
+            self.__gen_dlg('error', f'Error, !\n')
+            return
         self.__data.idmap[0] = self.state.challenge
         self.__data.active = 0
+        self.state.challenge = -1
         self.__show_gametypeview()
 
     def __new_challenge(self):
@@ -738,6 +743,7 @@ class Challenges(app.AppBase):
     def __start_round(self) -> None:
         self.__dlgs.round.hide()
         self.state.challenge = self.__data.idmap[self.__data.active]
+        self.fsm_global_data['result'] = None
         self.__data.active = None
         self.request('game')
 

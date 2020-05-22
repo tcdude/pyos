@@ -58,12 +58,14 @@ class Solver:
     def run(self):
         """Run the main loop until stop is called."""
         logger.info('Solver started')
+        self.stats.solver_running = True
+        self.stats.exit_solver = False
         try:
             while not self.stats.exit_solver:
-                self.stats.solver_running = True
-                self.stats.clean_seeds()
                 if not self._generate_solution():
-                    self.stats.update_statistics()
+                    if not common.gamestate_locked():
+                        self.stats.update_statistics()
+                        self.stats.clean_seeds()
                     time.sleep(0.1)
         except Exception as err:  # pylint: disable=broad-except
             logger.error(f'Unhandled exception in solver {err}\n'
