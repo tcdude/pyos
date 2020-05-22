@@ -124,6 +124,8 @@ class Game(app.AppBase):
                         or self.systems.stats.first_launch
                         or self.__state.day_deal):
             self.__new_deal()
+        nng = self.__systems.game_table.stats[0] == 0
+        nng = nng or self.__systems.game_table.win_condition
         if self.__state.fresh_state:
             self.__state.first_move = True
         if not chg:
@@ -135,6 +137,7 @@ class Game(app.AppBase):
     def exit_game(self):
         """Tasks to be performed when this state is left."""
         logger.info('Exit state game')
+        self.systems.stats.commit_attempt()
         self.enable_connection_check()
         common.release_gamestate()
         self.__disable_all()
@@ -510,7 +513,7 @@ class Game(app.AppBase):
         mvs, tim, pts = self.__systems.game_table.stats
         undo, invalid = self.__systems.game_table.undo_invalid
         logger.debug(f'{repr(self.__state)}')
-        if self.__state.first_move and not duration_only:
+        if self.__state.first_move and not duration_only and mvs == 1:
             self.__state.first_move = False
             seed = self.__systems.game_table.seed
             draw = self.__systems.game_table.draw_count
@@ -523,7 +526,8 @@ class Game(app.AppBase):
                                            self.state.challenge)
         self.systems.stats.update_attempt(moves=mvs, duration=tim, points=pts,
                                           undo=undo, invalid=invalid,
-                                          solved=solved, bonus=bonus)
+                                          solved=solved, bonus=bonus,
+                                          write=solved)
 
 
     def __save(self):

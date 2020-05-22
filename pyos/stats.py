@@ -158,6 +158,7 @@ class Stats:
         engine = create_engine(f'sqlite:///{db_file}')
         Base.metadata.create_all(engine)
         Base.metadata.bind = engine
+        self._active_attempt: Attempt = None
         self._session = sessionmaker(bind=engine)()
         self._check_migrate(engine)
         self._stats_type = 0
@@ -185,13 +186,16 @@ class Stats:
                     daydeal: bool = False, challenge: int = -1) -> None:
         """Creates a new attempt with the given information."""
         # pylint: disable=too-many-arguments
+        if self._active_attempt is not None:
+            self._session.commit()
+            self._active_attempt = None
         game_id = self.new_deal(seed, draw, windeal, daydeal, challenge)
         attempt = Attempt(game_id=game_id)
         self._session.add(attempt)
         self._session.commit()
         logger.debug(f'new attempt {attempt.id}')
 
-    def update_attempt(self, **kwargs) -> None:
+    def update_attempt(self, write: bool = False, **kwargs) -> None:
         """
         Updates the last attempt created through new_attempt.
 
@@ -199,28 +203,42 @@ class Stats:
             **kwargs: Valid field names for Attempt, excluding id/game_id and
                 both datetime fields.
         """
-        res = self._session.query(Attempt).order_by(Attempt.id.desc()).first()
-        if res is None:
-            raise RuntimeError('No attempt created through new_attempt yet.')
-        if res.solved:
-            raise RuntimeError('Attempt already solved.')
+        if self._active_attempt is None:
+            res = self._session.query(Attempt) \
+                .order_by(Attempt.id.desc()).first()
+            if res is None:
+                raise RuntimeError('No attempt created through new_attempt yet')
+            if res.solved:
+                raise RuntimeError('Attempt already solved')
+            self._active_attempt = res
         for k in kwargs:
             if k in ('id', 'game_id', 'first_move', 'last_move'):
                 continue
-            if not hasattr(res, k):
+            if not hasattr(self._active_attempt, k):
                 raise ValueError(f'Unknown field name "{k}".')
-            setattr(res, k, kwargs[k])
-        if res.solved:
-            res.total = res.points + res.bonus
+            setattr(self._active_attempt, k, kwargs[k])
+        if self._active_attempt.solved:
+            self._active_attempt.total = self._active_attempt.points \
+                                         + self._active_attempt.bonus
         dt = datetime.datetime.utcnow()
-        if res.first_move is None:
-            res.first_move = dt
-        res.last_move = dt
+        if self._active_attempt.first_move is None:
+            self._active_attempt.first_move = dt
+        self._active_attempt.last_move = dt
+        if write:
+            self.commit_attempt()
+        logger.debug(f'attempt updated {self._active_attempt}')
+
+    def commit_attempt(self) -> None:
+        """Commit a potentially dangling attempt."""
+        if self._active_attempt is None:
+            return
+        logger.debug('Commit active attempt')
         self._session.commit()
-        logger.debug(f'attempt updated {res}')
+        self._active_attempt = None
 
     def start_session(self) -> None:
         """Starts a new session."""
+        self.commit_attempt()
         session = Session()
         session.start = datetime.datetime.utcnow()
         session.start_local = datetime.datetime.now()
@@ -230,6 +248,7 @@ class Stats:
 
     def end_session(self) -> None:
         """Ends the current session."""
+        self.commit_attempt()
         res = self._session.query(Session).order_by(Session.id.desc()).first()
         if res is None:
             raise RuntimeError('No session created through start_session yet.')
@@ -248,6 +267,7 @@ class Stats:
                ) -> Union[Tuple[float, int, int, int], None]:
         """Returns the result of a game, if available otherwise None."""
         # pylint: disable=too-many-arguments
+        self.commit_attempt()
         if challenge == -1:  # Normal result
             res = self._session.query(Attempt).join(Game) \
                 .filter(Game.seed == seed, Game.draw == draw,
@@ -278,6 +298,8 @@ class Stats:
     def attempt_total(self, seed: int, draw: int, challenge: int,
                       gametype: int, current: bool) -> Union[int, float]:
         """Returns the previous made moves or duration for a challenge round."""
+        # pylint: disable=too-many-arguments
+        self.commit_attempt()
         if gametype == 2:  # No accumulation for points
             return 0
         game = self._session.query(Game) \
@@ -305,6 +327,7 @@ class Stats:
             draw:
             with_bonus: Whether to include the bonus in the returned score.
         """
+        self.commit_attempt()
         if with_bonus:
             field = Attempt.total
         else:
@@ -319,6 +342,7 @@ class Stats:
 
     def fastest(self, draw: int) -> float:
         """Returns fastest time achieved for the specified draw count."""
+        self.commit_attempt()
         res = self._session.query(Attempt, Game) \
             .filter(Attempt.game_id == Game.id, Game.draw == draw,
                     Attempt.solved == true(), Game.challenge == -1) \
@@ -329,6 +353,7 @@ class Stats:
 
     def least_moves(self, draw: int) -> int:
         """Returns least moves achieved for the specified draw count."""
+        self.commit_attempt()
         res = self._session.query(Attempt, Game) \
             .filter(Attempt.game_id == Game.id, Game.draw == draw,
                     Attempt.solved == true(), Game.challenge == -1) \
@@ -340,6 +365,7 @@ class Stats:
     def issolved(self, seed: int, draw: int, windeal: bool,
                  daydeal: bool = False) -> bool:
         """Returns whether the specified deal is solved."""
+        self.commit_attempt()
         return self._session.query(Attempt).join(Game) \
             .filter(Attempt.solved == true(), Game.seed == seed,
                     Game.draw == draw, Game.windeal == windeal,
@@ -347,6 +373,7 @@ class Stats:
 
     def request_solution(self, draw: int, seed: int) -> None:
         """Request a solution for a specific deal."""
+        self.commit_attempt()
         res = self._session.query(Seed) \
             .filter(Seed.draw == draw, Seed.seed == seed).first()
         if res is None:
@@ -360,6 +387,7 @@ class Stats:
     def update_seed(self, draw: int, seed: int, solution: str = None,
                     keep: bool = None) -> None:
         """Update a seed in the database."""
+        self.commit_attempt()
         res = self._session.query(Seed) \
             .filter(Seed.draw == draw, Seed.seed == seed).first()
         if res is None:
@@ -378,6 +406,7 @@ class Stats:
 
     def clean_seeds(self) -> None:
         """Deletes all seeds that aren't needed anymore."""
+        self.commit_attempt()
         pcnt = self._session.query(Seed).filter(Seed.played == true()).count()
         if pcnt > 2:
             for i in self._session.query(Seed) \
@@ -389,6 +418,7 @@ class Stats:
 
     def get_seed(self, draw: int) -> None:
         """Retrieves a seed from the database and marks it as played."""
+        self.commit_attempt()
         while True:
             res = self._session.query(Seed) \
                 .filter(Seed.draw == draw,
@@ -405,6 +435,7 @@ class Stats:
         Retrieves a solution from the database and marks the game as solution
         shown.
         """
+        self.commit_attempt()
         game = self._session.query(Game) \
             .filter(Game.draw == draw, Game.seed == seed).first()
         if game is None:
@@ -530,6 +561,7 @@ class Stats:
     @property
     def first_launch(self) -> bool:
         """Returns true if no games are stored yet."""
+        self.commit_attempt()
         if self._session.query(Game).first():
             return False
         return True
@@ -540,6 +572,7 @@ class Stats:
         Returns the number of individual games played, that have at least one
         attempt.
         """
+        self.commit_attempt()
         res: Statistic = self._session.query(Statistic).first()
         if res is None:
             return 0
@@ -550,6 +583,7 @@ class Stats:
     @property
     def deals_solved(self) -> int:
         """Returns the number of individual games solved."""
+        self.commit_attempt()
         res: Statistic = self._session.query(Statistic).first()
         if res is None:
             return 0
@@ -560,6 +594,7 @@ class Stats:
     @property
     def solved_ratio(self) -> float:
         """Returns the ratio of games played to games solved."""
+        self.commit_attempt()
         res: Statistic = self._session.query(Statistic).first()
         if res is None:
             return 0
@@ -570,6 +605,7 @@ class Stats:
     @property
     def avg_attempts(self) -> float:
         """Returns average attempts per deal."""
+        self.commit_attempt()
         res: Statistic = self._session.query(Statistic).first()
         if res is None:
             return 0
@@ -580,6 +616,7 @@ class Stats:
     @property
     def median_attempts(self) -> float:
         """Returns median attempts per deal."""
+        self.commit_attempt()
         res: Statistic = self._session.query(Statistic).first()
         if res is None:
             return 0
@@ -602,6 +639,7 @@ class Stats:
     @property
     def exit_solver(self) -> bool:
         """Whether the solver thread should exit."""
+        self.commit_attempt()
         comm = self._session.query(Communication).first()
         if comm is None:
             comm = Communication()
@@ -611,6 +649,7 @@ class Stats:
 
     @exit_solver.setter
     def exit_solver(self, value: bool) -> None:
+        self.commit_attempt()
         comm = self._session.query(Communication).first()
         if comm is None:
             comm = Communication()
@@ -623,6 +662,7 @@ class Stats:
     @property
     def exit_confirm(self) -> bool:
         """Whether the solver thread has exited."""
+        self.commit_attempt()
         comm = self._session.query(Communication).first()
         if comm is None:
             comm = Communication()
@@ -632,6 +672,7 @@ class Stats:
 
     @exit_confirm.setter
     def exit_confirm(self, value: bool) -> None:
+        self.commit_attempt()
         comm = self._session.query(Communication).first()
         if comm is None:
             comm = Communication()
@@ -642,6 +683,7 @@ class Stats:
     @property
     def solver_running(self) -> bool:
         """Whether the solver thread is running."""
+        self.commit_attempt()
         comm = self._session.query(Communication).first()
         if comm is None:
             comm = Communication()
@@ -651,6 +693,7 @@ class Stats:
 
     @solver_running.setter
     def solver_running(self, value: bool) -> None:
+        self.commit_attempt()
         comm = self._session.query(Communication).first()
         if comm is None:
             comm = Communication()
@@ -661,12 +704,14 @@ class Stats:
     @property
     def solutions_needed(self) -> List[Tuple[int, int]]:
         """Returns all requested seeds that have no solution yet."""
+        self.commit_attempt()
         return self._session.query(Seed.draw, Seed.seed) \
             .filter(Seed.need == true(), Seed.solution == '').all()
 
     @property
     def seed_count(self) -> Dict[int, int]:
         """Returns a dict mapping the number of seeds per draw count."""
+        self.commit_attempt()
         ret = {1: 0, 3: 0}
         for i in self._session.query(Seed.draw, func.count(Seed.id)) \
               .filter(Seed.keep == true(),
