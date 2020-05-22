@@ -150,7 +150,7 @@ class Friends(app.AppBase):
         if dlg == 'reply':
             if self.__dlgs.replyrequest is None:
                 fnt = self.config.get('font', 'bold')
-                bkwa = common.get_dialogue_btn_kw(size=(0.11, 0.1))
+                bkwa = common.get_dialogue_btn_kw(size=(0.108, 0.108))
                 buttons = [DialogueButton(text=common.ACC_SYM, fmtkwargs=bkwa,
                                           callback=self.__accept_req),
                            DialogueButton(text=common.DEN_SYM, fmtkwargs=bkwa,
