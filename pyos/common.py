@@ -290,7 +290,8 @@ def get_entry_kw(**kwargs) -> Dict[str, Any]:
 def gen_btnlist(item_font: str, filter_font: str, data: List[str],
                 cbs: Tuple[Callable, Callable], itpp: int,
                 size: Tuple[float, float], parent: object = None,
-                filters: List[str] = None, item_font_ratio: float = 0.43):
+                filters: List[str] = None, item_font_ratio: float = 0.43,
+                item_align: str = 'center'):
     """Generate a ButtonList instance used in the multiplayer section."""
     # pylint: disable=too-many-arguments
     kwargs = {'font': item_font, 'text_color': (0, 50, 0, 255),
@@ -298,7 +299,7 @@ def gen_btnlist(item_font: str, filter_font: str, data: List[str],
               'down_text_color': (255, 255, 255, 255),
               'border_thickness': 0.005, 'down_border_thickness': 0.008,
               'border_color': (0, 50, 0), 'down_border_color': (255, 255, 255),
-              'corner_radius': 0.025, 'multi_sampling': 2, 'align': 'center'}
+              'corner_radius': 0.025, 'multi_sampling': 2, 'align': item_align}
     fkwargs = {}
     fkwargs.update(kwargs)
     fkwargs['size'] = 0.25, 0.08

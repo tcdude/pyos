@@ -158,7 +158,7 @@ class Leaderboard(app.AppBase):
             .gen_btnlist(self.config.get('font', 'normal'),
                          self.config.get('font', 'bold'), self.__data,
                          (self.__listclick, None), ITPP, (0.85, 0.7),
-                         self.__frame)
+                         self.__frame, item_align='left')
         self.__btnlist.onpagechange(self.__pagechange)
         self.__btnlist.pos = 0, 0.06
         if self.config.getboolean('pyos', 'left_handed', fallback=False):
