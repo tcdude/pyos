@@ -422,17 +422,19 @@ class Stats:
 
     def update_statistics(self) -> None:
         """Update statistics if necessary."""
-        last_move = self._session.query(func.max(Attempt.last_move)).first()
-        if None in last_move:
-            return
-        last_move = last_move[0] - datetime.timedelta(minutes=1)
+        attempt = self._session.query(Attempt) \
+            .order_by(Attempt.id.desc()).first()
+        if not attempt.solved:
+            delta = datetime.datetime.utcnow() - attempt.last_move
+            if delta.total_seconds() < 30:
+                return
+        last_move = attempt.last_move
         stat: Statistic = self._session.query(Statistic).first()
         if stat is None:
             stat = Statistic()
             stat.last_update = common.START_DATE
             self._session.add(stat)
         if stat.last_update >= last_move:
-            logger.debug('Statistics up to date doing nothing')
             self._session.commit()
             return
         logger.info('Updating statistics')

@@ -282,6 +282,7 @@ class MPControl:
         for key, _ in events:
             callback = key.data
             callback(key.fileobj)
+            break
 
         self._data.lock.acquire()
 

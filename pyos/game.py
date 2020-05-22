@@ -104,7 +104,9 @@ class Game(app.AppBase):
     def enter_game(self):
         """Tasks to be performed when this state is activated."""
         logger.info('Enter state game')
+        self.disable_connection_check()
         self.global_nodes.mpstatus.hide()
+        self.global_nodes.hide_status()
         self.__setup()
         self.__state.fresh_state = True
         logger.debug(f'state.challenge is: {self.state.challenge}')
@@ -127,6 +129,7 @@ class Game(app.AppBase):
     def exit_game(self):
         """Tasks to be performed when this state is left."""
         logger.info('Exit state game')
+        self.enable_connection_check()
         self.__disable_all()
         self.__hide_dlg()
         self.__systems.layout.root.hide()

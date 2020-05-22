@@ -57,6 +57,7 @@ class MPSystems:
     dbh: mpdb.MPDBHandler
     login: int = -1
     last_check: int = 0
+    conncheck: bool = True
 
 
 @dataclass
@@ -194,8 +195,8 @@ class AppBase(app.App):
         self.event_handler.listen('quit', sdl2.SDL_QUIT, self.quit,
                                   blocking=False)
         self.event_handler.listen('android_back', sdl2.SDL_KEYUP, self.__back)
-        self.task_manager.add_task('MPUPDATE', self.mps.ctrl.update, 0.2, False)
-        self.task_manager.add_task('CONNCHK', self.__conn_check, 2, False)
+        self.task_manager.add_task('MPUPDATE', self.mps.ctrl.update, 0.5, False)
+        self.task_manager.add_task('CONNCHK', self.__conn_check, 10, False)
         if self.isandroid:
             plyer.gravity.enable()
             self.event_handler.listen('APP_TERMINATING',
@@ -215,10 +216,24 @@ class AppBase(app.App):
             self.task_manager.add_task('ORIENTATION', self.__orientation, 0.2,
                                        False)
 
+    def disable_connection_check(self) -> None:
+        """Disable the connection check task."""
+        self.task_manager.remove_task('CONNCHK')
+        self.task_manager['MPUPDATE'].delay = 1.0
+        self.mps.conncheck = False
+
+    def enable_connection_check(self) -> None:
+        """Enable the connection check task."""
+        if self.mps.conncheck:
+            return
+        self.task_manager.add_task('CONNCHK', self.__conn_check, 10, False)
+        self.task_manager['MPUPDATE'].delay = 0.5
+        self.mps.conncheck = True
+
     def __conn_check(self) -> None:
         if self.active_state == 'game':
             return
-        if time.time() - self.mps.last_check > 60:
+        if time.time() - self.mps.last_check > 30:
             req = self.mps.ctrl.sync_challenges()
             update_status = True
         else:

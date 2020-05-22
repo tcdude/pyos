@@ -64,7 +64,7 @@ class Solver:
                 self.stats.clean_seeds()
                 if not self._generate_solution():
                     self.stats.update_statistics()
-                    time.sleep(3)
+                    time.sleep(0.1)
         except Exception as err:  # pylint: disable=broad-except
             logger.error(f'Unhandled exception in solver {err}\n'
                          f'{traceback.format_exc()}')
