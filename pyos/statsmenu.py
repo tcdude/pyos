@@ -46,11 +46,11 @@ class StatsData:
     data: List[str] = field(default_factory=list)
     fltr: int = None
     idmap: Dict[int, int] = field(default_factory=dict)
-    text: Tuple[str] = ('Deals played', 'Solved ratio', 'Avg attempts/deal',
-                        'Median attempts/deal', 'Draw one highscore',
-                        'Draw one quickest', 'Draw one least moves',
-                        'Draw three highscore', 'Draw three quickest',
-                        'Draw three least moves')
+    text_std: Tuple[str] = ('Deals played', 'Solved ratio', 'Avg attempts/deal',
+                            'Median attempts/deal')
+    text_misc: Tuple[str] = ('Draw one highscore', 'Draw one quickest',
+                             'Draw one least moves', 'Draw three highscore',
+                             'Draw three quickest', 'Draw three least moves')
 
 
 @dataclass
@@ -109,8 +109,6 @@ class Statistics(app.AppBase):
                          (0.85, 0.7), self.__nodes.frame,
                          ['Offline', 'Online', 'Misc'], item_font_ratio=0.55)
         self.__nodes.btnlist.pos = 0, 0.06
-        self.__nodes.btnlist.update_filter(1, enabled=False)
-        self.__nodes.btnlist.update_filter(2, enabled=False)
         kwargs = common.get_menu_sym_btn_kw(text_color=common.TITLE_TXT_COLOR)
         self.__nodes.back = button.Button(name='back button',
                                           pos=(0, -0.38),
@@ -122,15 +120,26 @@ class Statistics(app.AppBase):
 
     def __update_data(self) -> None:
         self.__data.data.clear()
-        mth = (self.__update_offline, self.__update_online, self.__update_misc)
-        mth[self.__data.fltr or 0]()
+        if self.__data.fltr < 2:
+            self.__update_std(self.__data.fltr)
+        else:
+            self.__update_misc()
         self.__nodes.btnlist.update_content()
 
-    def __update_offline(self) -> None:
+    def __update_std(self, stype: int) -> None:
+        self.systems.stats.stats_type = stype
         vals = [f'{self.systems.stats.deals_played}',
                 f'{self.systems.stats.solved_ratio * 100:.3f}%',
                 f'{self.systems.stats.avg_attempts + 0.04:.1f}',
                 f'{self.systems.stats.median_attempts:.1f}']
+        maxlen = max(
+            [len(i) + len(j) for i, j in zip(self.__data.text_std, vals)])
+        for txt, val in zip(self.__data.text_std, vals):
+            offset = maxlen - len(txt) - len(val)
+            self.__data.data.append(f'{txt}: {" " * offset}{val}')
+
+    def __update_misc(self) -> None:
+        vals = []
         for i in (1, 3):
             val = self.systems.stats.highscore(i)
             if val:
@@ -146,18 +155,11 @@ class Statistics(app.AppBase):
             if val == 2**32:
                 val = '     N/A'
             vals.append(f'{val}')
-
         maxlen = max(
-            [len(i) + len(j) for i, j in zip(self.__data.text, vals)])
-        for txt, val in zip(self.__data.text, vals):
+            [len(i) + len(j) for i, j in zip(self.__data.text_misc, vals)])
+        for txt, val in zip(self.__data.text_misc, vals):
             offset = maxlen - len(txt) - len(val)
             self.__data.data.append(f'{txt}: {" " * offset}{val}')
-
-    def __update_online(self) -> None:
-        pass
-
-    def __update_misc(self) -> None:
-        pass
 
     def __back(self) -> None:
         self.fsm_back()

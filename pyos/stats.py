@@ -160,6 +160,7 @@ class Stats:
         Base.metadata.bind = engine
         self._session = sessionmaker(bind=engine)()
         self._check_migrate(engine)
+        self._stats_type = 0
         logger.debug('Stats initialized')
 
     def new_deal(self, seed: int, draw: int, windeal: bool,
@@ -422,7 +423,7 @@ class Stats:
     def update_statistics(self) -> None:
         """Update statistics if necessary."""
         last_move = self._session.query(func.max(Attempt.last_move)).first()
-        if last_move is None:
+        if None in last_move:
             return
         last_move = last_move[0] - datetime.timedelta(minutes=1)
         stat: Statistic = self._session.query(Statistic).first()
@@ -431,9 +432,12 @@ class Stats:
             stat.last_update = common.START_DATE
             self._session.add(stat)
         if stat.last_update >= last_move:
+            logger.debug('Statistics up to date doing nothing')
             self._session.commit()
             return
+        logger.info('Updating statistics')
         stat.deals_played_offline = self._session.query(Attempt, Game) \
+            .join(Game, Game.id == Attempt.game_id) \
             .filter(Attempt.moves > 0, Game.challenge == -1) \
             .group_by(Attempt.game_id).count()
         stat.deals_solved_offline = self._session.query(Game.id) \
@@ -447,6 +451,7 @@ class Stats:
         # TODO: stat.win_streak =
 
         stat.deals_played_online = self._session.query(Attempt, Game) \
+            .join(Game, Game.id == Attempt.game_id) \
             .filter(Attempt.moves > 0, Game.challenge > -1) \
             .group_by(Attempt.game_id).count()
         stat.deals_solved_online = self._session.query(Game.id) \
@@ -529,6 +534,8 @@ class Stats:
         res: Statistic = self._session.query(Statistic).first()
         if res is None:
             return 0
+        if self._stats_type == 1:
+            return res.deals_played_online
         return res.deals_played_offline
 
     @property
@@ -537,6 +544,8 @@ class Stats:
         res: Statistic = self._session.query(Statistic).first()
         if res is None:
             return 0
+        if self._stats_type == 1:
+            return res.deals_solved_online
         return res.deals_solved_offline
 
     @property
@@ -545,6 +554,8 @@ class Stats:
         res: Statistic = self._session.query(Statistic).first()
         if res is None:
             return 0
+        if self._stats_type == 1:
+            return res.solved_ratio_online
         return res.solved_ratio_offline
 
     @property
@@ -553,6 +564,8 @@ class Stats:
         res: Statistic = self._session.query(Statistic).first()
         if res is None:
             return 0
+        if self._stats_type == 1:
+            return res.avg_attempts_online
         return res.avg_attempts_offline
 
     @property
@@ -561,7 +574,21 @@ class Stats:
         res: Statistic = self._session.query(Statistic).first()
         if res is None:
             return 0
+        if self._stats_type == 1:
+            return res.median_attempts_online
         return res.median_attempts_offline
+
+    @property
+    def stats_type(self) -> int:
+        """
+        Can be used to set the stats type, that is returned by the above
+        properties. 0 for offline, 1 for online.
+        """
+        return self._stats_type
+
+    @stats_type.setter
+    def stats_type(self, stype: int) -> None:
+        self._stats_type = stype
 
     @property
     def exit_solver(self) -> bool:
