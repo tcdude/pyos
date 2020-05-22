@@ -374,6 +374,10 @@ class TableLayout:
                     h_h
                 )
                 if t_aabb.inside_tup(m_x, m_y):
+                    if not self._table.table.tableau[i][j].visible:
+                        if j + 1 < tableau_piles[i] \
+                              and self._table.table.tableau[i][j + 1].visible:
+                            return common.TableArea.TABLEAU, (i, j + 1)
                     return common.TableArea.TABLEAU, (i, j)
         return None
 
