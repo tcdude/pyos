@@ -374,7 +374,8 @@ class MPControl:
             return
         logger.debug('Cancel pending requests')
         for k in self._data.pending:
-            self._data.pending[k].cancel()
+            if isinstance(k, Request):
+                self._data.pending[k].cancel()
         logger.debug('Stopping Multiplayer Service')
         reqid = self._request(STOP)
         stop = time.time() + 5
