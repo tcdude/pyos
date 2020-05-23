@@ -480,6 +480,8 @@ class Multiplayer:
             return SUCCESS
         return FAILURE
 
+    # Helper
+
     def _check_login(self) -> bool:
         if self._login and self.mpc.connected:
             return True
@@ -489,6 +491,8 @@ class Multiplayer:
             res = False
         self._login = res
         return res
+
+    # DB Sync
 
     def _sync_local_database(self) -> bytes:
         timestamp = 0 if self._first_sync else self.mpdbh.timestamp

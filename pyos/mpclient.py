@@ -122,14 +122,14 @@ class MultiplayerClient:
     def new_user(self, username: str, password: str) -> bool:
         """One time user setup to create an account."""
         self._verify_connected(need_login=False)
-        self._conn.sendall(REQ[0] + f'{username}'.encode('utf8'))
+        self._send(REQ[0] + f'{username}'.encode('utf8'))
         data = self._recv()
         if len(data) != util.HASHSIZE + 1:
             logger.warning(f'Got bad response "{data}"')
             return False
         logger.debug('Got temporary password, sending response')
         pwhash = util.generate_hash(password)
-        self._conn.sendall(REQ[0] + pwhash)
+        self._send(REQ[0] + pwhash)
         data = self._recv()
         if data != REQ[0] + SUCCESS:
             logger.warning('Request failed')
@@ -143,7 +143,7 @@ class MultiplayerClient:
     def login(self) -> bool:
         """Login with locally stored username/password."""
         self._verify_connected(need_login=False)
-        self._conn.sendall(REQ[1])
+        self._send(REQ[1])
         data = self._recv()
         if len(data) != util.HASHSIZE + 1:
             logger.warning(f'Got bad response "{data}"')
@@ -156,7 +156,7 @@ class MultiplayerClient:
         username = util.generate_hash(username)
         password = util.parse_hash(self.cfg.get('mp', 'password'))
         password = util.generate_hash(password + data[1:])
-        self._conn.sendall(REQ[1] + username + password)
+        self._send(REQ[1] + username + password)
         data = self._recv()
         if data != REQ[1] + SUCCESS:
             logger.warning('Unable to login')
@@ -168,7 +168,7 @@ class MultiplayerClient:
         """Start a friend request."""
         self._verify_connected()
         req = REQ[2] + util.generate_hash(otheruser)
-        self._conn.sendall(req)
+        self._send(req)
         data = self._recv()
         if data != REQ[2] + SUCCESS:
             return False
@@ -177,21 +177,21 @@ class MultiplayerClient:
     def pending_sent_friend_request(self, timestamp: int = 0) -> List[int]:
         """Retrieve pending sent friend requests."""
         self._verify_connected()
-        self._conn.sendall(REQ[3] + util.encode_id(timestamp))
+        self._send(REQ[3] + util.encode_id(timestamp))
         data = self._recv()
         return self._userid_list(data)
 
     def get_friend_list(self, timestamp: int = 0) -> List[int]:
         """Retrieve friend list."""
         self._verify_connected()
-        self._conn.sendall(REQ[4] + util.encode_id(timestamp))
+        self._send(REQ[4] + util.encode_id(timestamp))
         data = self._recv()
         return self._userid_list(data)
 
     def get_blocked_list(self, timestamp: int = 0) -> List[int]:
         """Retrieve blocked users list."""
         self._verify_connected()
-        self._conn.sendall(REQ[5] + util.encode_id(timestamp))
+        self._send(REQ[5] + util.encode_id(timestamp))
         data = self._recv()
         return self._userid_list(data)
 
@@ -201,7 +201,7 @@ class MultiplayerClient:
         req = REQ[6]
         req += util.encode_id(userid)
         req += REQ[0 if decision else 1]
-        self._conn.sendall(req)
+        self._send(req)
         data = self._recv()
         if data != REQ[6] + SUCCESS:
             return False
@@ -213,7 +213,7 @@ class MultiplayerClient:
         req = REQ[7]
         req += util.encode_id(userid)
         req += REQ[0 if decision else 1]
-        self._conn.sendall(req)
+        self._send(req)
         data = self._recv()
         if data != REQ[7] + SUCCESS:
             return False
@@ -224,7 +224,7 @@ class MultiplayerClient:
         self._verify_connected()
         req = REQ[8]
         req += util.encode_id(userid)
-        self._conn.sendall(req)
+        self._send(req)
         data = self._recv()
         if data != REQ[8] + SUCCESS:
             return False
@@ -235,7 +235,7 @@ class MultiplayerClient:
         self._verify_connected()
         req = REQ[9]
         req += util.encode_id(userid)
-        self._conn.sendall(req)
+        self._send(req)
         data = self._recv()
         if data != REQ[9] + SUCCESS:
             return False
@@ -244,7 +244,7 @@ class MultiplayerClient:
     def set_draw_count_pref(self, pref: int) -> bool:
         """Set own draw count preference."""
         self._verify_connected()
-        self._conn.sendall(REQ[10] + REQ[pref])
+        self._send(REQ[10] + REQ[pref])
         data = self._recv()
         if data != REQ[10] + SUCCESS:
             return False
@@ -255,7 +255,7 @@ class MultiplayerClient:
         self._verify_connected()
         req = REQ[11]
         req += util.encode_id(userid)
-        self._conn.sendall(req)
+        self._send(req)
         data = self._recv()
         if len(data) != 2:
             return 4
@@ -266,7 +266,7 @@ class MultiplayerClient:
         self._verify_connected()
         password = util.parse_hash(self.cfg.get('mp', 'password'))
         req = REQ[12] + password + util.generate_hash(newpwd)
-        self._conn.sendall(req)
+        self._send(req)
         data = self._recv()
         if data != REQ[12] + SUCCESS:
             return False
@@ -278,7 +278,7 @@ class MultiplayerClient:
     def change_username(self, newname: str) -> bool:
         """Change the users name."""
         self._verify_connected()
-        self._conn.sendall(REQ[13] + f'{newname}'.encode('utf8'))
+        self._send(REQ[13] + f'{newname}'.encode('utf8'))
         data = self._recv()
         if data != REQ[13] + SUCCESS:
             return False
@@ -291,7 +291,7 @@ class MultiplayerClient:
         ret = 'N/A'
         self._verify_connected()
         logger.debug(f'Get username for id {userid}')
-        self._conn.sendall(REQ[14] + util.encode_id(userid))
+        self._send(REQ[14] + util.encode_id(userid))
         data = self._recv()
         if len(data) > 3:
             ret = data[1:].decode('utf8')
@@ -302,7 +302,7 @@ class MultiplayerClient:
     def active_relation(self, userid: int) -> bool:
         """Check whether a recorded relation is still active."""
         self._verify_connected()
-        self._conn.sendall(REQ[16] + util.encode_id(userid))
+        self._send(REQ[16] + util.encode_id(userid))
         data = self._recv()
         if data != REQ[16] + SUCCESS:
             return False
@@ -311,7 +311,7 @@ class MultiplayerClient:
     def pending_recv_friend_request(self, timestamp: int = 0) -> List[int]:
         """Retrieve pending received friend requests."""
         self._verify_connected()
-        self._conn.sendall(REQ[15] + util.encode_id(timestamp))
+        self._send(REQ[15] + util.encode_id(timestamp))
         data = self._recv()
         return self._userid_list(data)
 
@@ -319,7 +319,7 @@ class MultiplayerClient:
         """Retrieve best score for a daily deal."""
         self._verify_connected()
         req = REQ[64] + util.encode_daydeal(draw, dayoffset)
-        self._conn.sendall(req)
+        self._send(req)
         data = self._recv()
         if len(data) != 9:
             return 0.0, 0, 0
@@ -331,7 +331,7 @@ class MultiplayerClient:
         """
         self._verify_connected()
         req = REQ[65] + util.encode_id(offset)
-        self._conn.sendall(req)
+        self._send(req)
         data = self._recv()
         if len(data) <= 1:
             return []
@@ -341,9 +341,9 @@ class MultiplayerClient:
         """Retrieve the users current rank and points in the leaderboard."""
         self._verify_connected()
         if otherid is None:
-            self._conn.sendall(REQ[66])
+            self._send(REQ[66])
         else:
-            self._conn.sendall(REQ[66] + util.encode_id(otherid))
+            self._send(REQ[66] + util.encode_id(otherid))
         data = self._recv()
         if len(data) != 9:
             logger.warning('Invalid response length')
@@ -360,7 +360,7 @@ class MultiplayerClient:
         self._verify_connected()
         req = REQ[67] + util.encode_daydeal(draw, dayoffset)
         req += util.encode_result(result)
-        self._conn.sendall(req)
+        self._send(req)
         data = self._recv()
         if data != REQ[67] + SUCCESS:
             return False
@@ -370,7 +370,7 @@ class MultiplayerClient:
         """Start a new challenge."""
         self._verify_connected()
         req = REQ[128] + util.encode_id(userid) + struct.pack('<B', rounds)
-        self._conn.sendall(req)
+        self._send(req)
         data = self._recv()
         if data != REQ[128] + SUCCESS:
             return False
@@ -380,7 +380,7 @@ class MultiplayerClient:
                                  ) -> List[Tuple[int, int, int]]:
         """Retrieve pending incoming challenge requests."""
         self._verify_connected()
-        self._conn.sendall(REQ[129] + util.encode_id(timestamp))
+        self._send(REQ[129] + util.encode_id(timestamp))
         data = self._recv()
         dlen = len(data) - 1
         if dlen % 9:
@@ -398,7 +398,7 @@ class MultiplayerClient:
                                   ) -> List[Tuple[int, int, int]]:
         """Retrieve pending outgoing challenge requests."""
         self._verify_connected()
-        self._conn.sendall(REQ[136] + util.encode_id(timestamp))
+        self._send(REQ[136] + util.encode_id(timestamp))
         data = self._recv()
         dlen = len(data) - 1
         if dlen % 9:
@@ -421,7 +421,7 @@ class MultiplayerClient:
             List of Tuple: challenge_id, waiting, roundno, rounds, userid
         """
         self._verify_connected()
-        self._conn.sendall(REQ[130] + util.encode_id(timestamp))
+        self._send(REQ[130] + util.encode_id(timestamp))
         data = self._recv()
         dlen = len(data) - 1
         if dlen % 9:
@@ -448,7 +448,7 @@ class MultiplayerClient:
         except struct.error as err:
             logger.error(f'Unable to pack data: {err}')
             return None
-        self._conn.sendall(req)
+        self._send(req)
         data = self._recv()
         if len(data) != 18:
             logger.warning(f'Invalid response size {len(data)}')
@@ -465,7 +465,7 @@ class MultiplayerClient:
         req = REQ[132] + util.encode_accept(challenge_id, decision)
         if gamet is not None:
             req += util.encode_game_type(gamet.draw, gamet.score)
-        self._conn.sendall(req)
+        self._send(req)
         data = self._recv()
         if decision and len(data) == 5:
             try:
@@ -489,7 +489,7 @@ class MultiplayerClient:
             logger.error(f'Unable to pack data: {err}')
             return False
         req += util.encode_result(result)
-        self._conn.sendall(req)
+        self._send(req)
         data = self._recv()
         if data != REQ[133] + SUCCESS:
             return False
@@ -500,7 +500,7 @@ class MultiplayerClient:
         self._verify_connected()
         req = REQ[134] + util.encode_id(challenge_id)
         req += util.encode_game_type(gamet.draw, gamet.score)
-        self._conn.sendall(req)
+        self._send(req)
         data = self._recv()
         if len(data) != 5:
             return 0
@@ -516,7 +516,7 @@ class MultiplayerClient:
         res = -1, -1
         self._verify_connected()
         req = REQ[135] + util.encode_id(challenge_id)
-        self._conn.sendall(req)
+        self._send(req)
         data = self._recv()
         if len(data) == 2 and data != REQ[135] + FAIL:
             res = util.parse_challenge_result(data[1:])
@@ -532,7 +532,7 @@ class MultiplayerClient:
         except struct.error as err:
             logger.error(f'Unable to pack roundno: {err}')
             return res
-        self._conn.sendall(req)
+        self._send(req)
         data = self._recv()
         if len(data) != 5:
             return res
@@ -546,7 +546,7 @@ class MultiplayerClient:
         """Check if a challenge is marked active."""
         self._verify_connected()
         req = REQ[138] + util.encode_id(challenge_id)
-        self._conn.sendall(req)
+        self._send(req)
         data = self._recv()
         if data != REQ[138] + SUCCESS:
             return False
@@ -557,7 +557,7 @@ class MultiplayerClient:
         """Retrieve challenge stats against another user (won, lost, draw)."""
         self._verify_connected()
         req = REQ[139] + util.encode_id(otherid)
-        self._conn.sendall(req)
+        self._send(req)
         data = self._recv()
         if len(data) != 25:
             logger.error('Invalid response size.')
@@ -573,7 +573,7 @@ class MultiplayerClient:
         """Retrieve a list of pending information to be retrieved."""
         ret = []
         self._verify_connected()
-        self._conn.sendall(REQ[192] + util.encode_id(timestamp))
+        self._send(REQ[192] + util.encode_id(timestamp))
         data = self._recv()
         if len(data) > 1 and data != REQ[192] + FAIL:
             ret = list(data[1:])
@@ -583,7 +583,7 @@ class MultiplayerClient:
         """Ping Pong mechanism to verify the connection is still alive."""
         self._verify_connected()
         req = REQ[255]
-        self._conn.sendall(req)
+        self._send(req)
         return self._recv() == req
 
     @staticmethod
@@ -605,6 +605,14 @@ class MultiplayerClient:
             if self.cfg.get('mp', 'user').strip() and self.login():
                 return
             raise CouldNotLoginError
+
+    def _send(self, data: bytes) -> None:
+        if self._conn is None:
+            raise NotConnectedError
+        try:
+            self._conn.sendall(data)
+        except socket.timeout:
+            raise NotConnectedError
 
     def _recv(self, check_connection: bool = False):
         if check_connection:
