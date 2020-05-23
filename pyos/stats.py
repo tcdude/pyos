@@ -338,7 +338,7 @@ class Stats:
             .order_by(field.desc()).first()
         if res is None:
             return 0
-        return res.Attempt.total if with_bonus else res.points
+        return res.Attempt.total if with_bonus else res.Attempt.points
 
     def fastest(self, draw: int) -> float:
         """Returns fastest time achieved for the specified draw count."""
@@ -490,8 +490,6 @@ class Stats:
         if stat.deals_played_offline:
             self._update_offline_stats(stat)
 
-        # TODO: stat.win_streak =
-
         stat.deals_played_online = self._session.query(Game) \
             .filter(Game.challenge > -1).count()
         stat.deals_solved_online = self._session.query(Game.id) \
@@ -501,8 +499,26 @@ class Stats:
             .group_by(Game.id).count()
         if stat.deals_played_online:
             self._update_online_stats(stat)
+
+        self._compute_winstreak(stat)
         stat.last_update = datetime.datetime.utcnow()
         self._session.commit()
+
+    def _compute_winstreak(self, stat: Statistic) -> None:
+        attempts = self._session \
+            .query(Attempt.moves, Attempt.solved) \
+            .order_by(Attempt.id).all()
+        num = len(attempts)
+        win_streak = 0
+        for i, (mvs, solved) in enumerate(attempts):
+            if solved:
+                win_streak += 1
+            elif mvs > 0:
+                stat.win_streak = max(win_streak, stat.win_streak)
+                win_streak = 0
+                if num - i < num:
+                    break
+        stat.win_streak = max(win_streak, stat.win_streak)
 
     def _update_offline_stats(self, stat: Statistic) -> None:
         stat.solved_ratio_offline = (stat.deals_solved_offline
@@ -623,6 +639,15 @@ class Stats:
         if self._stats_type == 1:
             return res.median_attempts_online
         return res.median_attempts_offline
+
+    @property
+    def win_streak(self) -> float:
+        """Returns biggest win streak."""
+        self.commit_attempt()
+        res: Statistic = self._session.query(Statistic).first()
+        if res is None:
+            return 0
+        return res.win_streak
 
     @property
     def stats_type(self) -> int:

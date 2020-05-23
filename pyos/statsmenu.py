@@ -49,8 +49,10 @@ class StatsData:
     text_std: Tuple[str] = ('Deals played', 'Solved ratio', 'Avg attempts/deal',
                             'Median attempts/deal')
     text_misc: Tuple[str] = ('Draw one highscore', 'Draw one quickest',
-                             'Draw one least moves', 'Draw three highscore',
-                             'Draw three quickest', 'Draw three least moves')
+                             'Draw one least moves', 'Draw one most points',
+                             'Draw three highscore', 'Draw three quickest',
+                             'Draw three least moves', 'Draw three most points',
+                             'Longest winning streak')
 
 
 @dataclass
@@ -155,6 +157,12 @@ class Statistics(app.AppBase):
             if val == 2**32:
                 val = '     N/A'
             vals.append(f'{val}')
+            val = self.systems.stats.highscore(i, False)
+            if val:
+                vals.append(f'{val}')
+            else:
+                vals.append('     N/A')
+        vals.append(f'{self.systems.stats.win_streak}')
         maxlen = max(
             [len(i) + len(j) for i, j in zip(self.__data.text_misc, vals)])
         for txt, val in zip(self.__data.text_misc, vals):
