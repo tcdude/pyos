@@ -516,7 +516,7 @@ class Stats:
             elif mvs > 0:
                 stat.win_streak = max(win_streak, stat.win_streak)
                 win_streak = 0
-                if num - i < num:
+                if num - i < i:
                     break
         stat.win_streak = max(win_streak, stat.win_streak)
 
