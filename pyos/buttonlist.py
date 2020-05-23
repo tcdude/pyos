@@ -266,7 +266,7 @@ class ButtonList(frame.Frame):
         self._data.listcb(self._data.page * self._data.itpp + pos)
 
     def _filtercb_redirect(self, pos: int) -> None:
-        self._data.filtercb(self._data.page * self._data.itpp + pos)
+        self._data.filtercb(pos)
         self._data.active_filter = pos
         self._update_filter()
 

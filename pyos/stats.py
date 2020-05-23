@@ -507,6 +507,7 @@ class Stats:
     def _compute_winstreak(self, stat: Statistic) -> None:
         attempts = self._session \
             .query(Attempt.moves, Attempt.solved) \
+            .filter(Attempt.game_id == Game.id, Game.challenge == -1) \
             .order_by(Attempt.id).all()
         num = len(attempts)
         win_streak = 0
