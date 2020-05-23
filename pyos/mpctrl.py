@@ -21,7 +21,7 @@ except ImportError:
 
 from common import Result
 from multiplayer import (SEP, SUCCESS, FAILURE, ILLEGAL_REQUEST, WRONG_FORMAT,
-                         NO_CONNECTION, NOT_LOGGED_IN)
+                         NO_CONNECTION, NOT_LOGGED_IN, UNHANDLED_EXCEPTION)
 import util
 
 __author__ = 'Tiziano Bettio'
@@ -51,10 +51,11 @@ __license__ = 'MIT'
 __version__ = '0.3'
 
 RESMAP = {SUCCESS: 0, FAILURE: 1, ILLEGAL_REQUEST: 2, WRONG_FORMAT: 3,
-          NO_CONNECTION: 4, NOT_LOGGED_IN: 5}
+          NO_CONNECTION: 4, NOT_LOGGED_IN: 5, UNHANDLED_EXCEPTION: 7}
 RESTXT = {0: 'Success', 1: 'Request Failed', 2: 'Illegal request',
           3: 'Wrong Format', 4: 'No Connection', 5: 'Not Logged In',
-          6: 'Socket file not present'}
+          6: 'Socket file not present',
+          7: 'Unhandled Exception\nin Multiplayer Service'}
 REQ = [struct.pack('<B', i) for i in range(256)]
 STOP = REQ[255]
 SEL = selectors.DefaultSelector()

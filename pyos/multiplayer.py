@@ -7,6 +7,7 @@ import os
 import socket
 import struct
 import sys
+import traceback
 from typing import Callable, Dict, List, Tuple
 
 from foolysh.tools import config
@@ -51,6 +52,7 @@ ILLEGAL_REQUEST = _BYTES[2]
 WRONG_FORMAT = _BYTES[3]
 NO_CONNECTION = _BYTES[4]
 NOT_LOGGED_IN = _BYTES[5]
+UNHANDLED_EXCEPTION = _BYTES[6]
 
 
 class Multiplayer:
@@ -150,6 +152,10 @@ class Multiplayer:
                     ret = NO_CONNECTION
                 except mpclient.CouldNotLoginError:
                     ret = NOT_LOGGED_IN
+                except Exception as err:  # pylint: disable=broad-except
+                    logger.error(f'Unhandled Exception {err}\n'
+                                 + traceback.format_exc())
+                    ret = UNHANDLED_EXCEPTION
                 conn.sendall(ret)
                 logger.debug(f'Request {req} processed')
         else:
