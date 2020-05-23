@@ -501,7 +501,7 @@ class Stats:
             self._update_online_stats(stat)
 
         self._compute_winstreak(stat)
-        stat.last_update = datetime.datetime.utcnow()
+        stat.last_update = attempt.last_move
         self._session.commit()
 
     def _compute_winstreak(self, stat: Statistic) -> None:
