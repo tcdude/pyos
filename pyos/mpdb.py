@@ -199,6 +199,7 @@ class MPDBHandler:
             userdata = UserData()
             userdata.points = 0
             userdata.rank = 0
+            self._session.add(userdata)
         userdata.draw_count_preference = pref
         self._session.commit()
 
@@ -726,6 +727,16 @@ class MPDBHandler:
                     ChallengeRound.other_duration != -1.0) \
             .count() == challenge.rounds
 
+    def round_complete(self, challenge_id: int, roundno: int) -> bool:
+        """Returns whether a challenge round is stored with full result."""
+        return self._session.query(ChallengeRound) \
+            .filter(ChallengeRound.challenge_id == challenge_id,
+                    ChallengeRound.roundno == roundno,
+                    or_(ChallengeRound.user_duration == -2.0,
+                        ChallengeRound.user_duration > 0),
+                    or_(ChallengeRound.other_duration == -2.0,
+                        ChallengeRound.other_duration > 0)).count() == 1
+
     def userid(self, username: str) -> int:
         """
         Returns the user id if present as friend, -1 if present as blocked user,
@@ -927,13 +938,20 @@ class MPDBHandler:
         """Returns all users against whom a challenge can be requested."""
         ret = []
         userdata = self._session.query(UserData).first()
-        if userdata is None or userdata.draw_count_preference == 3:
+        if userdata is None:
+            logger.warning('UserData is not present!')
+            userdata = UserData()
+            userdata.points = 0
+            userdata.rank = 0
+            self._session.add(userdata)
+            self._session.commit()
+        elif userdata.draw_count_preference == 3:
             logger.warning('User does not want to multiplay')
             return ret
         if userdata.draw_count_preference == 0:
             acceptable = (0, 1, 2)
         else:
-            acceptable = (userdata.draw_count_preference, )
+            acceptable = (userdata.draw_count_preference, 0)
         for i in self._session.query(User) \
               .filter(User.draw_count_preference.in_(acceptable),
                       User.rtype == 2) \

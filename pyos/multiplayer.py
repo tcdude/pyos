@@ -590,6 +590,8 @@ class Multiplayer:
                 challenge_ids.append(challenge_id)
                 self.mpdbh.update_challenge(challenge_id, otherid, rounds,
                                             status, True, userturn)
+                if roundno == rounds:
+                    roundno -= 1
                 if not self._update_challenge_rounds(challenge_id, roundno):
                     return False
         logger.debug(f'Updated challenges {repr(challenge_ids)}')
@@ -597,6 +599,8 @@ class Multiplayer:
 
     def _update_challenge_rounds(self, challenge_id: int, roundno: int) -> bool:
         for i in range(roundno + 1):
+            if self.mpdbh.round_complete(challenge_id, i + 1):
+                continue
             try:
                 res = self.mpc.challenge_round(challenge_id, i + 1)
             except (mpclient.NotConnectedError, mpclient.CouldNotLoginError):
