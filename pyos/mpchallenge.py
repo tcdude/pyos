@@ -209,6 +209,9 @@ class Challenges(app.AppBase):
               and self.fsm_global_data['result'][0] == -2.0:
             challenge_id = self.state.challenge
             roundno = self.mps.dbh.roundno(challenge_id)
+            # Ensure the challenge result is stored in the DB on forfeit
+            self.mps.dbh.update_challenge_round(challenge_id, roundno,
+                                                resuser=(-2.0, 0, 0))
             req = self.mps.ctrl \
                 .submit_challenge_round_result(challenge_id, roundno,
                                                (-2.0, 0, 0))

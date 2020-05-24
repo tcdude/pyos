@@ -611,7 +611,7 @@ class MultiplayerClient:
             raise NotConnectedError
         try:
             self._conn.sendall(data)
-        except socket.timeout:
+        except OSError:
             raise NotConnectedError
 
     def _recv(self, check_connection: bool = False):

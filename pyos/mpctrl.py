@@ -73,7 +73,7 @@ class Request:
 
     def __post_init__(self) -> None:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.connect(('', self.port))
+        self.sock.connect(('localhost', self.port))
         if self.req is None:  # Service alive check
             self.sock.close()
             self.res_dict[self.reqid] = 0
@@ -82,7 +82,12 @@ class Request:
 
     def send(self, sock: socket.socket) -> None:
         """Sends the request when writable."""
-        sock.sendall(self.req)
+        try:
+            sock.sendall(self.req)
+        except (NameError, FileNotFoundError, ConnectionRefusedError,
+                BrokenPipeError, ConnectionResetError):
+            SEL.unregister(sock)
+            self.res_dict[self.reqid] = 7
         SEL.modify(sock, selectors.EVENT_READ, self.recv)
 
     def recv(self, sock: socket.socket) -> None:
@@ -284,7 +289,7 @@ class MPControl:
         for key, _ in events:
             callback = key.data
             callback(key.fileobj)
-            break
+            # break -> Introduced to reduce stutter in game state. Needed?
 
         self._data.lock.acquire()
 
@@ -342,6 +347,17 @@ class MPControl:
             return
         if self._data.active:
             return
+        port_file = self.cfg.get('mp', 'uds')
+        if os.path.exists(port_file):
+            with open(port_file, 'r') as fhandler:
+                self._port = int(fhandler.read())
+            reqid = self._start_request(force=True)
+            if reqid > -1:
+                _ = self.result(reqid)
+                self._data.active = True
+                return
+            os.unlink(port_file)
+            time.sleep(3)
         if 'autoclass' in globals():
             logger.info('Starting Android Service multiplayer')
             # pylint: disable=invalid-name
@@ -352,11 +368,11 @@ class MPControl:
             logger.info('Starting multiplayer subprocess')
             self._proc = subprocess.Popen(['python', 'multiplayer.py'])
         cnt = 0
-        while not os.path.exists(self.cfg.get('mp', 'uds')) and cnt < 100:
+        while not os.path.exists(port_file) and cnt < 100:
             cnt += 1
             time.sleep(0.01)
-        if os.path.exists(self.cfg.get('mp', 'uds')):
-            with open(self.cfg.get('mp', 'uds'), 'r') as fhandler:
+        if os.path.exists(port_file):
+            with open(port_file, 'r') as fhandler:
                 self._port = int(fhandler.read())
             self._data.lock.acquire()
             for _ in range(10):
@@ -402,7 +418,8 @@ class MPControl:
         try:
             self._data.pending[self._reqid] = Request(self._reqid, self._port,
                                                       req, self._data.results)
-        except (NameError, FileNotFoundError, ConnectionRefusedError):
+        except (NameError, FileNotFoundError, ConnectionRefusedError,
+                BrokenPipeError, ConnectionResetError):
             if force:
                 return -1
             self._data.pending[self._reqid] = req

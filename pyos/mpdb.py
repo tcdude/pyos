@@ -507,6 +507,21 @@ class MPDBHandler:
             return 2
         return 0 if comp[0][chround.chtype] < comp[1][chround.chtype] else 1
 
+    def round_result(self, challenge_id: int, roundno: int) -> Result:
+        """
+        Returns the relevant part of the result of the other player in a
+        challenge round. Special values -1 = No result yet, -2 = Forfeited and
+        -3 = Unable to find the challenge round.
+        """
+        chround = self._session.query(ChallengeRound.user_duration,
+                                      ChallengeRound.user_points,
+                                      ChallengeRound.user_moves) \
+            .filter(ChallengeRound.challenge_id == challenge_id,
+                    ChallengeRound.roundno == roundno).first()
+        if None in chround:
+            return -1.0, 0, 0
+        return chround
+
     def round_other_result(self, challenge_id: int, roundno: int
                            ) -> Union[int, float]:
         """
@@ -909,6 +924,19 @@ class MPDBHandler:
         req.sort(key=lambda x: x[1])
         wait.sort(key=lambda x: x[1])
         return wait + req
+
+    @property
+    def chwaiting_last_round(self) -> List[int]:
+        """Returns all challenge ids where the last round is pending."""
+        res = self._session.query(Challenge.challenge_id) \
+            .join(ChallengeRound,
+                  ChallengeRound.challenge_id == Challenge.challenge_id) \
+            .filter(Challenge.active == true(),
+                    ChallengeRound.roundno == Challenge.rounds,
+                    ChallengeRound.user_duration != -1.0,
+                    ChallengeRound.other_duration == -1.0).all()
+        print(res)
+        return res
 
     @property
     def chfinished(self) -> List[Tuple[int, str]]:
