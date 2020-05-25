@@ -74,7 +74,7 @@ class Statistics(app.AppBase):
         self.__nodes.root = self.ui.center.attach_node('statistics root')
         self.__nodes.frame = frame \
             .Frame('statistics background', size=(0.9, 0.9),
-                   frame_color=common.FRAME_COLOR_STD, border_thickness=0.01,
+                   frame_color=common.STATS_FRAME_COLOR, border_thickness=0.01,
                    corner_radius=0.05, multi_sampling=2)
         self.__nodes.frame.reparent_to(self.__nodes.root)
         self.__nodes.frame.origin = Origin.CENTER

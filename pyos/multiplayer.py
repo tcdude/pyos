@@ -136,7 +136,7 @@ class Multiplayer:
             for key, _ in events:
                 callback = key.data
                 callback(key.fileobj)
-            if self.data.first_comm:
+            if self.data.first_comm or not self.sys.mpc.connected:
                 continue
             self._send_unsent_results()
             now = time.time()
@@ -589,9 +589,9 @@ class Multiplayer:
         try:
             reqs = self.sys.mpc.pending(timestamp)
         except mpclient.NotConnectedError:
-            ret = NO_CONNECTION
+            return NO_CONNECTION
         except mpclient.CouldNotLoginError:
-            ret = NOT_LOGGED_IN
+            return NOT_LOGGED_IN
         if ret == SUCCESS and sum([i in reqs for i in (3, 4, 5, 14, 15)]) > 0:
             self._prune_user()
             if not self._update_user(timestamp, reqs):

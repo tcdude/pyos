@@ -111,9 +111,20 @@ class Game(app.AppBase):
         self.__state.fresh_state = True
         logger.debug(f'state.challenge is: {self.state.challenge}')
         if self.state.challenge > 0:
-            logger.debug(f'Playing a round in challenge {self.state.challenge}')
-            self.__new_deal(*self.mps.dbh.get_round_info(self.state.challenge))
-            chg = True
+            seed, draw, score = self.mps.dbh \
+                .get_round_info(self.state.challenge)
+            res = self.systems.stats.current_attempt
+            if res is not None and res[0].challenge == self.state.challenge \
+                  and res[0].seed == seed and res[0].draw == draw \
+                  and res[1].solved:
+                self.state.challenge = -1
+                self.__state.fresh_state = True
+                chg = False
+            else:
+                logger.debug(f'Playing a round in challenge '
+                             f'{self.state.challenge}')
+                self.__new_deal(seed, draw, score)
+                chg = True
         else:
             chg = False
         if self.state.daydeal is None:

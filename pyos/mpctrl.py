@@ -291,8 +291,11 @@ class MPControl:
             callback(key.fileobj)
             # break -> Introduced to reduce stutter in game state. Needed?
 
-        self._data.lock.acquire()
+        with self._data.lock:
+            self._failed_requests()
+            self._update_results()
 
+    def _failed_requests(self) -> None:
         need_req = []
         for k in self._data.pending:
             if isinstance(self._data.pending[k], (bytes, type(None))):
@@ -311,6 +314,8 @@ class MPControl:
                 self._data.pending.pop(k)
                 self._data.retry.pop(k)
                 self._data.results[k] = RESMAP[FAILURE]
+
+    def _update_results(self) -> None:
         drop = []
         for k in self._data.results:
             if k in self._data.pending:
@@ -326,8 +331,6 @@ class MPControl:
                 drop.append(k)
         for k in drop:
             self._data.results.pop(k)
-
-        self._data.lock.release()
 
     def result(self, reqid: int) -> int:
         """

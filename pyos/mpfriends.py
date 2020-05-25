@@ -320,7 +320,7 @@ class Friends(app.AppBase):
             else:
                 self.__data.data.append(username)
             self.__data.idmap[i] = user_id
-        self.__nodes.btnlist.update_content(True)
+        self.__nodes.btnlist.update_content()
         self.__update_filter()
 
     def __setup(self):

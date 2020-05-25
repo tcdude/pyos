@@ -49,7 +49,7 @@ class DayDeal(app.AppBase):
         super().__init__(config_file=config_file)
         self.__root = self.ui.center.attach_node('daydeal root')
         self.__frame = frame.Frame('daydeal background', size=(0.9, 0.9),
-                                   frame_color=common.FRAME_COLOR_STD,
+                                   frame_color=common.DD_FRAME_COLOR,
                                    border_thickness=0.01, corner_radius=0.05,
                                    multi_sampling=2)
         self.__frame.reparent_to(self.__root)

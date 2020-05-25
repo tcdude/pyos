@@ -462,8 +462,14 @@ class Stats:
 
     def update_statistics(self) -> None:
         """Update statistics if necessary."""
-        attempt = self._session.query(Attempt) \
-            .order_by(Attempt.id.desc()).first()
+        attempt = None
+        for i in self._session.query(Attempt) \
+            .order_by(Attempt.id.desc()).all():
+            if i.last_move is not None:
+                attempt = i
+                break
+        if attempt is None:
+            return
         if not attempt.solved:
             delta = datetime.datetime.utcnow() - attempt.last_move
             if delta.total_seconds() < 30:
@@ -582,6 +588,25 @@ class Stats:
         if self._session.query(Game).first():
             return False
         return True
+
+    @property
+    def current_attempt(self) -> Union[Tuple[Game, Attempt], None]:
+        """
+        Information about the current attempt.
+
+        Returns:
+            None if no attempt is currently present in the database, otherwise
+            the Game and Attempt pair of the last played attempt.
+        """
+        attempt = self._session.query(Attempt) \
+            .order_by(Attempt.id.desc()).first()
+        if attempt is None:
+            return None
+        game = self._session.query(Game) \
+            .filter(Game.id == attempt.game_id).first()
+        if game is None:
+            raise RuntimeError('Attempt w/o a corresponding game')
+        return game, attempt
 
     @property
     def deals_played(self) -> int:

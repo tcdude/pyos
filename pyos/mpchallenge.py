@@ -255,7 +255,7 @@ class Challenges(app.AppBase):
         for i, (challenge_id, txt) in enumerate(data):
             self.__data.data.append(txt)
             self.__data.idmap[i] = challenge_id
-        self.__nodes.btnlist.update_content(True)
+        self.__nodes.btnlist.update_content()
         self.__update_filter()
 
     def __gen_dlg(self, dlg: str, txt: str) -> None:
