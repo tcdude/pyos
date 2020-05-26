@@ -109,7 +109,6 @@ class Game(app.AppBase):
         self.global_nodes.hide_status()
         self.__setup()
         self.__state.fresh_state = True
-        logger.debug(f'state.challenge is: {self.state.challenge}')
         if self.state.challenge > 0:
             seed, draw, score = self.mps.dbh \
                 .get_round_info(self.state.challenge)
@@ -460,33 +459,32 @@ class Game(app.AppBase):
             logger.debug(f'click_threshold reached -> dist={up_down_length}')
             return
 
-        if self.config.getboolean('pyos', 'tap_move'):
-            table_click = self.__systems.layout.click_area(self.mouse_pos)
-            if table_click is not None:
-                logger.debug(f'Table: {repr(table_click)}')
-                res = self.__table_click(table_click)
-                if not res:
-                    nd = self.__systems.layout.root
-                    Sequence(PosInterval(nd, 0.05, Vec2(0.01, 0),
-                                         blend=BlendType.EASE_IN_OUT),
-                             PosInterval(nd, 0.1, Vec2(-0.01, 0),
-                                         blend=BlendType.EASE_IN_OUT),
-                             PosInterval(nd, 0.05, Vec2(0, 0),
-                                         blend=BlendType.EASE_IN_OUT)).play()
-                    self.__systems.game_table.invalid_move()
-                else:
-                    self.__state.fresh_state = False
-                self.__update_attempt()
-                return
+        table_click = self.__systems.layout.click_area(self.mouse_pos)
+        if table_click is not None:
+            logger.debug(f'Table: {repr(table_click)}')
+            res = self.__table_click(table_click)
+            if not res:
+                nd = self.__systems.layout.root
+                Sequence(PosInterval(nd, 0.05, Vec2(0.01, 0),
+                                     blend=BlendType.EASE_IN_OUT),
+                         PosInterval(nd, 0.1, Vec2(-0.01, 0),
+                                     blend=BlendType.EASE_IN_OUT),
+                         PosInterval(nd, 0.05, Vec2(0, 0),
+                                     blend=BlendType.EASE_IN_OUT)).play()
+                self.__systems.game_table.invalid_move()
+            else:
+                self.__state.fresh_state = False
+            self.__update_attempt()
 
     # Click helper methods
 
     def __table_click(self, table_click) -> bool:
         """Evaluates possible moves for table clicks."""
+        tap_move = self.config.getboolean('pyos', 'tap_move')
         if table_click[0] == common.TableArea.STACK:
             self.__systems.game_table.draw()
             return True
-        if table_click[0] == common.TableArea.WASTE:
+        if table_click[0] == common.TableArea.WASTE and tap_move:
             if self.config.getboolean(
                     'pyos', 'waste_to_foundation', fallback=False):
                 res = self.__systems.game_table.waste_to_foundation()
@@ -497,15 +495,17 @@ class Game(app.AppBase):
                 if not res:
                     res = self.__systems.game_table.waste_to_foundation()
             return res
-        if table_click[0] == common.TableArea.FOUNDATION:
+        if table_click[0] == common.TableArea.FOUNDATION and tap_move:
             return self.__systems.game_table \
                     .foundation_to_tableau(table_click[1][0])
         # TABLEAU
         from_pile = self.__systems.game_table.table.tableau[table_click[1][0]]
         num_cards = len(from_pile) - table_click[1][1]
         if num_cards == 1:
-            res = self.__systems.game_table.flip(table_click[1][0])
+            res = self.__systems.game_table \
+                .flip(table_click[1][0]) or not tap_move
             if res:
+                logger.info('Flip tableau card')
                 return res
             res = self.__systems.game_table \
                     .tableau_to_foundation(table_click[1][0])

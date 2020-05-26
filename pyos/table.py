@@ -100,7 +100,6 @@ class Table:
         self._shuffler = shuffler
         self._wrapped = {
             'draw': self.__wrap_method(self.__draw),
-            'flip': self.__wrap_method(self.__flip),
             'undo': self.__wrap_method(self.__undo),
             'w2t': self.__wrap_method(self.__waste_to_tableau),
             'w2f': self.__wrap_method(self.__waste_to_foundation),
@@ -113,11 +112,6 @@ class Table:
     def draw(self) -> Callable:
         """Method for drawing a card from the Stack."""
         return self._wrapped['draw']
-
-    @property
-    def flip(self) -> Callable:
-        """Method to flip a card face up on the Tableau."""
-        return self._wrapped['flip']
 
     @property
     def undo(self) -> Callable:
@@ -428,7 +422,7 @@ class Table:
             return res
         return wrapper
 
-    def __flip(self, pile: int) -> bool:
+    def flip(self, pile: int) -> bool:
         """
         Tries to flip the top most card of the specified pile.
 
@@ -458,6 +452,7 @@ class Table:
                     card_id=len(self._tableau.piles[pile]) - 1
                 )
             )
+            return True
         return False
 
     def __waste_to_tableau(self, pile: Optional[int] = None) -> bool:

@@ -226,7 +226,6 @@ class Stats:
         self._active_attempt.last_move = dt
         if write:
             self.commit_attempt()
-        logger.debug(f'attempt updated {self._active_attempt}')
 
     def commit_attempt(self) -> None:
         """Commit a potentially dangling attempt."""

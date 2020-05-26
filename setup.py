@@ -53,7 +53,7 @@ OPTIONS = {'apk': {'debug': None,
 
 setup(
     name='Simple Solitaire',
-    version='0.3.38',
+    version='0.3.39',
     description='An ad free, simple solitaire game',
     author='tcdude',
     author_email='tizilogic@gmail.com',
@@ -61,7 +61,6 @@ setup(
     options=OPTIONS,
     package_data={'pyos': [
         '*.py',
-        'service/*.py',
         'assets/images/*.png',
         # Add other fonts as needed
         'assets/fonts/SpaceMono.ttf',
