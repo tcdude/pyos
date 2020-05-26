@@ -12,6 +12,7 @@ build.sh
 **gamedata.db
 **mp.db
 logs/
+pyos/.foolysh
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
