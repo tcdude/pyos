@@ -90,7 +90,8 @@ DEFAULTCONFIG = {
                        ('user', ''), ('password', ''), ('bufsize', '4096'),
                        ('uds', UDS), ('datafile', MPDATAFILE)]),
     'font': OrderedDict([('normal', 'fonts/SpaceMono.ttf'),
-                         ('bold', 'fonts/SpaceMonoBold.ttf')])
+                         ('bold', 'fonts/SpaceMonoBold.ttf'),
+                         ('card', 'fonts/BebasNeueBold.ttf')])
 }
 OVERWRITE_PYOS = ['card_ratio', 'padding', 'status_size', 'toolbar_size',
                   'click_threshold', 'auto_solve_delay', 'log_level',
@@ -131,6 +132,21 @@ class TableLocation:
     pile_id: Optional[int] = None
     card_id: Optional[int] = None
 
+
+# Card generation
+
+CARDFONT = DEFAULTCONFIG['font']['card']
+SUITSYM = {'c': 'images/clubs.png', 'd': 'images/diamonds.png',
+           'h': 'images/hearts.png', 's': 'images/spades.png'}
+CARDCORNER = 0.05  # Percentage of the shorter side
+CARDBORDER = 0.015  # Percentage of the shorter side
+CARDBG_COLOR = 255, 255, 255, 255
+CARD_MULTISAMPLING = 2
+CARDSYMHEIGHT = 0.27
+CARDSYMHEIGHTXS = 0.12
+CARDSYMCENTER = 0.4
+CARDRED = 212, 0, 0, 255
+CARDBLACK = 0, 0, 0, 255
 
 # Formatting
 

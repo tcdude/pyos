@@ -66,6 +66,7 @@ setup(
         # Add other fonts as needed
         'assets/fonts/SpaceMono.ttf',
         'assets/fonts/SpaceMonoBold.ttf',
+        'assets/fonts/BebasNeueBold.ttf',
         'assets/other/*',
     ]},
     install_requires=[
