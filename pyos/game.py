@@ -528,11 +528,7 @@ class Game(app.AppBase):
             self.__state.first_move = False
             seed = self.__systems.game_table.seed
             draw = self.__systems.game_table.draw_count
-            win_deal = self.config.getboolean('pyos', 'winner_deal',
-                                              fallback=True)
-            win_deal = win_deal or self.__state.day_deal
-            win_deal = win_deal or self.state.challenge > -1
-            self.systems.stats.new_attempt(seed, draw, win_deal,
+            self.systems.stats.new_attempt(seed, draw, True,
                                            self.__state.day_deal,
                                            self.state.challenge)
         self.systems.stats.update_attempt(moves=mvs, duration=tim, points=pts,
@@ -724,7 +720,7 @@ class Game(app.AppBase):
                   or self.__systems.game_table.draw_count != draw \
                   or self.__systems.game_table.stats[0] <= 0:
                 self.__systems.game_table.draw_count = draw
-                self.__systems.game_table.deal(seed, win_deal=True)
+                self.__systems.game_table.deal(seed)
                 self.systems.stats.new_deal(seed, draw, True, False,
                                             self.state.challenge)
                 self.state.daydeal = None
@@ -741,7 +737,7 @@ class Game(app.AppBase):
                   or self.__systems.game_table.draw_count != draw \
                   or self.__systems.game_table.stats[0] <= 0:
                 self.__systems.game_table.draw_count = draw
-                self.__systems.game_table.deal(seed, win_deal=True)
+                self.__systems.game_table.deal(seed)
                 self.systems.stats.new_deal(seed, draw, True, True)
                 self.__state.first_move = True
             self.__state.day_deal = True
@@ -756,11 +752,10 @@ class Game(app.AppBase):
                 self.__systems.game_table.draw_count = 1
             else:
                 self.__systems.game_table.draw_count = 3
-            win_deal = self.config.getboolean('pyos', 'winner_deal')
-            self.__systems.game_table.deal(win_deal=win_deal)
+            self.__systems.game_table.deal()
             seed = self.__systems.game_table.seed
             draw = self.__systems.game_table.draw_count
-            self.systems.stats.new_deal(seed, draw, win_deal)
+            self.systems.stats.new_deal(seed, draw, True)
             self.__state.day_deal = False
             self.state.daydeal = None
             self.__systems.toolbar.toggle(True)

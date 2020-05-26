@@ -232,22 +232,14 @@ class Table:
         """Register an invalid move."""
         self._state.invalid += 1
 
-    def deal(
-            self,
-            random_seed: Optional[int] = None,
-            win_deal: Optional[bool] = True
-        ) -> None:
+    def deal(self, random_seed: Optional[int] = None) -> None:
         """
         New deal.
 
         Args:
             random_seed: Optional[int] unsigned in range 2^31.
-            win_deal: Optional[bool] whether winner deal is enabled.
         """
-        if win_deal:
-            res = self._shuffler.winner_deal(random_seed, self.draw_count)
-        else:
-            res = self._shuffler.deal(random_seed)
+        res = self._shuffler.winner_deal(random_seed, self.draw_count)
         self._state.seed = res[0]
         logger.info(f'Random Seed: {self._state.seed}')
         self._tableau.reset()
