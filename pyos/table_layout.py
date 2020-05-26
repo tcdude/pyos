@@ -195,12 +195,12 @@ class TableLayout:
         self._v_offset = (0.0, self._cfg.card_size[1] / 3)
 
         # Cards
-        card_dummy = self._nodes.root.attach_node('Card Layer')
-        card_dummy.depth = 99
+        self._croot = self._nodes.root.attach_node('Card Layer')
+        self._croot.depth = 99
         self._cards: Dict[Tuple[int, int], CardNode] = {
             (suit, value): CardNode(
                 k=(suit, value),
-                node=card_dummy.attach_image_node(
+                node=self._croot.attach_image_node(
                     f'{suit},{value}',
                     f'images/{common.COLORS[suit]}'
                     f'{common.DENOMINATIONS[value]}.png'
@@ -392,7 +392,8 @@ class TableLayout:
         return offset + self._v_offset[0]
 
     def setup(self, screen_size: Tuple[int, int],
-              left_handed: Optional[bool] = False) -> None:
+              left_handed: Optional[bool] = False,
+              simple: Optional[bool] = False) -> None:
         """
         Setup the node positions to reflect screen size and left vs right
         handed.
@@ -400,11 +401,18 @@ class TableLayout:
         Args:
             screen_size: ``Tuple[int, int]`` width and height of the screen.
             left_handed: ``bool`` whether to place stack/waste on the left.
+            simple: ``bool`` whether to use the simple deck or the traditional.
         """
         if screen_size[0] < screen_size[1]:  # Portrait
             self._setup_portrait(screen_size, left_handed)
         else:  # Landscape
             self._setup_landscape(screen_size, left_handed)
+        prefix = ''
+        if simple:
+            prefix = 'l' if left_handed else 'r'
+        for k in self._cards:
+            self._cards[k].node[0] = f'images/{prefix}{common.COLORS[k[0]]}' \
+                                     f'{common.DENOMINATIONS[k[1]]}.png'
 
     def _setup_portrait(self, screen_size: Tuple[int, int],
                         left_handed: bool) -> None:

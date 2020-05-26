@@ -4,7 +4,9 @@ shared with all the states.
 """
 
 from dataclasses import dataclass, field
+import glob
 import os
+import shutil
 import struct
 import time
 from typing import Any, Callable, Dict, Tuple
@@ -17,6 +19,7 @@ from foolysh import app
 from foolysh.scene.node import Origin
 from foolysh.ui import label
 
+import cardmaker
 import common
 import mpctrl
 import mpdb
@@ -170,6 +173,7 @@ class AppBase(app.App):
         self.login()
         self.__last_orientation: str = None
         self.__setup_events_tasks()
+        self.update_cards()
         logger.debug('AppBase initialized')
 
     def login(self) -> None:
@@ -233,6 +237,19 @@ class AppBase(app.App):
         self.task_manager['MPUPDATE'].delay = 0
         self.mps.conncheck = True
 
+    def update_cards(self) -> None:
+        """Makes sure all cards are loaded and present in the assetdir."""
+        if not self.config.getboolean('pyos', 'readability'):
+            return
+        assetdir = self.config.get('base', 'asset_dir')
+        cmk = cardmaker \
+            .CardMaker(common.ORIGCARDSIZE, assetdir, common.SIMPLECARDS)
+        cmk.generate(self.config.getboolean('pyos', 'left_handed',
+                                            fallback=False))
+        assetdir = os.path.join(assetdir, 'images')
+        for i in glob.glob(common.SIMPLECARDS + '/*.png'):
+            shutil.copy(i, assetdir)
+
     def __conn_check(self) -> None:
         if self.active_state == 'game':
             return
@@ -279,13 +296,13 @@ class AppBase(app.App):
         self.request('app_base')
         self.systems.stats.end_session()
         self.state.save()
-        self.mps.ctrl.stop()
+        # self.mps.ctrl.stop()
 
     def __event_resume(self, event=None):
         """Called when the app enters background."""
         # pylint: disable=unused-argument
         logger.info('Resume app')
-        self.login()
+        # self.login()
         self.request('main_menu')
         common.release_gamestate()
         self.systems.stats.start_session()

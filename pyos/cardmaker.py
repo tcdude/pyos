@@ -45,6 +45,15 @@ class Images:
     value: Dict[str, Dict[str, Image.Image]] = field(default_factory=dict)
 
 
+@dataclass
+class ImageInfo:
+    """Holds information about the value and suit images."""
+    symx: int = None
+    symh: int = None
+    symc: int = None
+    vmaxw: int = None
+
+
 class CardMaker:
     """
     Provides deck creation using suit symbols.
@@ -58,9 +67,7 @@ class CardMaker:
                  ) -> None:
         self._size: Tuple[int, int] = None
         self._margin: int = None
-        self._symx: int = None
-        self._symh: int = None
-        self._symc: int = None
+        self._imi = ImageInfo()
         self._assetdir = assetdir
         self._outdir = None
         self._im = Images()
@@ -75,13 +82,14 @@ class CardMaker:
                 right.
         """
         prefix = 'l' if left_handed else 'r'
-        center = ((self._size[0] - self._symc) // 2,
-                  self._size[1] - self._margin - self._symc)
+        center = ((self._size[0] - self._imi.symc) // 2,
+                  self._size[1] - self._margin - self._imi.symc)
 
         def get_x(width):
-            vleft = self._margin
-            vright = self._size[0] - width - self._margin
-            sright = self._size[0] - self._symh - self._margin
+            offset = (self._imi.vmaxw - width) // 2
+            vleft = self._margin + offset
+            vright = self._size[0] - width - self._margin - offset
+            sright = self._size[0] - self._imi.symh - self._margin
             if left_handed:
                 return vright, vleft
             return vleft, sright
@@ -124,26 +132,27 @@ class CardMaker:
                           multi_sampling=common.CARD_MULTISAMPLING,
                           alpha=common.CARDBG_COLOR[3])
         self._margin = self._margin // 2 + 1
-        self._symx = int(size[1] * common.CARDSYMHEIGHTXS + 0.5)
-        self._symh = int(size[1] * common.CARDSYMHEIGHT + 0.5)
-        self._symc = int(size[1] * common.CARDSYMCENTER + 0.5)
+        self._imi.symx = int(size[1] * common.CARDSYMHEIGHTXS + 0.5)
+        self._imi.symh = int(size[1] * common.CARDSYMHEIGHT + 0.5)
+        self._imi.symc = int(size[1] * common.CARDSYMCENTER + 0.5)
         self._im.sym.clear()
         for suit in common.COLORS:
             self._im.sym[suit] = {
                 'XS': Image \
                     .open(os.path.join(self._assetdir, common.SUITSYM[suit])) \
-                    .resize((self._symh, self._symh), Image.BICUBIC),
+                    .resize((self._imi.symh, self._imi.symh), Image.BICUBIC),
                 'S': Image \
                     .open(os.path.join(self._assetdir, common.SUITSYM[suit])) \
-                    .resize((self._symh, self._symh), Image.BICUBIC),
+                    .resize((self._imi.symh, self._imi.symh), Image.BICUBIC),
                 'L': Image \
                     .open(os.path.join(self._assetdir, common.SUITSYM[suit])) \
-                        .resize((self._symc, self._symc), Image.BICUBIC)}
-        self._gen_values(self._symh)
+                    .resize((self._imi.symc, self._imi.symc), Image.BICUBIC)}
+        self._gen_values(self._imi.symh)
 
     def _gen_values(self, symh: int) -> None:
         self._im.value.clear()
         fnt = self._get_font(symh)
+        self._imi.vmaxw = 0
         for col in ('r', 'b'):
             fill = common.CARDRED if col == 'r' else common.CARDBLACK
             self._im.value[col] = {}
@@ -157,6 +166,7 @@ class CardMaker:
                 draw = ImageDraw.Draw(img)
                 draw.text(pos, txt, fill=fill, font=fnt)
                 self._im.value[col][value] = img
+                self._imi.vmaxw = max(self._imi.vmaxw, img.size[0])
 
     def _get_font(self, symh: int) -> None:
         fntsz = symh

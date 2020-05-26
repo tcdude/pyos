@@ -299,7 +299,9 @@ class Game(app.AppBase):
             self.__state.last_window_size = self.window.size
             self.__systems.layout.setup(self.__state.last_window_size,
                                         self.config.getboolean('pyos',
-                                                               'left_handed'))
+                                                               'left_handed'),
+                                        self.config.getboolean('pyos',
+                                                               'readability'))
             self.__state.refresh_next_frame = 2
             self.state.layout_refresh = False
         elif self.__state.refresh_next_frame > 0:
@@ -313,7 +315,9 @@ class Game(app.AppBase):
         if self.__systems.game_table.win_condition:
             self.__systems.layout.setup(self.__state.last_window_size,
                                         self.config.getboolean('pyos',
-                                                               'left_handed'))
+                                                               'left_handed'),
+                                        self.config.getboolean('pyos',
+                                                               'readability'))
             self.__systems.layout.process(self.clock.get_dt())
             self.__systems.game_table.refresh_table()
             self.__state.refresh_next_frame = 2

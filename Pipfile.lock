@@ -24,7 +24,7 @@
         },
         "foolysh": {
             "git": "https://github.com/tcdude/foolysh.git",
-            "ref": "a23e6c499a6192943245dcb4e0987314adee7e31"
+            "ref": "ea56163263e5b5d1b48c7d42d384706ae494f1e8"
         },
         "loguru": {
             "hashes": [

@@ -40,6 +40,7 @@ __version__ = '0.3'
 # Global Constants
 COLORS = tuple('dchs')
 DENOMINATIONS = tuple('a23456789') + ('10',) + tuple('jqk')
+ORIGCARDSIZE = 630, 880
 
 # Paths
 BACKGROUND = 'images/bg.png'
@@ -64,6 +65,7 @@ except ImportError:
     UDS = './tcp_port'
     GAMESTATE_LOCK = './ingame'
     DEBUG = 'DEBUG'
+SIMPLECARDS = os.path.join(CACHEDIR, 'simple_cards')
 
 # Config
 DEFAULTCONFIG = {
@@ -73,7 +75,7 @@ DEFAULTCONFIG = {
                          ('asset_dir', 'assets/'),
                          ('cache_dir', CACHEDIR),
                          ('drag_threshold', '0.025')]),
-    'pyos': OrderedDict([('winner_deal', 'True'), ('draw_one', 'True'),
+    'pyos': OrderedDict([('readability', 'False'), ('draw_one', 'True'),
                          ('tap_move', 'True'), ('auto_foundation', 'False'),
                          ('waste_to_foundation', 'False'),
                          ('auto_solve', 'True'), ('auto_flip', 'True'),

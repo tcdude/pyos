@@ -203,7 +203,7 @@ class SettingsButtons:
     """Buttons/Controls of settings."""
     # pylint: disable=too-many-instance-attributes
 
-    winner_deal: button.Button
+    readability: button.Button
     draw_one: button.Button
     draw_three: button.Button
     tap_move: button.Button
@@ -263,12 +263,14 @@ class SettingsMenu(app.AppBase):
         else:
             self.config.set('pyos', key, 'True')
             txt = txts[0]
-        for i in but.labels:
-            i.text = txt
+        self.update_cards()
+        but.change_text(txt)
 
     def __click(self, task: str) -> None:
-        if task == 'winner_deal':
-            self.__toggle(task, self.__buttons.winner_deal)
+        # pylint: disable=too-many-branches
+        if task == 'readability':
+            self.__toggle(task, self.__buttons.readability)
+            self.state.layout_refresh = True
         elif task == 'draw_one':
             self.config.set('pyos', 'draw_one', 'True')
             self.__buttons.draw_one.enabled = False
@@ -329,12 +331,12 @@ class SettingsMenu(app.AppBase):
                                  disabled_border_thickness=height * 0.043,
                                  corner_radius=height / 2)
         buttons = []
-        self.__create_label(text='Winner Deal:', size=(0.34, height),
+        self.__create_label(text='Simple Deck:', size=(0.34, height),
                             pos=(-0.42, pos_y), **kwargs)
-        txt = 'On' if self.config.getboolean('pyos', 'winner_deal') else 'Off'
+        txt = 'On' if self.config.getboolean('pyos', 'readability') else 'Off'
         but = self.__create_button(text=txt, size=(0.15, height),
                                    pos=(-0.05, pos_y), **kwargs)
-        but.onclick(self.__click, 'winner_deal')
+        but.onclick(self.__click, 'readability')
         buttons.append(but)
         pos_y += step_y
 
