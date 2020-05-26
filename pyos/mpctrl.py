@@ -353,14 +353,18 @@ class MPControl:
         port_file = self.cfg.get('mp', 'uds')
         if os.path.exists(port_file):
             with open(port_file, 'r') as fhandler:
-                self._port = int(fhandler.read())
-            reqid = self._start_request(force=True)
-            if reqid > -1:
-                _ = self.result(reqid)
-                self._data.active = True
-                return
+                try:
+                    self._port = int(fhandler.read())
+                except ValueError:
+                    pass
+                else:
+                    reqid = self._start_request(force=True)
+                    if reqid > -1:
+                        _ = self.result(reqid)
+                        self._data.active = True
+                        return
             os.unlink(port_file)
-            time.sleep(3)
+            time.sleep(0.5)
         if 'autoclass' in globals():
             logger.info('Starting Android Service multiplayer')
             # pylint: disable=invalid-name
