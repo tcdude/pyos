@@ -70,7 +70,7 @@ class State:
     daydeal: Tuple[int, int] = None
     challenge: int = -1
     layout_refresh: bool = False
-    need_new_game: bool = False
+    need_new_game: bool = True
 
     def load(self) -> None:
         """Attempts to load the state from disk."""
