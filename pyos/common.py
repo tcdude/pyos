@@ -397,3 +397,13 @@ def release_gamestate() -> None:
 def gamestate_locked() -> bool:
     """Indicate whether the GAMESTATE_LOCK is present."""
     return os.path.exists(GAMESTATE_LOCK)
+
+
+def format_duration(duration: float) -> str:
+    """Formats a duration in seconds to a readable output."""
+    mins, secs = int(duration / 60), duration % 60
+    if duration < 600:
+        return f'{mins}:{secs:05.2f}'
+    if duration >= 6000:
+        return f'{mins}:{int(secs):03d}'
+    return f'{mins}:{secs:04.1f}'

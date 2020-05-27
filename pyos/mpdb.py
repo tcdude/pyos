@@ -727,40 +727,30 @@ class MPDBHandler:
         res = []
         mxt, mxu, mxo = 0, 0, 0
         for i in rounds:
-            if i.user_duration == -1.0:
-                continue
             res.append([])
             ltxt = f'{i.roundno}/{i.draw}: '
             ltxt += ('Time', 'Moves', 'Points')[i.chtype]
             res[-1].append(ltxt)
-            if i.user_duration == -2.0:
+            if i.user_duration == -1.0:
+                res[-1].append('?')
+            elif i.user_duration == -2.0:
                 res[-1].append('Forfeit')
             elif i.chtype == 0:
-                mins, secs = int(i.user_duration / 60), i.user_duration % 60
-                if i.user_duration < 600:
-                    res[-1].append(f'{mins}:{secs:05.2f}')
-                elif i.user_duration >= 6000:
-                    res[-1].append(f'{mins}:{int(secs):03d}')
-                else:
-                    res[-1].append(f'{mins}:{secs:04.1f}')
+                res[-1].append(common.format_duration(i.user_duration))
             else:
                 if i.chtype == 1:
                     res[-1].append(f'{i.user_moves}')
                 else:
                     res[-1].append(f'{i.user_points}')
             ores = self.round_other_result(challenge_id, i.roundno)
-            if ores == -2:
+            if i.user_duration == -1.0:
+                res[-1].append('?')
+            elif ores == -2:
                 res[-1].append('Forfeit')
             elif ores == -1:
-                res[-1].append('N/A')
+                res[-1].append('?')
             elif i.chtype == 0:
-                mins, secs = int(ores / 60), ores % 60
-                if ores < 600:
-                    res[-1].append(f'{mins}:{secs:05.2f}')
-                elif ores >= 6000:
-                    res[-1].append(f'{mins}:{int(secs):03d}')
-                else:
-                    res[-1].append(f'{mins}:{secs:04.1f}')
+                res[-1].append(common.format_duration(ores))
             else:
                 res[-1].append(f'{ores}')
             res[-1].append(
@@ -778,9 +768,12 @@ class MPDBHandler:
         else:
             tpad = rightlen - len(other)
             rpad = 0
+        lpad = 0
+        if leftlen < 14:
+            lpad = 14 - leftlen
         txt += f'{other}{" " * tpad}\n\n'
         for i in res:
-            txt += f'{i[0]}{" " * (leftlen - len(i[0]) - len(i[1]) - 1)}'
+            txt += f'{i[0]}{" " * (leftlen - len(i[0]) - len(i[1]) - 1 + lpad)}'
             txt += f' {i[1]} - {i[2]} ' + ' ' * (mxo - len(i[2]) + rpad)
             txt += f'{i[3]}\n'
         txt += '\n'
