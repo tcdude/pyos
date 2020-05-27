@@ -850,9 +850,10 @@ class MPDBHandler:
         act = self._session.query(Activity.key) \
             .filter(Activity.activity == CHALLENGE)
         chg = self._session.query(Challenge.challenge_id, Challenge.otherid) \
-            .filter(Challenge.challenge_id.notin_(act)) \
-            .group_by(Challenge.otherid).all()
+            .filter(Challenge.challenge_id.notin_(act)).all()
         now = int(time.time())
+        if act.count() > 0:
+            now = 0
         user = []
         for challenge_id, otherid in chg:
             act = Activity()
@@ -1058,7 +1059,8 @@ class MPDBHandler:
             .filter(Challenge.active != true(),
                     Challenge.status == 3,
                     Activity.activity == CHALLENGE) \
-            .order_by(Activity.timestamp.desc()).all()
+            .order_by(Activity.timestamp.desc(),
+                      Challenge.start_date.desc()).all()
         for i in res:
             user = self._session.query(User) \
                 .filter(User.user_id == i.otherid).first()
