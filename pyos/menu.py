@@ -85,10 +85,14 @@ class MainMenu(app.AppBase):
         self.__buttons.settings.pos = pos_x, 0.38
         self.__buttons.quit.pos = pos_x, -0.38
         self.__root.show()
-        self.__buttons.quit.enabled = False
-        self.__buttons.multiplayer.enabled = False
         req = self.mps.ctrl.nop()
         self.mps.ctrl.register_callback(req, self.__enable_quit)
+        if req < 0:
+            logger.warning(f'Unable to start request to multiplayer service')
+            self.__buttons.quit.enabled = True
+        else:
+            self.__buttons.quit.enabled = False
+        self.__buttons.multiplayer.enabled = False
 
     def exit_main_menu(self):
         """Exit state -> Setup."""

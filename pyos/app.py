@@ -302,7 +302,7 @@ class AppBase(app.App):
         """Called when the app enters background."""
         # pylint: disable=unused-argument
         logger.info('Resume app')
-        # self.login()
+        self.login()
         self.request('main_menu')
         common.release_gamestate()
         self.systems.stats.start_session()
