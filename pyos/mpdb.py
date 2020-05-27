@@ -254,19 +254,32 @@ class MPDBHandler:
                 return True
             user = self._session.query(User) \
                 .filter(User.user_id == userid).first()
-        user.name = username or user.name
-        if rtype is not None:
+        changed = False
+        if username is not None and username != user.name:
+            changed = True
+            user.name = username
+        if rtype is not None and rtype != user.rtype:
+            changed = True
             user.rtype = rtype
         if draw_count_preference is not None:
+            if user.draw_count_preference != draw_count_preference:
+                changed = True
             user.draw_count_preference = draw_count_preference
-        user.rank = rank or user.rank
-        if points is not None:
+        if rank is not None and rank != user.rank:
+            changed = True
+            user.rank = rank or user.rank
+        if points is not None and points != user.points:
+            changed = True
             user.points = points
         if stats is not None:
-            (user.chwon, user.chlost, user.chdraw, user.rwon, user.rlost,
-             user.rdraw) = stats
-        self._update_activity(USER, userid)
-        self._session.commit()
+            flds = ('chwon', 'chlost', 'chdraw', 'rwon', 'rlost', 'rdraw')
+            for val, fld in zip(stats, flds):
+                if val != getattr(user, fld):
+                    changed = True
+                    setattr(user, fld, val)
+        if changed:
+            self._update_activity(USER, userid)
+            self._session.commit()
         return True
 
     def get_username(self, userid: int) -> str:
@@ -357,12 +370,20 @@ class MPDBHandler:
                 return False
             challenge = self._session.query(Challenge) \
                 .filter(Challenge.challenge_id == challenge_id).first()
-        challenge.status = status
-        challenge.active = active
-        challenge.userturn = userturn
-        self._update_activity(CHALLENGE, challenge_id)
-        self._update_activity(USER, otherid)
-        self._session.commit()
+        changed = False
+        if status != challenge.status:
+            changed = True
+            challenge.status = status
+        if challenge.active != active:
+            changed = True
+            challenge.active = active
+        if challenge.userturn != userturn:
+            changed = True
+            challenge.userturn = userturn
+        if changed:
+            self._update_activity(CHALLENGE, challenge_id)
+            self._update_activity(USER, otherid)
+            self._session.commit()
         return True
 
     def reject_challenge(self, challenge_id: int) -> bool:
@@ -385,7 +406,7 @@ class MPDBHandler:
         challenge.active = False
         if challenge.status == 2:
             challenge.status = 3
-        self._update_activity(CHALLENGE, challenge_id)
+            self._update_activity(CHALLENGE, challenge_id)
         self._session.commit()
         return True
 
@@ -433,21 +454,27 @@ class MPDBHandler:
             else:
                 logger.error('Unable to create non-existing ChallengeRound')
                 return False
-        if seed is not None:
+        changed = False
+        if seed is not None and seed != chround.seed:
+            changed = True
             chround.seed = seed
-        if resuser is not None:
+        if resuser is not None and resuser[0] != chround.user_duration:
+            changed = True
             chround.user_duration = resuser[0]
             chround.user_points = resuser[1]
             chround.user_moves = resuser[2]
-        if resother is not None:
+        if resother is not None and resother[0] != chround.other_duration:
+            changed = True
             chround.other_duration = resother[0]
             chround.other_points = resother[1]
             chround.other_moves = resother[2]
-        if result_sent is not None:
+        if result_sent is not None and result_sent != chround.result_sent:
+            changed = True
             chround.result_sent = result_sent
-        self._update_activity(CHALLENGE, challenge_id)
-        self._update_activity(USER, self.opponent_id(challenge_id))
-        self._session.commit()
+        if changed:
+            self._update_activity(CHALLENGE, challenge_id)
+            self._update_activity(USER, self.opponent_id(challenge_id))
+            self._session.commit()
         self._check_challenge_complete(challenge_id)
         return True
 
