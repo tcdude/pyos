@@ -3,6 +3,7 @@ Provides multiplayer data storage in a sqlite3 db file locally.
 """
 
 import datetime
+import time
 from typing import List, Tuple, Union
 
 from sqlalchemy import (Boolean, Column, DateTime, Float, Integer, Unicode,
@@ -43,6 +44,9 @@ __version__ = '0.3'
 
 Base = declarative_base()  # pylint: disable=invalid-name
 
+# Activities as defined in the table Activity
+CHALLENGE = 0
+USER = 1
 
 # pylint: disable=too-few-public-methods
 class User(Base):
@@ -163,6 +167,20 @@ class DDScore(Base):
     points = Column(SmallInteger, default=0)
     moves = Column(SmallInteger, default=0)
     score_sent = Column(Boolean, default=False)
+
+
+class Activity(Base):
+    """
+    Flexible way to store timestamps. The field activity holds an int related to
+    what the timestamp is referring to:
+
+    0 = Last Challenge/ChallengeRound update
+    """
+    __tablename__ = 'activity'
+    id = Column(Integer, primary_key=True)
+    key = Column(Integer)
+    activity = Column(Integer, nullable=False)
+    timestamp = Column(Integer, default=lambda: int(time.time()))
 # pylint: enable=too-few-public-methods
 
 
@@ -179,6 +197,7 @@ class MPDBHandler:
         Base.metadata.create_all(engine)
         Base.metadata.bind = engine
         self._session = sessionmaker(bind=engine)()
+        self._populate_missing_activity()
         logger.debug('MPDBHandler initialized')
 
     def update_timestamp(self, timestamp: int) -> None:
@@ -215,6 +234,7 @@ class MPDBHandler:
         user.rtype = rtype
         user.draw_count_preference = draw_count_preference
         self._session.add(user)
+        self._update_activity(USER, userid)
         self._session.commit()
         return True
 
@@ -245,6 +265,7 @@ class MPDBHandler:
         if stats is not None:
             (user.chwon, user.chlost, user.chdraw, user.rwon, user.rlost,
              user.rdraw) = stats
+        self._update_activity(USER, userid)
         self._session.commit()
         return True
 
@@ -318,6 +339,8 @@ class MPDBHandler:
         challenge.rounds = rounds
         challenge.active = active
         self._session.add(challenge)
+        self._update_activity(CHALLENGE, challenge_id)
+        self._update_activity(USER, otherid)
         self._session.commit()
         return True
 
@@ -337,6 +360,8 @@ class MPDBHandler:
         challenge.status = status
         challenge.active = active
         challenge.userturn = userturn
+        self._update_activity(CHALLENGE, challenge_id)
+        self._update_activity(USER, otherid)
         self._session.commit()
         return True
 
@@ -352,7 +377,7 @@ class MPDBHandler:
         return True
 
     def inactive_challenge(self, challenge_id: int) -> bool:
-        """Reject a received challenge request."""
+        """Set active flag to False and update status."""
         challenge = self._session.query(Challenge) \
             .filter(Challenge.challenge_id == challenge_id).first()
         if challenge is None:
@@ -360,6 +385,7 @@ class MPDBHandler:
         challenge.active = False
         if challenge.status == 2:
             challenge.status = 3
+        self._update_activity(CHALLENGE, challenge_id)
         self._session.commit()
         return True
 
@@ -379,6 +405,8 @@ class MPDBHandler:
         chround.chtype = chtype
         chround.seed = seed
         self._session.add(chround)
+        self._update_activity(CHALLENGE, challenge_id)
+        self._update_activity(USER, self.opponent_id(challenge_id))
         self._session.commit()
         return True
 
@@ -417,6 +445,8 @@ class MPDBHandler:
             chround.other_moves = resother[2]
         if result_sent is not None:
             chround.result_sent = result_sent
+        self._update_activity(CHALLENGE, challenge_id)
+        self._update_activity(USER, self.opponent_id(challenge_id))
         self._session.commit()
         self._check_challenge_complete(challenge_id)
         return True
@@ -795,6 +825,44 @@ class MPDBHandler:
             challenge.status = 3
             self._session.commit()
 
+    def _populate_missing_activity(self) -> None:
+        """Populates pre update entries to activities."""
+        act = self._session.query(Activity.key) \
+            .filter(Activity.activity == CHALLENGE)
+        chg = self._session.query(Challenge.challenge_id, Challenge.otherid) \
+            .filter(Challenge.challenge_id.notin_(act)) \
+            .group_by(Challenge.otherid).all()
+        now = int(time.time())
+        user = []
+        for challenge_id, otherid in chg:
+            act = Activity()
+            act.key = challenge_id
+            act.activity = CHALLENGE
+            act.timestamp = now
+            self._session.add(act)
+            if otherid not in user:
+                user.append(otherid)
+        for otherid in user:
+            self._update_activity(USER, otherid)
+        for usr in self._session.query(User) \
+              .filter(User.user_id.notin_(user)).all():
+            self._update_activity(USER, usr.user_id)
+        self._session.commit()
+
+    def _update_activity(self, activity: int, key: int, commit: bool = False
+                         ) -> None:
+        """Update an activity/key pair."""
+        act = self._session.query(Activity) \
+            .filter(Activity.activity == activity, Activity.key == key).first()
+        if act is None:
+            act = Activity()
+            act.activity = activity
+            act.key = key
+            self._session.add(act)
+        act.timestamp = int(time.time())
+        if commit:
+            self._session.commit()
+
     @property
     def timestamp(self) -> int:
         """Return the last timestamp or 0 if not recorded yet."""
@@ -832,7 +900,11 @@ class MPDBHandler:
     def friends(self) -> List[Tuple[int, str]]:
         """Returns all friends as a list."""
         ret = []
-        for i in self._session.query(User).filter(User.rtype == 2).all():
+        for i in self._session.query(User) \
+              .join(Activity, Activity.key == User.user_id) \
+              .filter(User.rtype == 2,
+                      Activity.activity == USER) \
+              .order_by(Activity.timestamp.desc()).all():
             ret.append((i.user_id, i.name))
         return ret
 
@@ -843,9 +915,17 @@ class MPDBHandler:
         o=sent by the user.
         """
         ret = []
-        for i in self._session.query(User).filter(User.rtype == 0).all():
+        for i in self._session.query(User) \
+              .join(Activity, Activity.key == User.user_id) \
+              .filter(User.rtype == 0,
+                      Activity.activity == USER) \
+              .order_by(Activity.timestamp.desc()).all():
             ret.append((i.user_id, 'o' + i.name))
-        for i in self._session.query(User).filter(User.rtype == 1).all():
+        for i in self._session.query(User) \
+              .join(Activity, Activity.key == User.user_id) \
+              .filter(User.rtype == 1,
+                      Activity.activity == USER) \
+              .order_by(Activity.timestamp.desc()).all():
             ret.append((i.user_id, 'i' + i.name))
         return ret
 
@@ -853,7 +933,11 @@ class MPDBHandler:
     def blocked(self) -> List[Tuple[int, str]]:
         """Returns all blocked users as a list."""
         ret = []
-        for i in self._session.query(User).filter(User.rtype == 3).all():
+        for i in self._session.query(User) \
+              .join(Activity, Activity.key == User.user_id) \
+              .filter(User.rtype == 3,
+                      Activity.activity == USER) \
+              .order_by(Activity.timestamp.desc()).all():
             ret.append((i.user_id, i.name))
         return ret
 
@@ -863,8 +947,11 @@ class MPDBHandler:
         act = []
         new = []
         res = self._session.query(Challenge) \
+            .join(Activity, Activity.key == Challenge.challenge_id) \
             .filter(Challenge.active == true(),
-                    Challenge.status.in_([1, 2])).all()
+                    Challenge.status.in_([1, 2]),
+                    Activity.activity == CHALLENGE) \
+            .order_by(Activity.timestamp.desc()).all()
         for i in res:
             user = self._session.query(User) \
                 .filter(User.user_id == i.otherid).first()
@@ -872,7 +959,7 @@ class MPDBHandler:
                 logger.error('User in challenge not present in DB')
                 continue
             if i.status == 1:
-                txt = f'NEW ({user.name} / {i.rounds})'
+                txt = common.NEW_SYM + f' {user.name} - {i.rounds} Rounds'
                 new.append((i.challenge_id, txt))
                 continue
             chround = self._session.query(ChallengeRound) \
@@ -887,7 +974,8 @@ class MPDBHandler:
                 .order_by(ChallengeRound.roundno.desc()).first()
             if chround is None:
                 continue
-            txt = f'{user.name} D{chround.draw} ({chround.roundno}/{i.rounds})'
+            txt = f'{user.name} D{chround.draw} - ' \
+                  f'Round {chround.roundno}/{i.rounds}'
             act.append((i.challenge_id, txt))
         new.sort(key=lambda x: x[1])
         act.sort(key=lambda x: x[1])
@@ -899,8 +987,11 @@ class MPDBHandler:
         req = []
         wait = []
         res = self._session.query(Challenge) \
+            .join(Activity, Activity.key == Challenge.challenge_id) \
             .filter(Challenge.active == true(),
-                    Challenge.status.in_([0, 2])).all()
+                    Challenge.status.in_([0, 2]),
+                    Activity.activity == CHALLENGE) \
+            .order_by(Activity.timestamp.desc()).all()
         for i in res:
             user = self._session.query(User) \
                 .filter(User.user_id == i.otherid).first()
@@ -908,7 +999,7 @@ class MPDBHandler:
                 logger.error('User in challenge not present in DB')
                 continue
             if i.status == 0:
-                txt = f'{common.OUT_SYM} ({user.name} / {i.rounds})'
+                txt = f'{common.OUT_SYM} {user.name} - {i.rounds} Rounds'
                 req.append((i.challenge_id, txt))
                 continue
             chround = self._session.query(ChallengeRound) \
@@ -919,7 +1010,8 @@ class MPDBHandler:
                 .order_by(ChallengeRound.roundno.desc()).first()
             if chround is None:
                 continue
-            txt = f'{user.name} D{chround.draw} ({chround.roundno}/{i.rounds})'
+            txt = f'{user.name} D{chround.draw} - ' \
+                  f'Round {chround.roundno}/{i.rounds}'
             wait.append((i.challenge_id, txt))
         req.sort(key=lambda x: x[1])
         wait.sort(key=lambda x: x[1])
@@ -935,7 +1027,6 @@ class MPDBHandler:
                     ChallengeRound.roundno == Challenge.rounds,
                     ChallengeRound.user_duration != -1.0,
                     ChallengeRound.other_duration == -1.0).all()
-        print(res)
         return res
 
     @property
@@ -943,9 +1034,11 @@ class MPDBHandler:
         """Returns all locally stored finished challenges."""
         ret = []
         res = self._session.query(Challenge) \
+            .join(Activity, Activity.key == Challenge.challenge_id) \
             .filter(Challenge.active != true(),
-                    Challenge.status == 3) \
-            .order_by(Challenge.challenge_id.desc()).all()
+                    Challenge.status == 3,
+                    Activity.activity == CHALLENGE) \
+            .order_by(Activity.timestamp.desc()).all()
         for i in res:
             user = self._session.query(User) \
                 .filter(User.user_id == i.otherid).first()
@@ -953,8 +1046,8 @@ class MPDBHandler:
                 logger.error('User in challenge not present in DB')
                 continue
             txt = '* ' if i.unseen else ''
-            txt += f'{common.ACC_SYM} ({user.name} / {i.rounds} / ' \
-                   f'{i.start_date.strftime("%d.%m.%Y")})'
+            txt += f'{common.ACC_SYM} {user.name} - {i.rounds} / ' \
+                   f'{i.start_date.strftime("%d.%m.%Y")}'
             ret.append((i.challenge_id, txt))
             if i.unseen:
                 i.unseen = False
