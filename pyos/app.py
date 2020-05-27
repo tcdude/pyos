@@ -176,12 +176,12 @@ class AppBase(app.App):
         self.update_cards()
         logger.debug('AppBase initialized')
 
-    def login(self) -> None:
+    def login(self, txt: str = 'Connecting to server...') -> None:
         """Attempts to login to multiplayer."""
         if not self.mps.ctrl.noaccount:
             req = self.mps.ctrl.nop()
             self.mps.ctrl.register_callback(req, self.__logincb)
-            self.global_nodes.show_status('Connecting to server...')
+            self.global_nodes.show_status(txt)
         else:
             self.mps.ctrl.nop()
 

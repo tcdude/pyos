@@ -93,6 +93,10 @@ class MainMenu(app.AppBase):
         else:
             self.__buttons.quit.enabled = False
         self.__buttons.multiplayer.enabled = False
+        if 'firstopen' not in self.fsm_global_data:
+            self.fsm_global_data['firstopen'] = None
+        else:
+            self.login('Checking connection...')
 
     def exit_main_menu(self):
         """Exit state -> Setup."""
