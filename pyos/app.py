@@ -189,12 +189,14 @@ class AppBase(app.App):
         self.global_nodes.hide_status()
         self.mps.login = rescode
         if rescode:
-            logger.warning(f'Login failed with rescode '
-                           f'{mpctrl.RESTXT[rescode]}')
+            txt = f'Error: {mpctrl.RESTXT[rescode]}'
+            self.global_nodes.set_mpstatus(txt)
+            logger.warning(txt)
         else:
             logger.debug('Login successful')
             user = self.config.get('mp', 'user')
             self.global_nodes.set_mpstatus(f'Logged in as {user}')
+            self.__conn_check()
 
     def __setup_events_tasks(self):
         """Setup Events and Tasks."""
@@ -250,10 +252,10 @@ class AppBase(app.App):
         for i in glob.glob(common.SIMPLECARDS + '/*.png'):
             shutil.copy(i, assetdir)
 
-    def __conn_check(self) -> None:
+    def __conn_check(self, force: bool = False) -> None:
         if self.active_state == 'game':
             return
-        if time.time() - self.mps.last_check > 30:
+        if time.time() - self.mps.last_check > 30 or force:
             req = self.mps.ctrl.sync_challenges()
             update_status = True
         else:
