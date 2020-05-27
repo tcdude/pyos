@@ -66,14 +66,27 @@ class Dialogue(label.Label):
             but.reparent_to(self)
             self.__buttons.append(but)
 
+    def toggle_button(self, index: int, enabled: bool, visible: bool) -> None:
+        """Toggle the visibility of a dialogue button."""
+        self.__buttons[index].enabled = enabled
+        if visible:
+            self.__buttons[index].show()
+        else:
+            self.__buttons[index].hide()
+        self.dirty = True
+
     def _update(self):
-        width = sum([i.size[0] for i in self.__buttons])
-        margin = (width * 1.1 - width) / max(len(self.__buttons) - 1, 1)
+        btns = [i for i in self.__buttons if i.enabled and not i.hidden]
+        width = sum([i.size[0] for i in btns])
+        margin = (width * 1.1 - width) / max(len(btns) - 1, 1)
         width *= 1.1
         pos_x = max(self.border_thickness, self.corner_radius)
-        pos_y = self.size[1] - pos_x * 1.1 - self.__buttons[0].size[1]
+        pos_y = self.size[1] - pos_x * 1.1 - btns[0].size[1]
         pos_x += (self.size[0] - width) / 2 - pos_x / 2
-        for but in self.__buttons:
+        for but in btns:
             but.pos = pos_x, pos_y
             pos_x += but.size[0] + margin
         super()._update()
+
+    def __getitem__(self, item) -> button.Button:
+        return self.__buttons[item]
