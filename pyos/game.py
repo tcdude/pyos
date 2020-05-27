@@ -5,6 +5,7 @@ Ad free simple Solitaire implementation.
 from dataclasses import dataclass
 import os
 import random
+import traceback
 from typing import Tuple, Union
 
 from loguru import logger
@@ -333,27 +334,36 @@ class Game(app.AppBase):
         dragi = self.__state.drag_info
         tbl = self.__systems.game_table.table
         dragi.start_area = table_click[0]
-        if table_click[0] == common.TableArea.TABLEAU:
-            pile_id = table_click[1][0]
-            card_id = table_click[1][1]
-            pile = tbl.tableau[pile_id]
-            if len(pile) < card_id + 1:
+        try:
+            if table_click[0] == common.TableArea.TABLEAU:
+                pile_id = table_click[1][0]
+                card_id = table_click[1][1]
+                pile = tbl.tableau[pile_id]
+                if len(pile) < card_id + 1:
+                    return False
+                self.__systems.layout \
+                    .on_drag(pile[card_id].index[0],
+                             [i.index[0] for i in pile[card_id + 1:]])
+                dragi.pile_id = pile_id
+                num_cards = len(pile) - card_id
+                dragi.num_cards = num_cards
+            elif table_click[0] == common.TableArea.FOUNDATION:
+                dragi.pile_id = table_click[1][0]
+                dragi.num_cards = 1
+                self.__systems.layout \
+                    .on_drag(tbl.foundation[table_click[1][0]][-1].index[0])
+            elif table_click[0] == common.TableArea.WASTE and tbl.waste:
+                dragi.pile_id = -1
+                dragi.num_cards = 1
+                self.__systems.layout.on_drag(tbl.waste[-1].index[0])
+            else:  # Unknown
+                logger.warning(f'Unable to determine proper drag action for: '
+                               f'{table_click}')
                 return False
-            self.__systems.layout \
-                .on_drag(pile[card_id].index[0],
-                         [i.index[0] for i in pile[card_id + 1:]])
-            dragi.pile_id = pile_id
-            num_cards = len(pile) - card_id
-            dragi.num_cards = num_cards
-        elif table_click[0] == common.TableArea.FOUNDATION:
-            dragi.pile_id = table_click[1][0]
-            dragi.num_cards = 1
-            self.__systems.layout \
-                .on_drag(tbl.foundation[table_click[1][0]][-1].index[0])
-        else:  # WASTE
-            dragi.pile_id = -1
-            dragi.num_cards = 1
-            self.__systems.layout.on_drag(tbl.waste[-1].index[0])
+        except IndexError:
+            logger.error(f'IndexError in drag callback\n'
+                         f'{traceback.format_exc()}')
+            return False
         return True
 
     def __drop_cb(self, k):
