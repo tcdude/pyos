@@ -91,14 +91,13 @@ class ChallengesData:
 class ChallengesDlg:
     """Holds the different dialogue instances in the Challenges menu."""
     newchallenge: Dialogue = None
-    round: Dialogue = None
     error: Dialogue = None
     challenge: Dialogue = None
 
     @property
     def all(self) -> Tuple[Dialogue, ...]:
         """Helper property to get all members."""
-        return self.newchallenge, self.round, self.error, self.challenge
+        return self.newchallenge, self.error, self.challenge
 
 
 class Challenges(app.AppBase):
@@ -289,26 +288,6 @@ class Challenges(app.AppBase):
             else:
                 self.__dlgs.newchallenge.text = txt
                 self.__dlgs.newchallenge.show()
-        elif dlg == 'round':
-            if self.__dlgs.round is None:
-                fnt = self.config.get('font', 'bold')
-                bkwa = common.get_dialogue_btn_kw(size=(0.25, 0.11))
-                buttons = [DialogueButton(text='Play', fmtkwargs=bkwa,
-                                          callback=self.__start_round),
-                           DialogueButton(text='Back', fmtkwargs=bkwa,
-                                          callback=self.__back)]
-                dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
-                               size=(0.7, 0.7), font=fnt, align='center',
-                               frame_color=common.CHALLENGES_FRAME_COLOR,
-                               border_thickness=0.01,
-                               corner_radius=0.05, multi_sampling=2)
-                dlg.pos = -0.35, -0.35
-                dlg.reparent_to(self.ui.center)
-                dlg.depth = 1000
-                self.__dlgs.round = dlg
-            else:
-                self.__dlgs.round.text = txt
-                self.__dlgs.round.show()
         elif dlg == 'error':
             if self.__dlgs.error is None:
                 fnt = self.config.get('font', 'bold')
@@ -331,7 +310,9 @@ class Challenges(app.AppBase):
             if self.__dlgs.challenge is None:
                 fnt = self.config.get('font', 'bold')
                 bkwa = common.get_dialogue_btn_kw(size=(0.25, 0.11))
-                buttons = [DialogueButton(text='Back', fmtkwargs=bkwa,
+                buttons = [DialogueButton(text='Play', fmtkwargs=bkwa,
+                                          callback=self.__start_round),
+                           DialogueButton(text='Back', fmtkwargs=bkwa,
                                           callback=self.__back)]
                 dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
                                size=(0.7, 0.9), font=fnt, align='center',
@@ -626,7 +607,7 @@ class Challenges(app.AppBase):
         if other_result == -2:
             othertxt = 'Forfeit'
         elif other_result == -1:
-            othertxt = 'N/A'
+            othertxt = '?'
         elif gametype == 0:
             mins, secs = int(other_result // 60), other_result % 60
             if res[0] < 600:
@@ -744,21 +725,11 @@ class Challenges(app.AppBase):
         self.__nodes.newviewbtnlist.update_content(True)
 
     def __start_round(self) -> None:
-        self.__dlgs.round.hide()
+        self.__dlgs.challenge.hide()
         self.state.challenge = self.__data.idmap[self.__data.active]
         self.fsm_global_data['result'] = None
         self.__data.active = None
         self.request('game')
-
-    def __show_rounddlg(self) -> None:
-        _, draw, score = self.mps.dbh \
-            .get_round_info(self.__data.idmap[self.__data.active])
-        roundno = self.mps.dbh.roundno(self.__data.idmap[self.__data.active])
-        draw = 'One' if draw == 1 else 'Three'
-        score = ('Fastest', 'Least moves', 'Most points')[score]
-        self.__gen_dlg('round', f'Round {roundno}\n\n\nDraw count: {draw}\n\n'
-                                f'{score} wins!\n\n\n')
-        self.__nodes.listview.hide()
 
     def __filter(self, fltr: int = None) -> None:
         self.__data.fltr = fltr or 0
@@ -785,11 +756,15 @@ class Challenges(app.AppBase):
                 if self.mps.dbh.newround(self.__data.idmap[self.__data.active]):
                     self.__show_gametypeview()
                 else:
-                    self.__show_rounddlg()
+                    self.__gen_dlg('challenge',
+                                   self.mps.dbh.challenge_view(
+                                       self.__data.idmap[self.__data.active]))
+                    self.__dlgs.challenge.toggle_button(0, True, True)
             else:
                 self.__gen_dlg('challenge',
                                self.mps.dbh.challenge_view(
                                    self.__data.idmap[self.__data.active]))
+                self.__dlgs.challenge.toggle_button(0, False, False)
             return
         if not self.__nodes.newview.hidden:
             self.__gen_dlg('new', f'Select the number\nof rounds to play\n'
