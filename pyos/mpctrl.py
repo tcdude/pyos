@@ -364,7 +364,6 @@ class MPControl:
                         self._data.active = True
                         return
             os.unlink(port_file)
-            time.sleep(0.5)
         if 'autoclass' in globals():
             logger.info('Starting Android Service multiplayer')
             # pylint: disable=invalid-name
@@ -382,13 +381,13 @@ class MPControl:
             with open(port_file, 'r') as fhandler:
                 self._port = int(fhandler.read())
             self._data.lock.acquire()
-            for _ in range(10):
+            for _ in range(5):
                 reqid = self._start_request(force=True)
                 if reqid > -1:
                     _ = self.result(reqid)
                     self._data.active = True
                     break
-                time.sleep(0.3)
+                time.sleep(1)
             self._data.lock.release()
         self._data.start_thread = None  # Clean up after itself
 
