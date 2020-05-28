@@ -278,6 +278,7 @@ class MPDBHandler:
                     changed = True
                     setattr(user, fld, val)
         if changed:
+            logger.info('User has changed')
             self._update_activity(USER, userid)
             self._session.commit()
         return True
@@ -864,14 +865,14 @@ class MPDBHandler:
             if otherid not in user:
                 user.append(otherid)
         for otherid in user:
-            self._update_activity(USER, otherid)
+            self._update_activity(USER, otherid, only_new=True)
         for usr in self._session.query(User) \
               .filter(User.user_id.notin_(user)).all():
-            self._update_activity(USER, usr.user_id)
+            self._update_activity(USER, usr.user_id, only_new=True)
         self._session.commit()
 
-    def _update_activity(self, activity: int, key: int, commit: bool = False
-                         ) -> None:
+    def _update_activity(self, activity: int, key: int, commit: bool = False,
+                         only_new: bool = False) -> None:
         """Update an activity/key pair."""
         act = self._session.query(Activity) \
             .filter(Activity.activity == activity, Activity.key == key).first()
@@ -880,6 +881,8 @@ class MPDBHandler:
             act.activity = activity
             act.key = key
             self._session.add(act)
+        elif only_new:
+            return
         act.timestamp = int(time.time())
         if commit:
             self._session.commit()

@@ -281,7 +281,6 @@ class Friends(app.AppBase):
         if rescode:
             logger.warning(f'Request failed {mpctrl.RESTXT[rescode]}')
             return
-        self.mps.dbh.update_timestamp(0)
         if not self.__nodes.userview.hidden:
             self.__show_listview()
             return
@@ -304,13 +303,10 @@ class Friends(app.AppBase):
         self.__data.idmap.clear()
         if self.__data.fltr == 0:
             data = self.mps.dbh.friends
-            data.sort()
         elif self.__data.fltr == 1:
             data = self.mps.dbh.pending
-            data.sort(key=lambda x: x[1:])
         elif self.__data.fltr == 2:
             data = self.mps.dbh.blocked
-            data.sort()
         for i, (user_id, username) in enumerate(data):
             if self.__data.fltr == 1:
                 if username.startswith('i'):

@@ -524,7 +524,6 @@ class MultiplayerSettings(app.AppBase):
             self.__useraction.change_text('Update')
             self.__nodes.password.text = UNCHANGED
             self.__update_drawpref(0)
-            self.mps.dbh.update_timestamp(0)
             username = self.config.get('mp', 'user', fallback='')
             self.global_nodes.set_mpstatus(f'Logged in as {username}')
         else:
@@ -549,7 +548,6 @@ class MultiplayerSettings(app.AppBase):
             self.__update_drawpref()
             self.__useraction.change_text('Update')
             self.__nodes.password.text = UNCHANGED
-            self.mps.dbh.update_timestamp(0)
             username = self.config.get('mp', 'user', fallback='')
             self.global_nodes.set_mpstatus(f'Logged in as {username}')
             return

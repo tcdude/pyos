@@ -581,8 +581,7 @@ class Multiplayer:
     # DB Sync
 
     def _sync_local_database(self) -> bytes:
-        timestamp = 0 if self.data.first_sync else self.sys.mpdbh.timestamp
-        timestamp = max(timestamp - 60, 0)
+        timestamp = max(self.sys.mpdbh.timestamp - 60, 0)
         self.data.first_sync = False
         now = util.timestamp() - 60
         ret = SUCCESS
