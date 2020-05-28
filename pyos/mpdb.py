@@ -998,8 +998,6 @@ class MPDBHandler:
             txt = f'{user.name} D{chround.draw} - ' \
                   f'Round {chround.roundno}/{i.rounds}'
             act.append((i.challenge_id, txt))
-        new.sort(key=lambda x: x[1])
-        act.sort(key=lambda x: x[1])
         return new + act
 
     @property
@@ -1034,8 +1032,6 @@ class MPDBHandler:
             txt = f'{user.name} D{chround.draw} - ' \
                   f'Round {chround.roundno}/{i.rounds}'
             wait.append((i.challenge_id, txt))
-        req.sort(key=lambda x: x[1])
-        wait.sort(key=lambda x: x[1])
         return wait + req
 
     @property

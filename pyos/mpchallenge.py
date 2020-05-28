@@ -56,8 +56,6 @@ class ChallengesNodes:
     challengetitle: label.Label
     gametypeview: node.Node
     gametypetitle: label.Label
-    resultview: node.Node
-    resulttitle: label.Label
 
     challengetxt: node.TextNode = None
     gametypetxt: node.TextNode = None
@@ -65,9 +63,6 @@ class ChallengesNodes:
     gametypescore: List[button.Button] = None
     gametypestart: button.Button = None
     gametypereject: button.Button = None
-    resulttxt: node.TextNode = None
-    resultnext: button.Button = None
-    resultback: button.Button = None
 
     btnlist: buttonlist.ButtonList = None
     newviewbtnlist: buttonlist.ButtonList = None
@@ -143,16 +138,9 @@ class Challenges(app.AppBase):
         gttit.origin = Origin.CENTER
         gametypeview.hide()
 
-        resultview = _frame.attach_node('MP Challenges resultview')
-        restit = label.Label(text='', align='center', size=(0.8, 0.1),
-                             pos=(0, -0.4), font_size=0.06, font=fnt,
-                             text_color=common.TITLE_TXT_COLOR, alpha=0)
-        restit.reparent_to(resultview)
-        restit.origin = Origin.CENTER
-        resultview.hide()
         self.__nodes = ChallengesNodes(root, _frame, listview, newview,
                                        challengeview, chtit, gametypeview,
-                                       gttit, resultview, restit)
+                                       gttit)
         self.__data = ChallengesData()
         self.__dlgs = ChallengesDlg()
         self.__setup()
@@ -258,6 +246,7 @@ class Challenges(app.AppBase):
         self.__update_filter()
 
     def __gen_dlg(self, dlg: str, txt: str) -> None:
+        self.__hide_all_dlg()
         if dlg == 'new':
             if self.__dlgs.newchallenge is None:
                 fnt = self.config.get('font', 'bold')
@@ -312,6 +301,10 @@ class Challenges(app.AppBase):
                 bkwa = common.get_dialogue_btn_kw(size=(0.25, 0.11))
                 buttons = [DialogueButton(text='Play', fmtkwargs=bkwa,
                                           callback=self.__start_round),
+                           DialogueButton(text='Next', fmtkwargs=bkwa,
+                                          callback=self.__next_round),
+                           DialogueButton(text='Again', fmtkwargs=bkwa,
+                                          callback=self.__show_newdlg),
                            DialogueButton(text='Back', fmtkwargs=bkwa,
                                           callback=self.__back)]
                 dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
@@ -327,19 +320,29 @@ class Challenges(app.AppBase):
                 self.__dlgs.challenge.text = txt
                 self.__dlgs.challenge.show()
 
+    def __hide_all_dlg(self) -> None:
+        for dlg in self.__dlgs.all:
+            if dlg is None:
+                continue
+            dlg.hide()
+
     def __challenge_req(self, rounds: int) -> None:
+        fromnew = not self.__nodes.newview.hidden
         self.__dlgs.newchallenge.hide()
         userid = self.__data.idmap[self.__data.active]
         req = self.mps.ctrl.start_challenge(userid, rounds)
-        self.mps.ctrl.register_callback(req, self.__challenge_reqcb)
+        self.mps.ctrl.register_callback(req, self.__challenge_reqcb, fromnew)
         self.global_nodes.show_status('Sending request...')
 
-    def __challenge_reqcb(self, rescode: int) -> None:
+    def __challenge_reqcb(self, rescode: int, fromnew: bool) -> None:
         self.fsm_global_data['start_challenge'] = 0
         self.global_nodes.hide_status()
         if rescode:
             logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
-        self.__update_new_list()
+        if fromnew:
+            self.__update_new_list()
+        else:
+            self.__show_listview()
 
     def __setup(self):
         # always visible
@@ -365,7 +368,6 @@ class Challenges(app.AppBase):
 
         self.__setup_newview()
         self.__setup_gametypeview()
-        self.__setup_resultview()
 
     def __setup_newview(self):
         # newview
@@ -439,27 +441,6 @@ class Challenges(app.AppBase):
         self.__nodes.gametypereject.reparent_to(self.__nodes.gametypeview)
         self.__nodes.gametypereject.onclick(self.__reject_challenge)
 
-    def __setup_resultview(self):
-        self.__nodes.resulttxt = self.__nodes.resultview \
-            .attach_text_node(text='', text_color=common.TITLE_TXT_COLOR,
-                              align='center',
-                              font=self.config.get('font', 'bold'),
-                              font_size=0.05, multiline=True)
-        self.__nodes.resulttxt.origin = Origin.CENTER
-        self.__nodes.resulttxt.pos = 0, 0
-
-        self.__nodes.resultnext = button \
-            .Button(text='Next', pos=(-0.255, 0.3),
-                    **common.get_dialogue_btn_kw(size=(0.25, 0.1)))
-        self.__nodes.resultnext.reparent_to(self.__nodes.resultview)
-        self.__nodes.resultnext.onclick(self.__next_round)
-
-        self.__nodes.resultback = button \
-            .Button(text='Back', pos=(0.005, 0.3),
-                    **common.get_dialogue_btn_kw(size=(0.25, 0.1)))
-        self.__nodes.resultback.reparent_to(self.__nodes.resultview)
-        self.__nodes.resultback.onclick(self.__show_listview)
-
     def __back(self):
         for i in self.__dlgs.all:
             if i is not None and not i.hidden:
@@ -483,7 +464,6 @@ class Challenges(app.AppBase):
         self.__nodes.newview.hide()
         self.__nodes.challengeview.hide()
         self.__nodes.gametypeview.hide()
-        self.__nodes.resultview.hide()
         self.__nodes.listview.show()
         self.__update_list()
 
@@ -499,10 +479,10 @@ class Challenges(app.AppBase):
         if rescode:
             logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
             return
+        self.__hide_all_dlg()
         self.__nodes.newview.hide()
         self.__nodes.challengeview.hide()
         self.__nodes.listview.hide()
-        self.__nodes.resultview.hide()
         self.__nodes.gametypeview.show()
         dcp = self.mps.dbh.available_draw(self.__data.idmap[self.__data.active])
         if len(dcp) == 2 or 1 in dcp:
@@ -547,96 +527,21 @@ class Challenges(app.AppBase):
         if rescode:
             logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
 
-        roundno = self.mps.dbh.roundno(self.state.challenge)
-        roundwon = self.mps.dbh.round_won(self.state.challenge, roundno)
-        other = self.mps.dbh.get_username(
-            self.mps.dbh.opponent_id(self.state.challenge))
-        txt = self.__gen_result_txt(roundno, roundwon, other)
-
         self.__nodes.newview.hide()
         self.__nodes.challengeview.hide()
         self.__nodes.gametypeview.hide()
-        self.__nodes.listview.hide()
-        self.__nodes.resultview.show()
-        self.__nodes.resulttitle.text = f'{other}'
-        self.__nodes.resulttxt.text = txt
+        otherid = self.mps.dbh.opponent_id(self.state.challenge)
         if self.mps.dbh.newround(self.state.challenge):
-            self.__nodes.resultnext.enabled = True
-            self.__nodes.resultback.x = 0.005
-            self.__nodes.resultnext.show()
+            self.__show_challengedlg(1)
+        elif self.mps.dbh.challenge_complete(self.state.challenge):
+            self.__show_challengedlg(2)
+            self.__data.idmap.clear()
+            self.__data.idmap[0] = otherid
+            self.__data.active = 0
         else:
-            self.__nodes.resultnext.enabled = False
-            self.__nodes.resultback.x = -0.125
-            self.__nodes.resultnext.hide()
+            self.__show_challengedlg()
         self.fsm_global_data['result'] = None
         self.state.need_new_game = True
-
-    def __gen_result_txt(self, roundno: int, roundwon: int, other: str) -> str:
-        # pylint: disable=too-many-branches
-        gametype = self.mps.dbh.get_round_info(self.state.challenge)[-1]
-        res = self.fsm_global_data['result']
-        self.fsm_global_data['result'] = None
-        other_result = self.mps.dbh \
-            .round_other_result(self.state.challenge, roundno)
-        suffix = ('', 'moves', 'points')
-
-        if roundwon == -1:
-            return 'Result not\navailable!\n\n\n'
-
-        txt = f'Round {roundno}'
-        if roundwon == 0:
-            txt += ' WON ' + chr(0xf118)
-        elif roundwon == 1:
-            txt += ' LOST ' + chr(0xf119)
-        elif roundwon == 2:
-            txt += ' DRAW ' + chr(0xf11a)
-
-        if res[0] == -2.0:
-            usertxt = 'Forfeit'
-        elif gametype == 0:
-            mins, secs = int(res[0] // 60), res[0] % 60
-            if res[0] < 600:
-                usertxt = f'{mins}:{secs:05.2f}'
-            elif res[0] >= 6000:
-                usertxt = f'{mins}:{int(secs):03d}'
-            else:
-                usertxt = f'{mins}:{secs:04.1f}'
-        else:
-            usertxt = f'{res[gametype]}'
-
-        if other_result == -2:
-            othertxt = 'Forfeit'
-        elif other_result == -1:
-            othertxt = '?'
-        elif gametype == 0:
-            mins, secs = int(other_result // 60), other_result % 60
-            if res[0] < 600:
-                othertxt = f'{mins}:{secs:05.2f}'
-            elif res[0] >= 6000:
-                othertxt = f'{mins}:{int(secs):03d}'
-            else:
-                othertxt = f'{mins}:{secs:04.1f}'
-
-        else:
-            othertxt = f'{other_result}'
-        lpad = len(usertxt) - 3
-        rpad = len(othertxt) + len(suffix[gametype]) + 1 - len(other)
-        rpad = max(0, rpad)
-        txt += f'\n\n{" " * lpad}You - {other}{" " * rpad}\n'
-        txt += f'{usertxt} - {othertxt} {suffix[gametype]}\n\n'
-
-        res = self.mps.dbh.challenge_result(self.state.challenge)
-        if res[-1]:
-            if res[0] > res[1]:
-                txt += 'Challenge Won\n'
-            elif res[1] > res[0]:
-                txt += 'Challenge Lost\n'
-            else:
-                txt += 'Challenge Draw\n'
-        else:
-            txt += 'Challenge Score\n'
-        txt += f'Rounds won {res[0]}, lost {res[1]}, draw {res[2]}\n\n'
-        return txt
 
     def __toggle_gt(self, event: str, value: int = None) -> None:
         if event == 'draw':
@@ -707,6 +612,22 @@ class Challenges(app.AppBase):
         self.__nodes.newview.show()
         self.__update_new_list()
 
+    def __show_newdlg(self):
+        self.__gen_dlg('new', f'Select the number\nof rounds to play\n'
+                              f'or {common.BACK_SYM} to go back.\n\n')
+
+    def __show_challengedlg(self, action: int = None):
+        if self.state.challenge is not None and self.state.challenge > -1:
+            chid = self.state.challenge
+        else:
+            chid = self.__data.idmap[self.__data.active]
+        self.__gen_dlg('challenge', self.mps.dbh.challenge_view(chid))
+        for i in range(3):
+            if i == action:
+                self.__dlgs.challenge.toggle_button(i, True, True)
+            else:
+                self.__dlgs.challenge.toggle_button(i, False, False)
+
     def __update_new_list(self) -> None:
         req = self.mps.ctrl.sync_relationships()
         self.mps.ctrl.register_callback(req, self.__update_new_listcb)
@@ -756,17 +677,10 @@ class Challenges(app.AppBase):
                 if self.mps.dbh.newround(self.__data.idmap[self.__data.active]):
                     self.__show_gametypeview()
                 else:
-                    self.__gen_dlg('challenge',
-                                   self.mps.dbh.challenge_view(
-                                       self.__data.idmap[self.__data.active]))
-                    self.__dlgs.challenge.toggle_button(0, True, True)
+                    self.__show_challengedlg(0)
             else:
-                self.__gen_dlg('challenge',
-                               self.mps.dbh.challenge_view(
-                                   self.__data.idmap[self.__data.active]))
-                self.__dlgs.challenge.toggle_button(0, False, False)
+                self.__show_challengedlg()
             return
         if not self.__nodes.newview.hidden:
-            self.__gen_dlg('new', f'Select the number\nof rounds to play\n'
-                                  f'or {common.BACK_SYM} to go back.\n\n')
+            self.__show_newdlg()
             return
