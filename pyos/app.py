@@ -170,6 +170,7 @@ class AppBase(app.App):
         self.systems.stats.start_session()
         self.mps = MPSystems(mpctrl.MPControl(self.config),
                              mpdb.MPDBHandler(common.MPDATAFILE))
+        self.mps.ctrl.start_service()
         self.login()
         self.__last_orientation: str = None
         self.__setup_events_tasks()
