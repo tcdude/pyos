@@ -303,8 +303,8 @@ class Stats:
         res = self._session.query(Attempt).join(Game) \
             .filter(Game.seed == seed, Game.draw == draw,
                     Game.challenge == challenge) \
-                    .order_by(Attempt.last_move.desc()).all()
-        if not res:
+                    .order_by(Attempt.last_move.desc()).first()
+        if res is None:
             raise ValueError('Unable to find attempt to be changed.')
         res.points = points
         self._session.commit()
