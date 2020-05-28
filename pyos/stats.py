@@ -294,6 +294,21 @@ class Stats:
             return duration, moves, points, 0
         return None
 
+    def modify_result_points(self, seed: int, draw: int, challenge: int,
+                             points: int) -> None:
+        """
+        Used to modify points value after a game is solved, but cheating was
+        detected.
+        """
+        res = self._session.query(Attempt).join(Game) \
+            .filter(Game.seed == seed, Game.draw == draw,
+                    Game.challenge == challenge) \
+                    .order_by(Attempt.last_move.desc()).all()
+        if not res:
+            raise ValueError('Unable to find attempt to be changed.')
+        res.points = points
+        self._session.commit()
+
     def attempt_total(self, seed: int, draw: int, challenge: int,
                       gametype: int, current: bool) -> Union[int, float]:
         """Returns the previous made moves or duration for a challenge round."""

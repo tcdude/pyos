@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import os
 import random
 import traceback
-from typing import Tuple, Union
+from typing import Callable, Tuple, Union
 
 from loguru import logger
 import sdl2
@@ -280,13 +280,16 @@ class Game(app.AppBase):
         tbl = self.__systems.game_table
         if self.config.getboolean('pyos', 'waste_to_foundation',
                                   fallback=False):
-            meths = (tbl.tableau_to_foundation, tbl.waste_to_foundation,
-                     tbl.waste_to_tableau, tbl.draw)
+            meths = ((self.__foundation_move, tbl.tableau_to_foundation),
+                     (self.__foundation_move, tbl.waste_to_foundation),
+                     (tbl.waste_to_tableau, None), (tbl.draw, None))
         else:
-            meths = (tbl.tableau_to_foundation, tbl.waste_to_tableau,
-                     tbl.waste_to_foundation, tbl.draw)
-        for meth in meths:
-            if meth():
+            meths = ((self.__foundation_move, tbl.tableau_to_foundation),
+                     (tbl.waste_to_tableau, None),
+                     (self.__foundation_move, tbl.waste_to_foundation),
+                     (tbl.draw, None))
+        for meth, arg in meths:
+            if arg is None and meth() or meth(arg):
                 self.__state.last_auto = call_time
                 self.__update_attempt()
                 return
@@ -393,12 +396,16 @@ class Game(app.AppBase):
         for i, t_node in enumerate(self.__systems.layout.foundation):
             if t_node.aabb.overlap(self.__systems.layout.get_card(k).aabb):
                 if self.__state.drag_info.start_area == common.TableArea.WASTE:
-                    if self.__systems.game_table.waste_to_foundation(i):
+                    if self \
+                          .__foundation_move(self.__systems.game_table \
+                              .waste_to_foundation, i):
                         return True
                 elif self.__state.drag_info.start_area == common.TableArea \
                       .TABLEAU:
-                    if self.__systems.game_table.tableau_to_foundation(
-                            self.__state.drag_info.pile_id, i):
+                    if self.__foundation_move(self.__systems.game_table \
+                                              .tableau_to_foundation,
+                                              self.__state.drag_info.pile_id,
+                                              i):
                         return True
         return False
 
@@ -501,13 +508,15 @@ class Game(app.AppBase):
         if table_click[0] == common.TableArea.WASTE and tap_move:
             if self.config.getboolean(
                     'pyos', 'waste_to_foundation', fallback=False):
-                res = self.__systems.game_table.waste_to_foundation()
+                res = self.__foundation_move(self.__systems.game_table \
+                                             .waste_to_foundation)
                 if not res:
                     res = self.__systems.game_table.waste_to_tableau()
             else:
                 res = self.__systems.game_table.waste_to_tableau()
                 if not res:
-                    res = self.__systems.game_table.waste_to_foundation()
+                    res = self.__foundation_move(self.__systems.game_table \
+                                                 .waste_to_foundation)
             return res
         if table_click[0] == common.TableArea.FOUNDATION and tap_move:
             return self.__systems.game_table \
@@ -521,8 +530,9 @@ class Game(app.AppBase):
             if res:
                 logger.info('Flip tableau card')
                 return res
-            res = self.__systems.game_table \
-                    .tableau_to_foundation(table_click[1][0])
+            res = self.__foundation_move(self.__systems.game_table \
+                                         .tableau_to_foundation,
+                                         table_click[1][0])
             if res:
                 return res
         res = self.__systems.game_table \
@@ -572,7 +582,17 @@ class Game(app.AppBase):
                                        self.__systems.game_table.seed,
                                        keep=False)
         if self.state.challenge > -1 and not self.__state.fresh_state:
+            pts = self.__systems.game_table.result
+            pts = pts[1]
+            if self.state.foundation_moves > 55:
+                pts -= (self.state.foundation_moves - 55) * 10
+                pts = max(0, pts)
+                self.systems.stats \
+                    .modify_result_points(self.__systems.game_table.seed,
+                                          self.__systems.game_table.draw_count,
+                                          self.state.challenge, pts)
             self.__update_attempt(solved=True)
+            self.state.foundation_moves = 0
             try:
                 dur, moves, pts, _ = self.systems \
                     .stats.result(self.__systems.game_table.seed,
@@ -716,6 +736,7 @@ class Game(app.AppBase):
             dlg.hide()
             self.__setup()
         self.__systems.game_table.reset()
+        self.state.foundation_moves = 0
         self.__update_prev_value(self.__state.gametype)
         self.__state.refresh_next_frame = 2
         self.__state.first_move = True
@@ -741,6 +762,7 @@ class Game(app.AppBase):
                 self.__state.day_deal = False
                 self.state.daydeal = None
                 self.__state.first_move = True
+                self.state.foundation_moves = 0
             self.__update_prev_value(score)
             self.__systems.toolbar.toggle(False)
             self.__state.fresh_state = False
@@ -812,3 +834,9 @@ class Game(app.AppBase):
         for dlg in (self.__systems.windlg, self.__systems.suredlg):
             if dlg is not None and not dlg.hidden:
                 dlg.hide()
+
+    # Anti Cheat measures
+    def __foundation_move(self, meth: Callable, *args) -> bool:
+        if self.state.challenge > -1:
+            self.state.foundation_moves += 1
+        return meth(*args)

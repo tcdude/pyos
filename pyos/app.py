@@ -74,6 +74,7 @@ class State:
     challenge: int = -1
     layout_refresh: bool = False
     need_new_game: bool = True
+    foundation_moves: int = 0
 
     def load(self) -> None:
         """Attempts to load the state from disk."""
@@ -84,10 +85,19 @@ class State:
             logger.warning('State file does not exist')
             return
         try:
-            seed, draw, chg, ref, nng = struct.unpack('<Bii??', data)
+            seed, draw, chg, ref, nng = struct.unpack('<Bii??', data[:11])
         except struct.error as err:
             logger.error(f'Unable to unpack data {err}')
             return
+        # Added in 0.3.50 as cheat prevention
+        if len(data) > 11:
+            try:
+                foundation_moves = struct.unpack('<B', data[11:])
+            except struct.error as err:
+                logger.error(f'Unable to unpack data {err}')
+                return
+            else:
+                self.foundation_moves = foundation_moves[0]
         if seed == draw == 0:
             self.daydeal = None
         else:
@@ -101,12 +111,13 @@ class State:
         daydeal = self.daydeal or (0, 0)
         with open(self.statefile, 'wb') as fhandler:
             try:
-                fhandler.write(struct.pack('<Bii??', *daydeal, self.challenge,
+                fhandler.write(struct.pack('<Bii??B', *daydeal, self.challenge,
                                            self.layout_refresh,
-                                           self.need_new_game))
+                                           self.need_new_game,
+                                           self.foundation_moves))
             except struct.error as err:
                 data = (*daydeal, self.challenge, self.layout_refresh,
-                        self.need_new_game)
+                        self.need_new_game, self.foundation_moves)
                 logger.error(f'Unable to pack data={data} {err}')
 
 
