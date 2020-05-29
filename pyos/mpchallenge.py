@@ -575,10 +575,19 @@ class Challenges(app.AppBase):
     def __newroundcb(self, rescode: int) -> None:
         self.global_nodes.hide_status()
         if rescode:
+            res = self.systems.stats.current_attempt
             logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
             self.__nodes.gametypeview.hide()
-            self.__gen_dlg('error', f'Unable to start\nnew round\n\n'
-                                    f'Error:\n"{mpctrl.RESTXT[rescode]}"\n')
+            chid = self.__data.idmap[self.__data.active]
+            if res is not None and res[0].challenge == chid \
+                  and not res[1].solved:
+                self.__gen_dlg('error', f'Unable to start\nnew round, try\n'
+                                        f'going back to the\nmain menu and\n'
+                                        f'press the "Play"\nbutton to resend\n'
+                                        f'the result of\nthe last round\n')
+            else:
+                self.__gen_dlg('error', f'Unable to start\nnew round\n\n'
+                                        f'Error:\n"{mpctrl.RESTXT[rescode]}"\n')
             return
         self.__show_listview()
         self.state.challenge = self.__data.idmap[self.__data.active]

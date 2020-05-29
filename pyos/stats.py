@@ -209,6 +209,10 @@ class Stats:
             if res is None:
                 raise RuntimeError('No attempt created through new_attempt yet')
             if res.solved:
+                # No need to raise here, if it is just confirming solved
+                if 'solved' in kwargs and kwargs['solved'] \
+                      and 0 < len(kwargs) < 3:
+                    return
                 raise RuntimeError('Attempt already solved')
             self._active_attempt = res
         for k in kwargs:
