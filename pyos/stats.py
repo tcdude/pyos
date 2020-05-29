@@ -618,7 +618,8 @@ class Stats:
         res = self._session.query(Game.seed, Game.draw, Game.daydeal) \
             .join(Attempt, Attempt.game_id == Game.id) \
             .filter(Game.windeal == true(),
-                    Game.id.notin_(solved)).all()
+                    Game.id.notin_(solved),
+                    Game.challenge == -1).all()
         if not res:
             raise ValueError('No unsolved deals found')
         return random.choice(res)
