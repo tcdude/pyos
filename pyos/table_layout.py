@@ -58,6 +58,7 @@ class TableConfig:
 @dataclass
 class TableNodes:
     """Typed representation of table nodes."""
+    # pylint: disable=too-many-instance-attributes
     root: Type[node.Node]
     stack: Type[node.Node]
     waste: Type[node.Node]
@@ -65,6 +66,7 @@ class TableNodes:
     tableau: Type[node.Node]
     status: Type[node.Node]
     toolbar: Type[node.Node]
+    seed: Type[node.Node]
 
 
 @dataclass
@@ -163,8 +165,10 @@ class TableLayout:
             foundation=root.attach_node('Foundation Root'),
             tableau=root.attach_node('Tableau Root'),
             status=root.attach_node('Status'),
-            toolbar=root.attach_node('Toolbar')
+            toolbar=root.attach_node('Toolbar'),
+            seed=root.attach_node('Seed')
         )
+        self._nodes.seed.depth = 100
         self._children = ChildNodes(
             waste=[
                 self._nodes.waste.attach_image_node(
@@ -259,6 +263,11 @@ class TableLayout:
     def toolbar(self) -> Type[node.Node]:
         """Toolbar node of the layout."""
         return self._nodes.toolbar
+
+    @property
+    def seed(self) -> Type[node.Node]:
+        """Seed node of the layout."""
+        return self._nodes.seed
 
     @property
     def card_size(self) -> Tuple[float, float]:
@@ -405,8 +414,15 @@ class TableLayout:
         """
         if screen_size[0] < screen_size[1]:  # Portrait
             self._setup_portrait(screen_size, left_handed)
+            self._nodes.seed.x = 0
+            self._nodes.seed.y = -(self._cfg.toolbar_size[1]
+                                   + self._cfg.padding[1] / 2)
+            self._nodes.seed.origin = node.Origin.BOTTOM_CENTER
         else:  # Landscape
             self._setup_landscape(screen_size, left_handed)
+            self._nodes.seed.x = -self._cfg.padding[1] / 2
+            self._nodes.seed.y = -self._cfg.padding[1] / 2
+            self._nodes.seed.origin = node.Origin.BOTTOM_RIGHT
         prefix = ''
         if simple:
             prefix = 'l' if left_handed else 'r'

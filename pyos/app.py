@@ -16,6 +16,7 @@ import sdl2
 import plyer
 
 from foolysh import app
+from foolysh.scene import node
 from foolysh.scene.node import Origin
 from foolysh.ui import label
 
@@ -133,6 +134,7 @@ class GlobalNodes:
     """Holds globally accessible Nodes."""
     statuslbl: label.Label = None
     mpstatus: label.Label = None
+    seed: node.TextNode = None
 
     def show_status(self, text: str) -> None:
         """Show the statuslbl with the given text."""
@@ -147,6 +149,13 @@ class GlobalNodes:
         """Updates the mpstatus text."""
         self.mpstatus.text = text
         self.mpstatus.show()
+
+    def set_seed(self, seed: int) -> None:
+        """Sets the random seed."""
+        if self.seed is None:
+            logger.warning('Seed node not initialized yet')
+            return
+        self.seed.text = f'Deal {seed:010d}'
 
 
 class AppBase(app.App):

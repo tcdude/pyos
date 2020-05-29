@@ -12,6 +12,7 @@ from loguru import logger
 import sdl2
 from foolysh.animation import DepthInterval, BlendType, PosInterval, Sequence \
                               , RotationInterval
+from foolysh.scene.node import Origin
 from foolysh.tools.vec2 import Vec2
 
 import app
@@ -109,6 +110,12 @@ class Game(app.AppBase):
         self.global_nodes.mpstatus.hide()
         self.global_nodes.hide_status()
         self.__setup()
+        if self.global_nodes.seed is None:
+            self.__systems.layout.seed.reparent_to(self.ui.bottom_center)
+            self.global_nodes.seed = self.__systems.layout.seed \
+                .attach_text_node(text='', font_size=0.04,
+                                  font=self.config.get('font', 'bold'),
+                                  text_color=common.TITLE_TXT_COLOR)
         self.__state.fresh_state = True
         if self.state.challenge > 0:
             seed, draw, score = self.mps.dbh \
@@ -143,6 +150,8 @@ class Game(app.AppBase):
             self.__systems.hud.set_gametype()
         self.__systems.toolbar.toggle(not chg)
         logger.debug(f'{repr(self.__state)}')
+        self.global_nodes.set_seed(self.__systems.game_table.seed)
+        self.global_nodes.seed.show()
         common.lock_gamestate()
 
     def exit_game(self):
@@ -157,6 +166,7 @@ class Game(app.AppBase):
         self.__systems.toolbar.hide()
         self.__systems.game_table.pause()
         self.__save()
+        self.global_nodes.seed.hide()
         self.global_nodes.mpstatus.show()
 
     # Setup / Tear down
@@ -306,6 +316,11 @@ class Game(app.AppBase):
                                                                'left_handed'),
                                         self.config.getboolean('pyos',
                                                                'readability'))
+            self.global_nodes.seed.origin = self.__systems.layout.seed.origin
+            if self.__systems.layout.seed.origin == Origin.BOTTOM_RIGHT:
+                self.__systems.layout.seed.reparent_to(self.ui.bottom_right)
+            else:
+                self.__systems.layout.seed.reparent_to(self.ui.bottom_center)
             self.__state.refresh_next_frame = 2
             self.state.layout_refresh = False
         elif self.__state.refresh_next_frame > 0:
@@ -322,11 +337,13 @@ class Game(app.AppBase):
                                                                'left_handed'),
                                         self.config.getboolean('pyos',
                                                                'readability'))
+            self.global_nodes.seed.origin = self.__systems.layout.seed.origin
             self.__systems.layout.process(self.clock.get_dt())
             self.__systems.game_table.refresh_table()
             self.__state.refresh_next_frame = 2
             self.__systems.game_table.pause()
             self.__show_score()
+        self.global_nodes.seed.y = -self.global_nodes.seed.size[1]
 
     def __drag_cb(self, k) -> bool:
         """Callback on start drag of a card."""
@@ -804,6 +821,7 @@ class Game(app.AppBase):
             logger.debug('Started a regular deal')
         self.__state.refresh_next_frame = 2
         self.state.need_new_game = False
+        self.global_nodes.set_seed(self.__systems.game_table.seed)
 
     def __update_prev_value(self, gametype: int):
         """Update the previous attempt total depending on the game type."""
