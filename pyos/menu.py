@@ -3,6 +3,7 @@ Provides the different menus in the app.
 """
 
 from dataclasses import dataclass
+import os
 from typing import Tuple
 
 from foolysh.scene.node import Origin
@@ -69,6 +70,14 @@ class MainMenu(app.AppBase):
                                             font_size=0.06, font=fnt,
                                             text_color=common.TITLE_TXT_COLOR)
         tit.pos = -0.41, -0.3
+        verfile = os.path.join(self.config.get('base', 'asset_dir'),
+                               'other/VERSION')
+        with open(verfile, 'r') as fhandler:
+            version = fhandler.read().strip()
+        self.__ver = self.__frame \
+            .attach_text_node(text=f'v{version}', font_size=0.04, font=fnt,
+                              text_color=common.TITLE_TXT_COLOR)
+        self.__ver.pos = -0.1, 0.4
         self.__buttons: MenuButtons = None
         self.__pending_sync: int = 0
         self.__setup_menu_buttons()
@@ -104,6 +113,8 @@ class MainMenu(app.AppBase):
         self.__root.hide()
 
     def __enable_quit(self, rescode: int) -> None:
+        if self.__ver.size[0] > 0:
+            self.__ver.x = -self.__ver.size[0] / 2
         self.__buttons.quit.enabled = True
         self.__buttons.multiplayer.enabled = True
         if rescode:

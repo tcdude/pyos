@@ -20,6 +20,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+import os
+
 from distutils.core import setup
 from setuptools import find_packages
 
@@ -51,9 +53,14 @@ OPTIONS = {'apk': {'debug': None,
                    # --service=multiplayer:multiplayer.py
                    }}
 
+VERSION_FILE = os.path.join(os.path.split(__file__)[0],
+                            'pyos/assets/other/VERSION')
+with open(VERSION_FILE, 'r') as fhandler:
+    VERSION = fhandler.read().strip()
+
 setup(
     name='Simple Solitaire',
-    version='0.3.53',
+    version=VERSION,
     description='An ad free, simple solitaire game',
     author='tcdude',
     author_email='tizilogic@gmail.com',
