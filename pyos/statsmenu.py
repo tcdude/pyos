@@ -12,6 +12,7 @@ from loguru import logger
 import app
 import buttonlist
 import common
+from dialogue import Dialogue, DialogueButton
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = """
@@ -64,6 +65,17 @@ class StatsNodes:
     btnlist: buttonlist.ButtonList = None
 
 
+@dataclass
+class StatsDlg:
+    """Holds the different dialogue instances in the Statistics menu."""
+    unsolved: Dialogue = None
+
+    @property
+    def all(self) -> Tuple[Dialogue, ...]:
+        """Helper property to get all members."""
+        return (self.unsolved, )
+
+
 class Statistics(app.AppBase):
     """
     Statistics menu.
@@ -85,6 +97,7 @@ class Statistics(app.AppBase):
         tit.reparent_to(self.__nodes.frame)
         tit.origin = Origin.CENTER
         self.__data: StatsData = StatsData()
+        self.__dlgs: StatsDlg = StatsDlg()
         self.__setup()
         self.__nodes.root.hide()
 
@@ -102,6 +115,7 @@ class Statistics(app.AppBase):
     def exit_statistics(self):
         """Exit state -> Setup."""
         self.__nodes.root.hide()
+        self.__hide_dlgs()
 
     def __setup(self) -> None:
         fnt = self.config.get('font', 'bold')
@@ -169,12 +183,52 @@ class Statistics(app.AppBase):
             offset = maxlen - len(txt) - len(val)
             self.__data.data.append(f'{txt}: {" " * offset}{val}')
 
+    def __play_unsolved(self) -> None:
+        self.fsm_global_data['unsolved'] = self.systems.stats.unsolved_deal
+        self.request('game')
+
+    def __hide_dlgs(self) -> bool:
+        ret = False
+        for dlg in self.__dlgs.all:
+            if dlg is not None and not dlg.hidden:
+                dlg.hide()
+                ret = True
+        return ret
+
     def __back(self) -> None:
+        if self.__hide_dlgs():
+            return
         self.fsm_back()
+
+    def __gen_dlg(self, dlg: str, txt: str) -> None:
+        if dlg == 'unsolved':
+            if self.__dlgs.unsolved is None:
+                fnt = self.config.get('font', 'bold')
+                bkwa = common.get_dialogue_btn_kw(size=(0.28, 0.1))
+                buttons = [DialogueButton(text='Play', fmtkwargs=bkwa,
+                                          callback=self.__play_unsolved),
+                           DialogueButton(text='Back', fmtkwargs=bkwa,
+                                          callback=self.__hide_dlgs)]
+                dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
+                               size=(0.7, 0.7), font=fnt, align='center',
+                               frame_color=common.STATS_FRAME_COLOR,
+                               border_thickness=0.01,
+                               corner_radius=0.05, multi_sampling=2)
+                dlg.pos = -0.35, -0.35
+                dlg.reparent_to(self.ui.center)
+                dlg.depth = 1000
+                self.__dlgs.unsolved = dlg
+            else:
+                self.__dlgs.unsolved.text = txt
+                self.__dlgs.unsolved.show()
 
     def __filter(self, fltr: int) -> None:
         self.__data.fltr = fltr or 0
         self.__update_data()
 
     def __listclick(self, pos: int) -> None:
-        pass
+        if self.__data.fltr == 0 and pos == 1:  # Unsolved
+            if self.systems.stats.solved_ratio == 1:
+                return
+            self.__gen_dlg('unsolved', 'Do you want to\nplay a previously\n'
+                                       'unsolved deal?\n\n')

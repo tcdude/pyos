@@ -140,7 +140,9 @@ class Game(app.AppBase):
             self.__state.day_deal = True
         if not chg and (self.state.need_new_game
                         or self.systems.stats.first_launch
-                        or self.__state.day_deal):
+                        or self.__state.day_deal
+                        or ('unsolved' in self.fsm_global_data
+                            and self.fsm_global_data['unsolved'] is not None)):
             self.__new_deal()
         nng = self.__systems.game_table.stats[0] == 0
         nng = nng or self.__systems.game_table.win_condition
@@ -160,6 +162,7 @@ class Game(app.AppBase):
         """Tasks to be performed when this state is left."""
         logger.info('Exit state game')
         self.systems.stats.commit_attempt()
+        self.fsm_global_data['unsolved'] = None
         self.enable_connection_check()
         common.release_gamestate()
         self.__disable_all()
@@ -665,6 +668,7 @@ class Game(app.AppBase):
             txt += f'{chr(0xf01b)} Personal best\n'
         txt += '\n\n'
         self.__gen_dlg(txt)
+        self.fsm_global_data['unsolved'] = None
         if not self.__state.fresh_state:
             self.__win_animation()
             self.__update_attempt(solved=True, bonus=bonus)
@@ -803,6 +807,19 @@ class Game(app.AppBase):
             self.__systems.toolbar.toggle(True)
             self.__state.fresh_state = False
             logger.debug('Started a daydeal')
+        elif 'unsolved' in self.fsm_global_data \
+              and self.fsm_global_data['unsolved'] is not None:
+            seed, draw, daydeal = self.fsm_global_data['unsolved']
+            if self.__systems.game_table.seed != seed \
+                  or self.__systems.game_table.draw_count != draw \
+                  or self.__systems.game_table.stats[0] <= 0:
+                self.__systems.game_table.draw_count = draw
+                self.__systems.game_table.deal(seed)
+                self.systems.stats.new_deal(seed, draw, True, daydeal)
+                self.__state.first_move = True
+            self.__systems.toolbar.toggle(True)
+            self.__state.fresh_state = False
+            logger.debug('Started an unsolved deal')
         elif (self.__state.day_deal or self.state.challenge != -1) \
               and self.state.need_new_game:
             pass

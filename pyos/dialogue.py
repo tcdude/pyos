@@ -49,6 +49,8 @@ class Dialogue(label.Label):
     """Provides a dialogue with variable amounts of buttons."""
     def __init__(self, text: str, buttons: Tuple[DialogueButton, ...],
                  **kwargs) -> None:
+        if not buttons:
+            raise ValueError('At least one button must be specified')
         if text.find('\n') > -1:
             kwargs['multiline'] = True
         super().__init__(text=text, **kwargs)
@@ -76,13 +78,15 @@ class Dialogue(label.Label):
         self.dirty = True
 
     def _update(self):
-        btns = [i for i in self.__buttons if i.enabled and not i.hidden]
+        btns = [i for i in self.__buttons if not i.hidden]
         width = sum([i.size[0] for i in btns])
         margin = (width * 1.1 - width) / max(len(btns) - 1, 1)
-        width *= 1.1
-        pos_x = max(self.border_thickness, self.corner_radius)
-        pos_y = self.size[1] - pos_x * 1.1 - btns[0].size[1]
-        pos_x += (self.size[0] - width) / 2 - pos_x / 2
+        width = width + margin * (len(btns) - 1)
+        pos_x = self.size[0] / 2 - width / 2
+        # pos_x = max(self.border_thickness, self.corner_radius)
+        pos_y = self.size[1] - max(self.border_thickness, self.corner_radius)
+        pos_y -= btns[0].size[1]
+        # pos_x += (self.size[0] - width) / 2 - pos_x / 2
         for but in btns:
             but.pos = pos_x, pos_y
             pos_x += but.size[0] + margin

@@ -3,6 +3,7 @@ Data collection and preparation.
 """
 
 import datetime
+import random
 import time
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -606,6 +607,21 @@ class Stats:
         if self._session.query(Game).first():
             return False
         return True
+
+    @property
+    def unsolved_deal(self) -> Tuple[int, int, bool]:
+        """Returns a random unsolved deal (seed, draw, daydeal) if possible."""
+        solved = self._session.query(Game.id) \
+            .join(Attempt, Attempt.game_id == Game.id) \
+            .filter(Attempt.solved == true()) \
+            .group_by(Game.id)
+        res = self._session.query(Game.seed, Game.draw, Game.daydeal) \
+            .join(Attempt, Attempt.game_id == Game.id) \
+            .filter(Game.windeal == true(),
+                    Game.id.notin_(solved)).all()
+        if not res:
+            raise ValueError('No unsolved deals found')
+        return random.choice(res)
 
     @property
     def current_attempt(self) -> Union[Tuple[Game, Attempt], None]:
