@@ -144,6 +144,13 @@ class Communication(Base):
     exit_solver = Column(Boolean, default=False)
     exit_confirm = Column(Boolean, default=True)
     solver_running = Column(Boolean, default=False)
+
+
+class Solvable(Base):
+    """Holds all games that have been checked for solvability already."""
+    __tablename__ = 'solvable'
+    id = Column(Integer, primary_key=True)
+    game_id = Column(Integer)
 # pylint: enable=too-few-public-methods
 
 
@@ -529,6 +536,22 @@ class Stats:
         stat.last_update = attempt.last_move
         self._session.commit()
 
+    def delete_game(self, game_id: int) -> bool:
+        """Removes a game and all attempts made, if it is deemed unsolvable."""
+        self._session.query(Attempt).filter(Attempt.game_id == game_id).delete()
+        self._session.query(Game).filter(Game.id == game_id).delete()
+        self._session.commit()
+
+    def add_solvable(self, game_id: int) -> None:
+        """Adds the solvable entry for a proven game."""
+        if self._session.query(Solvable) \
+              .filter(Solvable.game_id == game_id).count() > 0:
+            return
+        sol = Solvable()
+        sol.game_id = game_id
+        self._session.add(sol)
+        self._session.commit()
+
     def _compute_winstreak(self, stat: Statistic) -> None:
         attempts = self._session \
             .query(Attempt.moves, Attempt.solved) \
@@ -618,14 +641,31 @@ class Stats:
             .group_by(Game.id)
         res = self._session.query(Game.seed, Game.draw, Game.daydeal) \
             .join(Attempt, Attempt.game_id == Game.id) \
+            .join(Solvable, Solvable.game_id == Game.id) \
             .filter(Game.windeal == true(),
                     Game.id.notin_(solved),
                     Game.challenge == -1,
-                    Attempt.moves > 0) \
-            .group_by(Game.seed, Game.draw, Game.daydeal).all()
+                    Attempt.moves > 0).all()
         if not res:
             raise ValueError('No unsolved deals found')
         return random.choice(res)
+
+    @property
+    def unsolved_deals(self) -> Tuple[int, int, bool]:
+        """Returns all unsolved deals (seed, draw, game_id)."""
+        solved = self._session.query(Game.id) \
+            .join(Attempt, Attempt.game_id == Game.id) \
+            .filter(Attempt.solved == true(),
+                    Game.challenge == -1) \
+            .group_by(Game.id)
+        solvable = self._session.query(Solvable.game_id)
+        res = self._session.query(Game.seed, Game.draw, Game.id) \
+            .join(Attempt, Attempt.game_id == Game.id) \
+            .filter(Game.windeal == true(), Game.id.notin_(solved),
+                    Game.id.notin_(solvable), Game.challenge == -1,
+                    Attempt.moves > 0) \
+            .group_by(Game.id).all()
+        return res
 
     @property
     def current_attempt(self) -> Union[Tuple[Game, Attempt], None]:

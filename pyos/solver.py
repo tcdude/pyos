@@ -66,6 +66,7 @@ class Solver:
                     if not common.gamestate_locked():
                         self.stats.update_statistics()
                         self.stats.clean_seeds()
+                        self._find_unsolvable()
                     time.sleep(0.1)
         except Exception as err:  # pylint: disable=broad-except
             logger.error(f'Unhandled exception in solver {err}\n'
@@ -73,6 +74,21 @@ class Solver:
         finally:
             self.stats.solver_running = False
             self.stats.exit_confirm = True
+
+    def _find_unsolvable(self) -> None:
+        deals = self.stats.unsolved_deals
+        if not deals:
+            return
+        logger.info(f'Verifying {len(deals)} for solvability')
+        for seed, draw, game_id in deals:
+            self.solitaire.draw_count = draw
+            self.solitaire.shuffle1(seed)
+            self.solitaire.reset_game()
+            if abs(self.solitaire.solve_fast(max_closed_count=MCC).value) == 1:
+                self.stats.add_solvable(game_id)
+            else:
+                logger.warning(f'Found unsolvable game seed={seed} draw={draw}')
+                self.stats.delete_game(game_id)
 
     def _generate_solution(self) -> bool:
         seed, draw_count, req = self.get_next()
