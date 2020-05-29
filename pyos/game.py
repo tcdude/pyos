@@ -545,6 +545,7 @@ class Game(app.AppBase):
     def __update_attempt(self, solved=False, bonus=0, duration_only=False):
         if self.__systems.game_table.is_paused and not solved:
             return
+        logger.debug(f'foundation_moves={self.state.foundation_moves}')
         mvs, tim, pts = self.__systems.game_table.stats
         undo, invalid = self.__systems.game_table.undo_invalid
         logger.debug(f'{repr(self.__state)}')
@@ -585,8 +586,11 @@ class Game(app.AppBase):
             pts = self.__systems.game_table.result
             pts = pts[1]
             if self.state.foundation_moves > 55:
-                pts -= (self.state.foundation_moves - 55) * 10
-                pts = max(0, pts)
+                ded = (self.state.foundation_moves - 55) * 20
+                logger.warning(f'Deducting points: foundation_moves='
+                               f'{self.state.foundation_moves} -> '
+                               f'{pts} - {ded}')
+                pts = max(0, pts - ded)
                 self.systems.stats \
                     .modify_result_points(self.__systems.game_table.seed,
                                           self.__systems.game_table.draw_count,
@@ -594,7 +598,7 @@ class Game(app.AppBase):
             self.__update_attempt(solved=True)
             self.state.foundation_moves = 0
             try:
-                dur, moves, pts, _ = self.systems \
+                dur, moves, unused_pts, _ = self.systems \
                     .stats.result(self.__systems.game_table.seed,
                                   self.__systems.game_table.draw_count, True,
                                   False, self.state.challenge)
@@ -837,6 +841,7 @@ class Game(app.AppBase):
 
     # Anti Cheat measures
     def __foundation_move(self, meth: Callable, *args) -> bool:
-        if self.state.challenge > -1:
+        res = meth(*args)
+        if self.state.challenge > -1 and res:
             self.state.foundation_moves += 1
-        return meth(*args)
+        return res

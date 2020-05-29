@@ -577,8 +577,8 @@ class Challenges(app.AppBase):
         if rescode:
             logger.warning(f'Request failed: {mpctrl.RESTXT[rescode]}')
             self.__nodes.gametypeview.hide()
-            self.__gen_dlg('error', f'Unable to start new round\n\n'
-                                    f'Error: "{mpctrl.RESTXT[rescode]}"')
+            self.__gen_dlg('error', f'Unable to start\nnew round\n\n'
+                                    f'Error:\n"{mpctrl.RESTXT[rescode]}"\n')
             return
         self.__show_listview()
         self.state.challenge = self.__data.idmap[self.__data.active]
