@@ -149,10 +149,12 @@ class Game(app.AppBase):
         if not chg:
             self.__systems.hud.set_gametype()
         self.__systems.toolbar.toggle(not chg)
-        logger.debug(f'{repr(self.__state)}')
+        self.__systems.toolbar.toggle_order(
+            self.config.getboolean('pyos', 'left_handed', fallback=False))
         self.global_nodes.set_seed(self.__systems.game_table.seed)
         self.global_nodes.seed.show()
         common.lock_gamestate()
+        logger.debug(f'{repr(self.__state)}')
 
     def exit_game(self):
         """Tasks to be performed when this state is left."""

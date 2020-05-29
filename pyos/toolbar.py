@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Callable, Tuple, Type, Union
 
 from foolysh.scene import node
+from foolysh.tools import vec2
 from foolysh.ui import frame, button
 
 import common
@@ -47,6 +48,16 @@ class ToolBarButtons:
     giveup: button.Button
 
 
+@dataclass
+class ButtonPos:
+    """The positions for switching right and left handed play."""
+    new: vec2.Vec2
+    reset: vec2.Vec2
+    undo: vec2.Vec2
+    menu: vec2.Vec2
+    giveup: vec2.Vec2
+
+
 class ToolBar:
     """Class for holding the ToolBar."""
     def __init__(self, parent: Type[node.Node], size: Tuple[float, float],
@@ -62,6 +73,7 @@ class ToolBar:
         self._frame.reparent_to(parent)
         self._frame.pos = -size[0] / 2, -size[1] * 1.1
         self._buttons: Union[None, ToolBarButtons] = None
+        self._pad: float = 0.0
         self._setup_buttons(size, border, radius, font, callbacks)
 
     def hide(self):
@@ -80,6 +92,33 @@ class ToolBar:
         else:
             self._buttons.giveup.show()
             self._buttons.new.hide()
+
+    def toggle_order(self, left_handed: bool = False) -> None:
+        """Toggle the order of the buttons, depending on the handedness."""
+        if left_handed and self._buttons.menu.x < self._buttons.new.x:
+            return
+        if not left_handed and self._buttons.menu.x > self._buttons.new.x:
+            return
+        if left_handed:
+            self._buttons.menu.pos = self._buttons.new.pos
+            self._buttons.undo.pos = (self._buttons.menu,
+                                      self._buttons.menu.size[0] + self._pad, 0)
+            self._buttons.reset.pos = (self._buttons.undo,
+                                       self._buttons.undo.size[0] + self._pad,
+                                       0)
+            self._buttons.new.pos = (self._buttons.reset,
+                                     self._buttons.reset.size[0] + self._pad, 0)
+        else:
+            self._buttons.new.pos = self._buttons.menu.pos
+            self._buttons.reset.pos = (self._buttons.new,
+                                       self._buttons.new.size[0] + self._pad,
+                                       0)
+            self._buttons.undo.pos = (self._buttons.reset,
+                                      self._buttons.reset.size[0] + self._pad,
+                                      0)
+            self._buttons.menu.pos = (self._buttons.undo,
+                                      self._buttons.undo.size[0] + self._pad, 0)
+        self._buttons.giveup.pos = self._buttons.new.pos
 
     def _setup_buttons(self, size, border, radius, font, callbacks):
         # pylint: disable=too-many-arguments,too-many-locals
@@ -128,3 +167,4 @@ class ToolBar:
         menu.onclick(callbacks[3])
         menu.pos = offset, (size[1] - height) / 2
         self._buttons = ToolBarButtons(newb, reset, undo, menu, giveup)
+        self._pad = reset.x - newb.x - newb.size[0]
