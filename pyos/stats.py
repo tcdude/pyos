@@ -174,13 +174,13 @@ class Stats:
                     Game.windeal == windeal, Game.daydeal == daydeal,
                     Game.challenge == challenge).first()
         if res is not None:
-            logger.debug(f'existing deal {res.id}')
+            logger.info(f'Existing deal {res.id}')
             return res.id
         game = Game(seed=seed, draw=draw, windeal=windeal, daydeal=daydeal,
                     challenge=challenge)
         self._session.add(game)
         self._session.commit()
-        logger.debug(f'new deal {game.id}')
+        logger.info(f'New deal {game.id}')
         return game.id
 
     def new_attempt(self, seed: int, draw: int, windeal: bool,
@@ -613,13 +613,16 @@ class Stats:
         """Returns a random unsolved deal (seed, draw, daydeal) if possible."""
         solved = self._session.query(Game.id) \
             .join(Attempt, Attempt.game_id == Game.id) \
-            .filter(Attempt.solved == true()) \
+            .filter(Attempt.solved == true(),
+                    Game.challenge == -1) \
             .group_by(Game.id)
         res = self._session.query(Game.seed, Game.draw, Game.daydeal) \
             .join(Attempt, Attempt.game_id == Game.id) \
             .filter(Game.windeal == true(),
                     Game.id.notin_(solved),
-                    Game.challenge == -1).all()
+                    Game.challenge == -1,
+                    Attempt.moves > 0) \
+            .group_by(Game.seed, Game.draw, Game.daydeal).all()
         if not res:
             raise ValueError('No unsolved deals found')
         return random.choice(res)

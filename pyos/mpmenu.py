@@ -103,7 +103,7 @@ class MultiplayerMenu(app.AppBase):
             if 'dlg_shown' not in self.fsm_data and self.mps.ctrl.noaccount:
                 self.__gen_dlg(NOACCTXT)
                 self.fsm_data['dlg_shown'] = True
-            elif self.mps.login > 0:
+            elif self.mps.login > 0 and not self.mps.ctrl.noaccount:
                 self.__gen_dlg(f'Unable to connect\n\n'
                                f'{mpctrl.RESTXT[self.mps.login]}\n\n\n')
             self.__buttons.challenges.enabled = False

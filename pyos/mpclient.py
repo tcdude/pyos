@@ -89,6 +89,7 @@ class MultiplayerClient:
 
     def connect(self) -> bool:
         """Attempts to connect to the server."""
+        self.cfg.reload()
         username = self.cfg.get('mp', 'user')
         if not username:
             logger.warning('No username set in config')
