@@ -8,10 +8,16 @@ import sys
 
 from loguru import logger
 import plyer
+try:
+    import android  # pylint: disable=unused-import
+    from jnius import autoclass
+except ImportError:
+    pass
 
 import common
 import daydeal
 import menu
+from mpctrl import Request
 import mpmenu
 import mpchallenge
 import mpfriends
@@ -81,6 +87,33 @@ def verify_config(cfg: configparser.ConfigParser, cfg_file: str):
     cfg.write(open(cfg_file, 'w'))
 
 
+def start_mpservice():
+    """Preemptively start the multiplayer service on android."""
+    port_file = common.UDS
+    if os.path.exists(port_file):
+        with open(port_file, 'r') as fhandler:
+            try:
+                port = int(fhandler.read())
+            except ValueError:
+                pass
+            else:
+                try:
+                    _ = Request(0, port, None, {})
+                except (NameError, FileNotFoundError, ConnectionRefusedError,
+                        BrokenPipeError, ConnectionResetError):
+                    pass
+                else:
+                    return
+        os.unlink(port_file)
+    if 'autoclass' in globals():
+        logger.info('Starting Android Service multiplayer')
+        service = autoclass('com.tizilogic.pyos.ServiceMultiplayer')
+        # pylint: disable=invalid-name
+        mActivity = autoclass('org.kivy.android.PythonActivity').mActivity
+        # pylint: enable=invalid-name
+        service.start(mActivity, '')
+
+
 def main(cfg_file):
     """Launches the app."""
     cfg_file = os.path.join(plyer.storagepath.get_application_dir(), cfg_file)
@@ -96,6 +129,7 @@ def main(cfg_file):
     logger.add(sys.stderr, level=cfg.get('pyos', 'log_level'))
     common.release_gamestate()
     logger.info('pyos starting')
+    start_mpservice()
     pyos = PyOS(config_file=cfg_file)
     logger.debug('Request state main_menu')
     pyos.request('main_menu')
