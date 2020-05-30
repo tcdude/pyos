@@ -87,14 +87,14 @@ class Statistics(app.AppBase):
         self.__nodes.frame = frame \
             .Frame('statistics background', size=(0.9, 0.9),
                    frame_color=common.STATS_FRAME_COLOR, border_thickness=0.01,
-                   corner_radius=0.05, multi_sampling=2)
-        self.__nodes.frame.reparent_to(self.__nodes.root)
+                   corner_radius=0.05, multi_sampling=2,
+                   parent=self.__nodes.root)
         self.__nodes.frame.origin = Origin.CENTER
         fnt = self.config.get('font', 'bold')
         tit = label.Label(text='Statistics', align='center', size=(0.8, 0.1),
                           pos=(0, -0.4), font_size=0.06, font=fnt,
-                          text_color=common.TITLE_TXT_COLOR, alpha=0)
-        tit.reparent_to(self.__nodes.frame)
+                          text_color=common.TITLE_TXT_COLOR, alpha=0,
+                          parent=self.__nodes.frame)
         tit.origin = Origin.CENTER
         self.__data: StatsData = StatsData()
         self.__dlgs: StatsDlg = StatsDlg()
@@ -129,9 +129,9 @@ class Statistics(app.AppBase):
         self.__nodes.back = button.Button(name='back button',
                                           pos=(0, -0.38),
                                           text=common.BACK_SYM,
+                                          parent=self.__nodes.frame,
                                           **kwargs)
         self.__nodes.back.origin = Origin.CENTER
-        self.__nodes.back.reparent_to(self.__nodes.frame)
         self.__nodes.back.onclick(self.__back)
 
     def __update_data(self) -> None:
@@ -212,10 +212,9 @@ class Statistics(app.AppBase):
                 dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
                                size=(0.7, 0.7), font=fnt, align='center',
                                frame_color=common.STATS_FRAME_COLOR,
-                               border_thickness=0.01,
+                               border_thickness=0.01, parent=self.ui.center,
                                corner_radius=0.05, multi_sampling=2)
                 dlg.pos = -0.35, -0.35
-                dlg.reparent_to(self.ui.center)
                 dlg.depth = 1000
                 self.__dlgs.unsolved = dlg
             else:

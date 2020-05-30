@@ -168,14 +168,13 @@ class AppBase(app.App):
         super().__init__(config_file=config_file)
         self.global_nodes = GlobalNodes()
         self.global_nodes.statuslbl = label \
-            .Label(text='', **common.STATUS_TXT_KW)
-        self.global_nodes.statuslbl.reparent_to(self.ui.top_center)
+            .Label(text='', parent=self.ui.top_center, **common.STATUS_TXT_KW)
         self.global_nodes.statuslbl.origin = Origin.CENTER
         self.global_nodes.statuslbl.depth = 2000
         self.global_nodes.statuslbl.hide()
         self.global_nodes.mpstatus = label \
-            .Label(text='Not logged in', **common.MPSTATUS_TXT_KW)
-        self.global_nodes.mpstatus.reparent_to(self.ui.bottom_center)
+            .Label(text='Not logged in', parent=self.ui.bottom_center,
+                   **common.MPSTATUS_TXT_KW)
         self.global_nodes.mpstatus.origin = Origin.CENTER
         self.global_nodes.mpstatus.depth = 2000
 

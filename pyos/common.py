@@ -332,13 +332,13 @@ def gen_btnlist(item_font: str, filter_font: str, data: List[str],
     fkwargs['size'] = 0.25, 0.08
     fkwargs['font'] = filter_font
     fkwargs['border_color'] = (200, ) * 3
-    return buttonlist.ButtonList(data, cbs[0], itpp, kwargs, parent, filters,
+    return buttonlist.ButtonList(data, cbs[0], itpp, kwargs, filters,
                                  cbs[1], fkwargs, (0, 50, 0), size=size,
                                  item_font_ratio=item_font_ratio,
                                  frame_color=BTNLIST_FRAME_COLOR,
                                  border_color=BTNLIST_BORDER_COLOR,
                                  border_thickness=0.005, corner_radius=0.03,
-                                 multi_sampling=2)
+                                 multi_sampling=2, parent=parent)
 
 
 # Helper functions

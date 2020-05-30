@@ -89,19 +89,17 @@ class ButtonList(frame.Frame):
         **kwargs: Keyword arguments passed on to `foolysh.ui.frame.Frame`.
     """
     def __init__(self, data: List[str], onclick: Callable, itpp: int,
-                 button_kwargs: Dict[str, Any], parent: uinode.UINode = None,
-                 filters: List[str] = None, filtercb: Callable = None,
+                 button_kwargs: Dict[str, Any], filters: List[str] = None,
+                 filtercb: Callable = None,
                  filter_kwargs: Dict[str, Any] = None,
                  filter_active: Tuple[int, int, int] = (240, ) * 3,
-                 item_font_ratio: int = 0.43, **kwargs) -> None:
+                 item_font_ratio: float = 0.43, **kwargs) -> None:
         # pylint: disable=too-many-arguments
         super().__init__(**kwargs)
         if filters and filtercb is None:
             raise ValueError('Expected filtercb when filters are specified.')
         if isinstance(filters, list) and len(filters) == 1:
             raise ValueError('Argument filters cannot be of length 1.')
-        if parent:
-            self.reparent_to(parent)
         if filters and filter_kwargs is None:
             filter_kwargs = {}
             filter_kwargs.update(button_kwargs)
@@ -167,8 +165,7 @@ class ButtonList(frame.Frame):
                 txt = self._data.data[i]
             else:
                 txt = ''
-            btn = button.Button(text=txt, **btn_kw)
-            btn.reparent_to(self)
+            btn = button.Button(text=txt, parent=self, **btn_kw)
             j = i + offset
             btn.pos = (btn_width / -2,
                        height / -2 + margin + j * btn_height + j * spacing)
@@ -186,8 +183,7 @@ class ButtonList(frame.Frame):
         btn_kw['align'] = 'center'
         btn_kw['font_size'] = btn_height * 0.42
         for i, value in enumerate(self._data.filters):
-            btn = button.Button(text=value, **btn_kw)
-            btn.reparent_to(self)
+            btn = button.Button(text=value, parent=self, **btn_kw)
             btn.pos = pos_x, pos_y
             btn.onclick(self._filtercb_redirect, i)
             self._layout.filter_buttons.append(btn)
@@ -200,13 +196,11 @@ class ButtonList(frame.Frame):
         btn_kw['align'] = 'center'
         btn_kw['size'] = btn_width / 3.5, btn_height
         btn_kw['font_size'] = btn_height * 0.5
-        btn = button.Button(text=chr(0xf0d9), **btn_kw)
-        btn.reparent_to(self)
+        btn = button.Button(text=chr(0xf0d9), parent=self, **btn_kw)
         btn.pos = btn_width / -2, pos_y
         btn.onclick(self._change_page, -1)
         self._layout.buttons.append(btn)
-        btn = button.Button(text=chr(0xf0da), **btn_kw)
-        btn.reparent_to(self)
+        btn = button.Button(text=chr(0xf0da), parent=self, **btn_kw)
         btn.pos = btn_width / 2 - btn_kw['size'][0], pos_y
         btn.onclick(self._change_page, 1)
         self._layout.buttons.append(btn)
@@ -215,8 +209,7 @@ class ButtonList(frame.Frame):
             if k.startswith(('down_', 'disabled_')):
                 continue
             lbl_kw[k] = btn_kw[k]
-        self._layout.page_label = label.Label(text='', **lbl_kw)
-        self._layout.page_label.reparent_to(self)
+        self._layout.page_label = label.Label(text='', parent=self, **lbl_kw)
         self._layout.page_label.pos = btn_kw['size'][0] / -2, pos_y
 
     def update_content(self, reset_page: bool = False) -> None:

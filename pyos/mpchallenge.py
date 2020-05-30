@@ -103,38 +103,36 @@ class Challenges(app.AppBase):
         _frame = frame.Frame('challenges background', size=(0.9, 0.9),
                              frame_color=common.CHALLENGES_FRAME_COLOR,
                              border_thickness=0.01, corner_radius=0.05,
-                             multi_sampling=2)
-        _frame.reparent_to(root)
+                             multi_sampling=2, parent=root)
         _frame.origin = Origin.CENTER
         fnt = self.config.get('font', 'bold')
         listview = _frame.attach_node('MP Challenges listview')
         tit = label.Label(text='Challenges', align='center', size=(0.8, 0.1),
-                          pos=(0, -0.4), font_size=0.06, font=fnt,
-                          text_color=common.TITLE_TXT_COLOR, alpha=0)
-        tit.reparent_to(listview)
+                          pos=(0, -0.4), font_size=0.06, font=fnt, alpha=0,
+                          text_color=common.TITLE_TXT_COLOR, parent=listview)
         tit.origin = Origin.CENTER
 
         newview = _frame.attach_node('MP Challenges newview')
         tit = label.Label(text='Start Challenge', align='center', font=fnt,
                           size=(0.8, 0.1), pos=(0, -0.4), font_size=0.06,
-                          text_color=common.TITLE_TXT_COLOR, alpha=0)
-        tit.reparent_to(newview)
+                          text_color=common.TITLE_TXT_COLOR, alpha=0,
+                          parent=newview)
         tit.origin = Origin.CENTER
         newview.hide()
 
         challengeview = _frame.attach_node('MP Challenges challengeview')
         chtit = label.Label(text='', align='center', size=(0.8, 0.1),
                             pos=(0, -0.4), font_size=0.06, font=fnt,
-                            text_color=common.TITLE_TXT_COLOR, alpha=0)
-        chtit.reparent_to(challengeview)
+                            text_color=common.TITLE_TXT_COLOR, alpha=0,
+                            parent=challengeview)
         chtit.origin = Origin.CENTER
         challengeview.hide()
 
         gametypeview = _frame.attach_node('MP Challenges gametypeview')
         gttit = label.Label(text='', align='center', size=(0.8, 0.1),
-                            pos=(0, -0.4), font_size=0.06, font=fnt,
-                            text_color=common.TITLE_TXT_COLOR, alpha=0)
-        gttit.reparent_to(gametypeview)
+                            pos=(0, -0.4), font_size=0.06, font=fnt, alpha=0,
+                            text_color=common.TITLE_TXT_COLOR,
+                            parent=gametypeview)
         gttit.origin = Origin.CENTER
         gametypeview.hide()
 
@@ -268,10 +266,9 @@ class Challenges(app.AppBase):
                 dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
                                size=(0.7, 0.7), font=fnt, align='center',
                                frame_color=common.CHALLENGES_FRAME_COLOR,
-                               border_thickness=0.01,
+                               border_thickness=0.01, parent=self.ui.center,
                                corner_radius=0.05, multi_sampling=2)
                 dlg.pos = -0.35, -0.35
-                dlg.reparent_to(self.ui.center)
                 dlg.depth = 1000
                 self.__dlgs.newchallenge = dlg
             else:
@@ -286,10 +283,9 @@ class Challenges(app.AppBase):
                 dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
                                size=(0.7, 0.7), font=fnt, align='center',
                                frame_color=common.CHALLENGES_FRAME_COLOR,
-                               border_thickness=0.01,
+                               border_thickness=0.01, parent=self.ui.center,
                                corner_radius=0.05, multi_sampling=2)
                 dlg.pos = -0.35, -0.35
-                dlg.reparent_to(self.ui.center)
                 dlg.depth = 1000
                 self.__dlgs.error = dlg
             else:
@@ -311,9 +307,9 @@ class Challenges(app.AppBase):
                                size=(0.7, 0.9), font=fnt, align='center',
                                frame_color=common.CHALLENGES_FRAME_COLOR,
                                border_thickness=0.01, font_size=0.035,
-                               corner_radius=0.05, multi_sampling=2)
+                               corner_radius=0.05, multi_sampling=2,
+                               parent=self.ui.center)
                 dlg.pos = -0.35, -0.45
-                dlg.reparent_to(self.ui.center)
                 dlg.depth = 1000
                 self.__dlgs.challenge = dlg
             else:
@@ -348,9 +344,9 @@ class Challenges(app.AppBase):
         # always visible
         kwargs = common.get_menu_sym_btn_kw()
         self.__nodes.back = button.Button(name='back button', pos=(0, -0.38),
-                                          text=common.BACK_SYM, **kwargs)
+                                          text=common.BACK_SYM,
+                                          parent=self.__nodes.frame, **kwargs)
         self.__nodes.back.origin = Origin.CENTER
-        self.__nodes.back.reparent_to(self.__nodes.frame)
         self.__nodes.back.onclick(self.__back)
 
         # listview
@@ -361,9 +357,9 @@ class Challenges(app.AppBase):
                          self.__nodes.listview, ['My Turn', 'Waiting',
                                                  'Finished'])
         self.__nodes.new = button.Button(name='new button', pos=(0, 0.38),
-                                         text=common.NEW_SYM, **kwargs)
+                                         text=common.NEW_SYM,
+                                         parent=self.__nodes.listview, **kwargs)
         self.__nodes.new.origin = Origin.CENTER
-        self.__nodes.new.reparent_to(self.__nodes.listview)
         self.__nodes.new.onclick(self.__new_challenge)
 
         self.__setup_newview()
@@ -380,7 +376,8 @@ class Challenges(app.AppBase):
 
     def __setup_gametypeview(self):
         # gametypeview
-        self.__nodes.gametypetxt = self.__nodes.gametypeview \
+        parent = self.__nodes.gametypeview
+        self.__nodes.gametypetxt = parent \
             .attach_text_node(text='Choose the game type\nfor the round:\n\n',
                               text_color=common.TITLE_TXT_COLOR, align='center',
                               font=self.config.get('font', 'bold'),
@@ -388,7 +385,7 @@ class Challenges(app.AppBase):
         self.__nodes.gametypetxt.origin = Origin.CENTER
         self.__nodes.gametypetxt.pos = 0, -0.2
 
-        lbl = self.__nodes.gametypeview \
+        lbl = parent \
             .attach_text_node(text='Draw count:',
                               text_color=common.TITLE_TXT_COLOR,
                               font=self.config.get('font', 'bold'),
@@ -397,12 +394,11 @@ class Challenges(app.AppBase):
         lbl.origin = Origin.CENTER
 
         self.__nodes.gametypedraw = button \
-            .Button(text='One', pos=(-0.125, -0.05),
+            .Button(text='One', pos=(-0.125, -0.05), parent=parent,
                     **common.get_dialogue_btn_kw(size=(0.25, 0.1)))
-        self.__nodes.gametypedraw.reparent_to(self.__nodes.gametypeview)
         self.__nodes.gametypedraw.onclick(self.__toggle_gt, 'draw')
 
-        lbl = self.__nodes.gametypeview \
+        lbl = parent \
             .attach_text_node(text='Score type:',
                               text_color=common.TITLE_TXT_COLOR,
                               font=self.config.get('font', 'bold'),
@@ -411,34 +407,29 @@ class Challenges(app.AppBase):
         lbl.origin = Origin.CENTER
         self.__nodes.gametypescore = []
         btn = button \
-            .Button(text='Fastest', pos=(-0.4, 0.175),
+            .Button(text='Fastest', pos=(-0.4, 0.175), parent=parent,
                     **common.get_dialogue_btn_kw(size=(0.25, 0.1)))
-        btn.reparent_to(self.__nodes.gametypeview)
         btn.onclick(self.__toggle_gt, 'score', 0)
         self.__nodes.gametypescore.append(btn)
         btn = button \
-            .Button(text='Moves', pos=(-0.125, 0.175),
+            .Button(text='Moves', pos=(-0.125, 0.175), parent=parent,
                     **common.get_dialogue_btn_kw(size=(0.25, 0.1)))
-        btn.reparent_to(self.__nodes.gametypeview)
         btn.onclick(self.__toggle_gt, 'score', 1)
         self.__nodes.gametypescore.append(btn)
         btn = button \
-            .Button(text='Points', pos=(0.15, 0.175),
+            .Button(text='Points', pos=(0.15, 0.175), parent=parent,
                     **common.get_dialogue_btn_kw(size=(0.25, 0.1)))
-        btn.reparent_to(self.__nodes.gametypeview)
         btn.onclick(self.__toggle_gt, 'score', 2)
         self.__nodes.gametypescore.append(btn)
 
         self.__nodes.gametypestart = button \
-            .Button(text='Start', pos=(-0.255, 0.3),
+            .Button(text='Start', pos=(-0.255, 0.3), parent=parent,
                     **common.get_dialogue_btn_kw(size=(0.25, 0.1)))
-        self.__nodes.gametypestart.reparent_to(self.__nodes.gametypeview)
         self.__nodes.gametypestart.onclick(self.__newround)
 
         self.__nodes.gametypereject = button \
-            .Button(text='Reject', pos=(0.005, 0.3),
+            .Button(text='Reject', pos=(0.005, 0.3), parent=parent,
                     **common.get_dialogue_btn_kw(size=(0.25, 0.1)))
-        self.__nodes.gametypereject.reparent_to(self.__nodes.gametypeview)
         self.__nodes.gametypereject.onclick(self.__reject_challenge)
 
     def __back(self):

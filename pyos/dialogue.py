@@ -58,14 +58,13 @@ class Dialogue(label.Label):
         for dbut in buttons:
             if dbut.fmtkwargs is None:
                 dbut.fmtkwargs = {}
-            but = button.Button(text=dbut.text, **dbut.fmtkwargs)
+            but = button.Button(text=dbut.text, parent=self, **dbut.fmtkwargs)
             if dbut.callback is not None:
                 if dbut.cbkwargs is None:
                     dbut.cbkwargs = {}
                 but.onclick(dbut.callback, *dbut.cbargs, **dbut.cbkwargs)
             else:
                 Warning('Added a button to the Dialogue without callback!')
-            but.reparent_to(self)
             self.__buttons.append(but)
 
     def toggle_button(self, index: int, enabled: bool, visible: bool) -> None:

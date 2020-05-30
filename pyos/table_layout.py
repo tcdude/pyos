@@ -193,8 +193,8 @@ class TableLayout:
         )
 
         # Background
-        background = node.ImageNode('Table BG', common.BACKGROUND, True)
-        background.reparent_to(self._nodes.root)
+        background = node.ImageNode('Table BG', common.BACKGROUND, True,
+                                    parent=self._nodes.root)
         background.depth = -500
         self._v_offset = (0.0, self._cfg.card_size[1] / 3)
 

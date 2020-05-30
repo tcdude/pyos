@@ -91,28 +91,24 @@ class Friends(app.AppBase):
         _frame = frame.Frame('friends background', size=(0.9, 0.9),
                              frame_color=common.FRIENDS_FRAME_COLOR,
                              border_thickness=0.01, corner_radius=0.05,
-                             multi_sampling=2)
-        _frame.reparent_to(root)
+                             multi_sampling=2, parent=root)
         _frame.origin = Origin.CENTER
         listview = _frame.attach_node('MP Friends listview')
         fnt = self.config.get('font', 'bold')
         tit = label.Label(text='Friends', align='center', size=(0.8, 0.1),
-                          pos=(0, -0.4), font_size=0.06, font=fnt,
-                          text_color=common.FRIENDS_TXT_COLOR, alpha=0)
-        tit.reparent_to(listview)
+                          pos=(0, -0.4), font_size=0.06, font=fnt, alpha=0,
+                          text_color=common.FRIENDS_TXT_COLOR, parent=listview)
         tit.origin = Origin.CENTER
         newview = _frame.attach_node('MP Friends newview')
         tit = label.Label(text='New Friend', align='center', size=(0.8, 0.1),
-                          pos=(0, -0.4), font_size=0.06, font=fnt,
-                          text_color=common.FRIENDS_TXT_COLOR, alpha=0)
-        tit.reparent_to(newview)
+                          pos=(0, -0.4), font_size=0.06, font=fnt, alpha=0,
+                          text_color=common.FRIENDS_TXT_COLOR, parent=newview)
         tit.origin = Origin.CENTER
         newview.hide()
         userview = _frame.attach_node('MP Friends userview')
         tit = label.Label(text='Username', align='center', size=(0.8, 0.1),
-                          pos=(0, -0.4), font_size=0.06, font=fnt,
-                          text_color=common.FRIENDS_TXT_COLOR, alpha=0)
-        tit.reparent_to(userview)
+                          pos=(0, -0.4), font_size=0.06, font=fnt, alpha=0,
+                          text_color=common.FRIENDS_TXT_COLOR, parent=userview)
         tit.origin = Origin.CENTER
         userview.hide()
         self.__nodes = FriendsNodes(root, _frame, listview, newview, userview,
@@ -163,10 +159,9 @@ class Friends(app.AppBase):
                 dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
                                size=(0.7, 0.7), font=fnt, align='center',
                                frame_color=common.FRIENDS_FRAME_COLOR,
-                               border_thickness=0.01,
+                               border_thickness=0.01, parent=self.ui.center,
                                corner_radius=0.05, multi_sampling=2)
                 dlg.pos = -0.35, -0.35
-                dlg.reparent_to(self.ui.center)
                 dlg.depth = 1000
                 self.__dlgs.replyrequest = dlg
             else:
@@ -183,10 +178,9 @@ class Friends(app.AppBase):
                 dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
                                size=(0.7, 0.7), font=fnt, align='center',
                                frame_color=common.FRIENDS_FRAME_COLOR,
-                               border_thickness=0.01,
+                               border_thickness=0.01, parent=self.ui.center,
                                corner_radius=0.05, multi_sampling=2)
                 dlg.pos = -0.35, -0.35
-                dlg.reparent_to(self.ui.center)
                 dlg.depth = 1000
                 self.__dlgs.removerequest = dlg
             else:
@@ -207,10 +201,9 @@ class Friends(app.AppBase):
                 dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
                                size=(0.7, 0.7), font=fnt, align='center',
                                frame_color=common.FRIENDS_FRAME_COLOR,
-                               border_thickness=0.01,
+                               border_thickness=0.01, parent=self.ui.center,
                                corner_radius=0.05, multi_sampling=2)
                 dlg.pos = -0.35, -0.35
-                dlg.reparent_to(self.ui.center)
                 dlg.depth = 1000
                 self.__dlgs.unblockrequest = dlg
             else:
@@ -330,18 +323,16 @@ class Friends(app.AppBase):
         self.__nodes.btnlist.pos = 0, 0
         kwargs = common.get_menu_sym_btn_kw(text_color=common.FRIENDS_TXT_COLOR)
         self.__nodes.new = button.Button(name='new button', pos=(0, 0.38),
-                                         text=common.NEW_SYM, **kwargs)
+                                         text=common.NEW_SYM,
+                                         parent=self.__nodes.listview, **kwargs)
         self.__nodes.new.origin = Origin.CENTER
-        self.__nodes.new.reparent_to(self.__nodes.listview)
         self.__nodes.new.onclick(self.__new_friend)
 
         # always visible
-        self.__nodes.back = button.Button(name='back button',
-                                          pos=(0, -0.38),
+        self.__nodes.back = button.Button(name='back button', pos=(0, -0.38),
                                           text=common.BACK_SYM,
-                                          **kwargs)
+                                          parent=self.__nodes.frame, **kwargs)
         self.__nodes.back.origin = Origin.CENTER
-        self.__nodes.back.reparent_to(self.__nodes.frame)
         self.__nodes.back.onclick(self.__back)
 
         # newview
@@ -349,22 +340,22 @@ class Friends(app.AppBase):
                                                size=(0.8, 0.1),
                                                pos=(-0.4, -0.195),
                                                hint_text='Search User',
+                                               parent=self.__nodes.newview,
                                                **common.get_entry_kw())
-        self.__nodes.searchfield.reparent_to(self.__nodes.newview)
         self.__nodes.searchfield.onenter(self.__find_user)
         self.__nodes.searchbtn = button.Button(name='friendsearchbtn',
                                                text='Send Request',
                                                pos=(-0.08, -0.05),
+                                               parent=self.__nodes.newview,
                                                **common.get_dialogue_btn_kw(
                                                    size=(0.5, 0.1)))
-        self.__nodes.searchbtn.reparent_to(self.__nodes.newview)
         self.__nodes.searchbtn.onclick(self.__find_user)
         self.__nodes.cancelbtn = button.Button(name='friendcancelbtn',
                                                text='Cancel',
                                                pos=(-0.4, -0.05),
+                                               parent=self.__nodes.newview,
                                                **common.get_dialogue_btn_kw(
                                                    size=(0.3, 0.1)))
-        self.__nodes.cancelbtn.reparent_to(self.__nodes.newview)
         self.__nodes.cancelbtn.onclick(self.__show_listview)
 
         # userview
@@ -375,12 +366,12 @@ class Friends(app.AppBase):
         self.__nodes.usertxt.origin = Origin.CENTER
         kwa = common.get_dialogue_btn_kw(size=(0.32, 0.1))
         self.__nodes.userchallenge = button \
-            .Button(text='Challenge', pos=(-0.35, 0.25), **kwa)
-        self.__nodes.userchallenge.reparent_to(self.__nodes.userview)
+            .Button(text='Challenge', pos=(-0.35, 0.25),
+                    parent=self.__nodes.userview, **kwa)
         self.__nodes.userchallenge.onclick(self.__start_challenge)
         self.__nodes.userremove = button \
-            .Button(text='Remove', pos=(0.03, 0.25), **kwa)
-        self.__nodes.userremove.reparent_to(self.__nodes.userview)
+            .Button(text='Remove', pos=(0.03, 0.25),
+                    parent=self.__nodes.userview, **kwa)
         self.__nodes.userremove.onclick(self.__remove_friend)
 
     def __back(self) -> None:

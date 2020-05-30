@@ -51,8 +51,7 @@ class DayDeal(app.AppBase):
         self.__frame = frame.Frame('daydeal background', size=(0.9, 0.9),
                                    frame_color=common.DD_FRAME_COLOR,
                                    border_thickness=0.01, corner_radius=0.05,
-                                   multi_sampling=2)
-        self.__frame.reparent_to(self.__root)
+                                   multi_sampling=2, parent=self.__root)
         self.__frame.origin = Origin.CENTER
         fnt = self.config.get('font', 'bold')
         tit = self.__frame.attach_text_node(text='Daily Deal - Draw one',
@@ -166,10 +165,9 @@ class DayDeal(app.AppBase):
             dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
                            size=(0.7, 0.9), font=fnt, align='center',
                            frame_color=common.FRAME_COLOR_STD,
-                           border_thickness=0.01,
+                           border_thickness=0.01, parent=self.ui.center,
                            corner_radius=0.05, multi_sampling=2)
             dlg.pos = -0.35, -0.49
-            dlg.reparent_to(self.ui.center)
             dlg.depth = 1000
             self.__dlg = dlg
         else:
@@ -245,15 +243,14 @@ class DayDeal(app.AppBase):
             pos_x = 0.38
         kwargs = common.get_menu_sym_btn_kw()
         but = button.Button(name='back button', pos=(pos_x, -0.38),
-                            text=common.BACK_SYM, **kwargs)
+                            text=common.BACK_SYM, parent=self.__frame, **kwargs)
         but.origin = Origin.CENTER
-        but.reparent_to(self.__frame)
         but.onclick(self.request, 'main_menu')
 
     def __create_button(self, size, pos, alt_font_size=None, **kwargs):
         kwa = {}
         kwa.update(kwargs)
         kwa['font_size'] = alt_font_size or kwargs['font_size']
-        btn = button.Button(text='', size=size, pos=pos, **kwa)
-        btn.reparent_to(self.__frame)
+        btn = button.Button(text='', size=size, pos=pos, parent=self.__frame,
+                            **kwa)
         return btn

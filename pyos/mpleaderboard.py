@@ -65,14 +65,13 @@ class Leaderboard(app.AppBase):
         self.__frame = frame.Frame('leaderboard background', size=(0.9, 0.9),
                                    frame_color=common.LEADERBOARD_FRAME_COLOR,
                                    border_thickness=0.01, corner_radius=0.05,
-                                   multi_sampling=2)
-        self.__frame.reparent_to(self.__root)
+                                   multi_sampling=2, parent=self.__root)
         self.__frame.origin = Origin.CENTER
         fnt = self.config.get('font', 'bold')
         tit = label.Label(text='Leaderboard', align='center', size=(0.8, 0.1),
-                          pos=(0, -0.4), font_size=0.06, font=fnt,
-                          text_color=common.TITLE_TXT_COLOR, alpha=0)
-        tit.reparent_to(self.__frame)
+                          pos=(0, -0.4), font_size=0.06, font=fnt, alpha=0,
+                          text_color=common.TITLE_TXT_COLOR,
+                          parent=self.__frame)
         tit.origin = Origin.CENTER
         self.__data: List[str] = []
         self.__idmap: Dict[int, int] = {}
@@ -143,10 +142,9 @@ class Leaderboard(app.AppBase):
                 dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
                                size=(0.7, 0.7), font=fnt, align='center',
                                frame_color=common.LEADERBOARD_FRAME_COLOR,
-                               border_thickness=0.01,
+                               border_thickness=0.01, parent=self.ui.center,
                                corner_radius=0.05, multi_sampling=2)
                 dlg.pos = -0.35, -0.35
-                dlg.reparent_to(self.ui.center)
                 dlg.depth = 1000
                 self.__dlgs.friendreq = dlg
             else:
@@ -167,9 +165,9 @@ class Leaderboard(app.AppBase):
             pos_x = 0.38
         kwargs = common.get_menu_sym_btn_kw()
         self.__back = button.Button(name='back button', pos=(pos_x, -0.38),
-                                    text=common.BACK_SYM, **kwargs)
+                                    text=common.BACK_SYM, parent=self.__frame,
+                                    **kwargs)
         self.__back.origin = Origin.CENTER
-        self.__back.reparent_to(self.__frame)
         self.__back.onclick(self.__back_pressed)
 
     def __back_pressed(self) -> None:

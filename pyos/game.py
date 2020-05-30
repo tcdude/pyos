@@ -684,10 +684,9 @@ class Game(app.AppBase):
                 dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
                                size=(0.7, 0.7), font=fnt, align='center',
                                frame_color=common.FRAME_COLOR_STD,
-                               border_thickness=0.01,
+                               border_thickness=0.01, parent=self.ui.center,
                                corner_radius=0.05, multi_sampling=2)
                 dlg.pos = -0.35, -0.35
-                dlg.reparent_to(self.ui.center)
                 self.__systems.windlg = dlg
             else:
                 self.__systems.windlg.text = txt
@@ -703,10 +702,9 @@ class Game(app.AppBase):
                 dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
                                size=(0.7, 0.7), font=fnt, align='center',
                                frame_color=common.FRAME_COLOR_STD,
-                               border_thickness=0.01,
+                               border_thickness=0.01, parent=self.ui.center,
                                corner_radius=0.05, multi_sampling=2)
                 dlg.pos = -0.35, -0.35
-                dlg.reparent_to(self.ui.center)
                 self.__systems.suredlg = dlg
             else:
                 self.__systems.suredlg.text = txt

@@ -62,8 +62,7 @@ class MainMenu(app.AppBase):
         self.__frame = frame.Frame('main menu background', size=(0.9, 0.9),
                                    frame_color=common.FRAME_COLOR_STD,
                                    border_thickness=0.01, corner_radius=0.05,
-                                   multi_sampling=2)
-        self.__frame.reparent_to(self.__root)
+                                   multi_sampling=2, parent=self.__root)
         self.__frame.origin = Origin.CENTER
         fnt = self.config.get('font', 'bold')
         tit = self.__frame.attach_text_node(text='Adfree Simple Solitaire',
@@ -168,35 +167,27 @@ class MainMenu(app.AppBase):
         offset = 0.125
         pos_y = -0.14
         txt = chr(0xf90b) + ' ' * 5 + 'Play' + ' ' * 5 + chr(0xf90b)
-        play = button.Button(name='play button', pos=(0, pos_y),
-                             text=txt,
-                             **kwargs)
+        play = button.Button(name='play button', pos=(0, pos_y), text=txt,
+                             parent=self.__frame, **kwargs)
         play.origin = Origin.CENTER
-        play.reparent_to(self.__frame)
         play.onclick(self.request, 'game')
         pos_y += offset
         txt = chr(0xf274) + '  Daily Deal  ' + chr(0xf274)
-        daydeal = button.Button(name='daydeal button', pos=(0, pos_y),
-                                text=txt,
-                                **kwargs)
+        daydeal = button.Button(name='daydeal button', pos=(0, pos_y), text=txt,
+                                parent=self.__frame, **kwargs)
         daydeal.origin = Origin.CENTER
-        daydeal.reparent_to(self.__frame)
         daydeal.onclick(self.request, 'day_deal')
         pos_y += offset
         txt = '' + chr(0xf201) + '  Statistics  ' + chr(0xf201)
-        stats = button.Button(name='stats button', pos=(0, pos_y),
-                              text=txt,
-                              **kwargs)
+        stats = button.Button(name='stats button', pos=(0, pos_y), text=txt,
+                              parent=self.__frame, **kwargs)
         stats.origin = Origin.CENTER
-        stats.reparent_to(self.__frame)
         stats.onclick(self.request, 'statistics')
         pos_y += offset
         txt = chr(0xf6e6) + ' Multiplayer ' + chr(0xf6e6)
-        multiplayer = button.Button(name='Multiplayer', pos=(0, pos_y),
-                                    text=txt,
-                                    **kwargs)
+        multiplayer = button.Button(name='Multiplayer', pos=(0, pos_y), text=txt,
+                                    parent=self.__frame, **kwargs)
         multiplayer.origin = Origin.CENTER
-        multiplayer.reparent_to(self.__frame)
         multiplayer.onclick(self.request, 'multiplayer_menu')
         if self.config.getboolean('pyos', 'left_handed', fallback=False):
             pos_x = -0.38
@@ -204,14 +195,13 @@ class MainMenu(app.AppBase):
             pos_x = 0.38
         kwargs.update(common.MENU_SYM_BTN_KW)
         settings = button.Button(name='settings button', pos=(pos_x, 0.38),
-                                 text=chr(0xf013), **kwargs)
+                                 text=chr(0xf013), parent=self.__frame,
+                                 **kwargs)
         settings.origin = Origin.CENTER
-        settings.reparent_to(self.__frame)
         settings.onclick(self.request, 'settings_menu')
         quitb = button.Button(name='quit button', pos=(pos_x, -0.38),
-                              text=chr(0xf705), **kwargs)
+                              text=chr(0xf705), parent=self.__frame, **kwargs)
         quitb.origin = Origin.CENTER
-        quitb.reparent_to(self.__frame)
         quitb.onclick(self.quit, blocking=False)
         self.__buttons = MenuButtons(play, daydeal, stats, multiplayer,
                                      settings, quitb)
@@ -245,14 +235,13 @@ class SettingsMenu(app.AppBase):
         self.__frame = frame.Frame('sub menu background', size=(0.9, 0.9),
                                    frame_color=common.SETTINGS_FRAME_COLOR,
                                    border_thickness=0.01, corner_radius=0.05,
-                                   multi_sampling=2)
-        self.__frame.reparent_to(self.__root)
+                                   multi_sampling=2, parent=self.__root)
         self.__frame.origin = Origin.CENTER
         fnt = self.config.get('font', 'bold')
         tit = label.Label(text='App Settings', align='center', size=(0.8, 0.1),
                           pos=(0, -0.4), font_size=0.06, font=fnt,
-                          text_color=common.TITLE_TXT_COLOR, alpha=0)
-        tit.reparent_to(self.__frame)
+                          text_color=common.TITLE_TXT_COLOR, alpha=0,
+                          parent=self.__frame)
         tit.origin = Origin.CENTER
         self.__buttons: SettingsButtons = None
         self.__setup()
@@ -451,9 +440,8 @@ class SettingsMenu(app.AppBase):
             pos_x = 0.38
         kwargs = common.get_menu_sym_btn_kw()
         but = button.Button(name='back button', pos=(pos_x, -0.38),
-                            text=common.BACK_SYM, **kwargs)
+                            text=common.BACK_SYM, parent=self.__frame, **kwargs)
         but.origin = Origin.CENTER
-        but.reparent_to(self.__frame)
         but.onclick(self.request, 'main_menu')
         buttons.append(but)
         self.__buttons = SettingsButtons(*buttons)
@@ -464,12 +452,11 @@ class SettingsMenu(app.AppBase):
         if alt_font_size:
             kwa['font_size'] = alt_font_size
         but = button.Button(name=f'{text} but', text=text, size=size, pos=pos,
-                            **kwa)
-        but.reparent_to(self.__frame)
+                            parent=self.__frame, **kwa)
         return but
 
     def __create_label(self, text, size, pos, alt_font_size=None, **kwargs):
         fnt_size = alt_font_size or kwargs['font_size']
         lbl = label.Label(text=text, size=size, margin=0.01, pos=pos, alpha=0,
-                          font=kwargs['font'], font_size=fnt_size)
-        lbl.reparent_to(self.__frame)
+                          font=kwargs['font'], font_size=fnt_size,
+                          parent=self.__frame)

@@ -73,14 +73,13 @@ class MultiplayerMenu(app.AppBase):
         self.__frame = frame.Frame('multiplayer background', size=(0.9, 0.9),
                                    frame_color=common.MP_FRAME_COLOR,
                                    border_thickness=0.01, corner_radius=0.05,
-                                   multi_sampling=2)
-        self.__frame.reparent_to(self.__root)
+                                   multi_sampling=2, parent=self.__root)
         self.__frame.origin = Origin.CENTER
         fnt = self.config.get('font', 'bold')
         tit = label.Label(text='Multiplayer', align='center', size=(0.8, 0.1),
-                          pos=(0, -0.4), font_size=0.06, font=fnt,
-                          text_color=common.TITLE_TXT_COLOR, alpha=0)
-        tit.reparent_to(self.__frame)
+                          pos=(0, -0.4), font_size=0.06, font=fnt, alpha=0,
+                          text_color=common.TITLE_TXT_COLOR,
+                          parent=self.__frame)
         tit.origin = Origin.CENTER
         self.__buttons: MenuButtons = None
         self.__pending_sync: int = 0
@@ -177,11 +176,10 @@ class MultiplayerMenu(app.AppBase):
                                       callback=self.__hide_dlg)]
             dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
                            size=(0.7, 0.7), font=fnt, align=align,
-                           frame_color=common.FRAME_COLOR_STD,
-                           border_thickness=0.01,
+                           frame_color=common.MP_FRAME_COLOR,
+                           border_thickness=0.01, parent=self.ui.center,
                            corner_radius=0.05, multi_sampling=2)
             dlg.pos = -0.35, -0.35
-            dlg.reparent_to(self.ui.center)
             dlg.depth = 1000
             self.__dlg = dlg
         else:
@@ -196,24 +194,21 @@ class MultiplayerMenu(app.AppBase):
         pos_y = -0.1
         txt = chr(0xf9e4) + '  Challenges  ' + chr(0xf9e4)
         challenges = button.Button(name='challenges button', pos=(0, pos_y),
-                                   text=txt,
+                                   text=txt, parent=self.__frame,
                                    **kwargs)
         challenges.origin = Origin.CENTER
-        challenges.reparent_to(self.__frame)
         challenges.onclick(self.request, 'challenges')
         pos_y += offset
         txt = chr(0xfa39) + ' Leaderboard ' + chr(0xfa39)
         leaderboard = button.Button(name='leaderboard button', pos=(0, pos_y),
-                                    text=txt, **kwargs)
+                                    text=txt, parent=self.__frame, **kwargs)
         leaderboard.origin = Origin.CENTER
-        leaderboard.reparent_to(self.__frame)
         leaderboard.onclick(self.request, 'leaderboard')
         pos_y += offset
         txt = chr(0xf0c0) + ' ' * 3 + 'Friends' + ' ' * 3 + chr(0xf0c0)
         friends = button.Button(name='friends button', pos=(0, pos_y),
-                                text=txt, **kwargs)
+                                text=txt, parent=self.__frame, **kwargs)
         friends.origin = Origin.CENTER
-        friends.reparent_to(self.__frame)
         friends.onclick(self.request, 'friends')
         pos_y += offset
         if self.config.getboolean('pyos', 'left_handed', fallback=False):
@@ -222,14 +217,14 @@ class MultiplayerMenu(app.AppBase):
             pos_x = 0.38
         kwargs = common.get_menu_sym_btn_kw()
         settings = button.Button(name='settings button', pos=(pos_x, 0.38),
-                                 text=chr(0xf013), **kwargs)
+                                 text=common.USRSETT_SYM, parent=self.__frame,
+                                 **kwargs)
         settings.origin = Origin.CENTER
-        settings.reparent_to(self.__frame)
         settings.onclick(self.request, 'multiplayer_settings')
         back = button.Button(name='back button', pos=(pos_x, -0.38),
-                             text=common.BACK_SYM, **kwargs)
+                             text=common.BACK_SYM, parent=self.__frame,
+                             **kwargs)
         back.origin = Origin.CENTER
-        back.reparent_to(self.__frame)
         back.onclick(self.__back)
         self.__buttons = MenuButtons(challenges, leaderboard, friends, settings,
                                      back)
@@ -258,14 +253,13 @@ class MultiplayerSettings(app.AppBase):
         self.__frame = frame.Frame('mp settings background', size=(0.9, 0.9),
                                    frame_color=common.SETTINGS_FRAME_COLOR,
                                    border_thickness=0.01, corner_radius=0.05,
-                                   multi_sampling=2)
-        self.__frame.reparent_to(self.__root)
+                                   multi_sampling=2, parent=self.__root)
         self.__frame.origin = Origin.CENTER
         fnt = self.config.get('font', 'bold')
         tit = label.Label(text='Multiplayer Setup', align='center',
                           size=(0.8, 0.1), pos=(0, -0.4), font_size=0.06,
-                          font=fnt, text_color=common.TITLE_TXT_COLOR, alpha=0)
-        tit.reparent_to(self.__frame)
+                          font=fnt, text_color=common.TITLE_TXT_COLOR, alpha=0,
+                          parent=self.__frame)
         tit.origin = Origin.CENTER
         self.__nodes: MPSettingsNodes = MPSettingsNodes()
         self.__dlg: Dialogue = None
@@ -281,7 +275,7 @@ class MultiplayerSettings(app.AppBase):
             pos_x = 0.38
         self.__nodes.back.pos = pos_x, -0.38
         if not self.mps.ctrl.noaccount:
-            self.__useraction.change_text('Update')
+            self.__toggle_logout_btn(False)
         self.__update_drawpref()
         self.__root.show()
 
@@ -333,33 +327,31 @@ class MultiplayerSettings(app.AppBase):
     def __setup_menu_buttons(self):
         kwargs = common.get_menu_sym_btn_kw()
         self.__nodes.back = button.Button(name='back button', pos=(0, -0.38),
-                                          text=common.BACK_SYM, **kwargs)
+                                          text=common.BACK_SYM,
+                                          parent=self.__frame, **kwargs)
         self.__nodes.back.origin = Origin.CENTER
-        self.__nodes.back.reparent_to(self.__frame)
         self.__nodes.back.onclick(self.request, 'multiplayer_menu')
 
         lbl = label.Label(name='username label', text=chr(0xf007),
-                          pos=(-0.42, -0.195), **kwargs)
-        lbl.reparent_to(self.__frame)
+                          pos=(-0.42, -0.195), parent=self.__frame, **kwargs)
         self.__nodes.username = entry.Entry(name='username entry',
                                             size=(0.7, 0.1),
                                             pos=(-0.29, -0.195),
                                             hint_text='Username',
+                                            parent=self.__frame,
                                             **common.get_entry_kw())
-        self.__nodes.username.reparent_to(self.__frame)
         self.__nodes.username.onenter(self.__useractioncb)
         self.__nodes.username.text = self.config.get('mp', 'user', fallback='')
 
         lbl = label.Label(name='username label', text=chr(0xfcf3),
-                          pos=(-0.42, -0.075), **kwargs)
-        lbl.reparent_to(self.__frame)
+                          pos=(-0.42, -0.075), parent=self.__frame, **kwargs)
         self.__nodes.password = entry.Entry(name='password entry',
                                             size=(0.7, 0.1),
                                             pos=(-0.29, -0.075),
                                             hint_text='Password',
                                             masked=chr(0xf444),
+                                            parent=self.__frame,
                                             **common.get_entry_kw())
-        self.__nodes.password.reparent_to(self.__frame)
         self.__nodes.password.onenterfocus(self.__clearpw)
         self.__nodes.password.onenter(self.__useractioncb)
         if self.config.get('mp', 'password', fallback=''):
@@ -369,15 +361,13 @@ class MultiplayerSettings(app.AppBase):
         kwargs['font_size'] = kwargs['corner_radius'] = 0.045
         lbl = label.Label(name='account label',
                           text='User account', pos=(0, -0.27),
-                          **kwargs)
+                          parent=self.__frame, **kwargs)
         lbl.origin = Origin.CENTER
-        lbl.reparent_to(self.__frame)
 
         lbl = label.Label(name='draw count pref label',
                           text='Draw count preference', pos=(0, 0.22),
-                          **kwargs)
+                          parent=self.__frame, **kwargs)
         lbl.origin = Origin.CENTER
-        lbl.reparent_to(self.__frame)
 
         kwargs = common \
             .get_settings_btn_kw(font_size=0.05,
@@ -385,34 +375,33 @@ class MultiplayerSettings(app.AppBase):
                                  down_border_thickness=0.007,
                                  disabled_border_thickness=0.006,
                                  corner_radius=0.045)
-        self.__useraction = button.Button(name='account action btn',
-                                          size=(0.7, 0.1),
-                                          text='Login / New Account',
-                                          pos=(-0.29, 0.038), **kwargs)
-        self.__useraction.reparent_to(self.__frame)
-        self.__useraction.onclick(self.__useractioncb)
+        self.__nodes.useraction = button.Button(name='account action btn',
+                                                size=(0.7, 0.1),
+                                                text='Login / New Account',
+                                                pos=(-0.29, 0.038),
+                                                parent=self.__frame, **kwargs)
+        self.__nodes.useraction.onclick(self.__useractioncb)
 
         # Draw Preference
         self.__nodes.drawpref = []
         kwargs['font_size'] = 0.0315
         btn = button.Button(name='both button', text='Both', size=(0.12, 0.1),
-                            pos=(-0.425, 0.3), **kwargs)
-        btn.reparent_to(self.__frame)
+                            pos=(-0.425, 0.3), parent=self.__frame, **kwargs)
         btn.onclick(self.__set_drawpref, 0)
         self.__nodes.drawpref.append(btn)
         btn = button.Button(name='one button', text='One only',
-                            size=(0.175, 0.1), pos=(-0.29, 0.3), **kwargs)
-        btn.reparent_to(self.__frame)
+                            size=(0.175, 0.1), pos=(-0.29, 0.3),
+                            parent=self.__frame, **kwargs)
         btn.onclick(self.__set_drawpref, 1)
         self.__nodes.drawpref.append(btn)
         btn = button.Button(name='three button', text='Three only',
-                            size=(0.22, 0.1), pos=(-0.1, 0.3), **kwargs)
-        btn.reparent_to(self.__frame)
+                            size=(0.22, 0.1), pos=(-0.1, 0.3),
+                            parent=self.__frame, **kwargs)
         btn.onclick(self.__set_drawpref, 2)
         self.__nodes.drawpref.append(btn)
         btn = button.Button(name='no mp button', text='No Multiplayer',
-                            size=(0.29, 0.1), pos=(0.135, 0.3), **kwargs)
-        btn.reparent_to(self.__frame)
+                            size=(0.29, 0.1), pos=(0.135, 0.3),
+                            parent=self.__frame, **kwargs)
         btn.onclick(self.__set_drawpref, 3)
         self.__nodes.drawpref.append(btn)
 
@@ -546,7 +535,7 @@ class MultiplayerSettings(app.AppBase):
         elif rescode == 0:
             self.__gen_dlg('Login successful\n')
             self.__update_drawpref()
-            self.__useraction.change_text('Update')
+            self.__toggle_logout_btn(False)
             self.__nodes.password.text = UNCHANGED
             username = self.config.get('mp', 'user', fallback='')
             self.global_nodes.set_mpstatus(f'Logged in as {username}')
@@ -574,3 +563,16 @@ class MultiplayerSettings(app.AppBase):
     def __clearpw(self):
         if self.__nodes.password.text == UNCHANGED:
             self.__nodes.password.text = ''
+
+    def __toggle_logout_btn(self, init_state: bool) -> None:
+        if init_state:
+            self.__nodes.useraction.change_text('Login / New Account')
+            size = 0.7, 0.1
+            self.__nodes.logout.hide()
+        else:
+            self.__nodes.useraction.change_text('Update')
+            size = 0.32, 0.1
+            self.__nodes.logout.show()
+        self.__nodes.useraction.size = size
+        for lbl in self.__nodes.useraction.labels:
+            lbl.size = size
