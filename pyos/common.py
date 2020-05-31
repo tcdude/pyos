@@ -162,6 +162,8 @@ NEW_SYM = chr(0xf893)
 RES_SYM = chr(0xf021)
 UNDO_SYM = chr(0xfa4b)
 MENU_SYM = chr(0xf85b)
+SETT_SYM = chr(0xf013)
+USRSETT_SYM = chr(0xfb30)
 GUP_SYM = chr(0xf024)
 
 FRAME_COLOR_STD = 40, 120, 20

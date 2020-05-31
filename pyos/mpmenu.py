@@ -3,7 +3,7 @@ Provides the different menus in the app.
 """
 
 from dataclasses import dataclass
-from typing import List
+from typing import List, Tuple
 
 from foolysh.scene.node import Origin
 from foolysh.ui import button, frame, entry, label
@@ -44,7 +44,7 @@ __version__ = '0.3'
 
 NOACCTXT = """No online account
 configured.
-Go to settings """ + chr(0xf178) + ' ' + chr(0xf013) + """
+Go to settings """ + chr(0xf178) + ' [' + common.USRSETT_SYM + """]
 in the multiplayer
 menu and enter your
 account info.
@@ -99,9 +99,10 @@ class MultiplayerMenu(app.AppBase):
         self.__buttons.settings.pos = pos_x, 0.38
         self.__buttons.back.pos = pos_x, -0.38
         if self.mps.login != 0:
-            if 'dlg_shown' not in self.fsm_data and self.mps.ctrl.noaccount:
+            if 'dlg_shown' not in self.fsm_global_data \
+                  and self.mps.ctrl.noaccount:
                 self.__gen_dlg(NOACCTXT)
-                self.fsm_data['dlg_shown'] = True
+                self.fsm_global_data['dlg_shown'] = True
             elif self.mps.login > 0 and not self.mps.ctrl.noaccount:
                 self.__gen_dlg(f'Unable to connect\n\n'
                                f'{mpctrl.RESTXT[self.mps.login]}\n\n\n')
@@ -243,6 +244,19 @@ class MPSettingsNodes:
     username: entry.Entry = None
     password: entry.Entry = None
     useraction: button.Button = None
+    logout: button.Button = None
+
+
+@dataclass
+class MPSettingsDlgs:
+    """Dialogues for MultiplayerSettings state."""
+    info: Dialogue = None
+    confirm: Dialogue = None
+
+    @property
+    def all(self) -> Tuple[Dialogue]:
+        """Convenience property to acces all dialogues."""
+        return (self.info, self.confirm)
 
 
 class MultiplayerSettings(app.AppBase):
@@ -262,7 +276,7 @@ class MultiplayerSettings(app.AppBase):
                           parent=self.__frame)
         tit.origin = Origin.CENTER
         self.__nodes: MPSettingsNodes = MPSettingsNodes()
-        self.__dlg: Dialogue = None
+        self.__dlgs: MPSettingsDlgs = MPSettingsDlgs()
         self.__update_data = {}
         self.__setup_menu_buttons()
         self.__root.hide()
@@ -282,8 +296,7 @@ class MultiplayerSettings(app.AppBase):
     def exit_multiplayer_settings(self):
         """Exit state -> Setup."""
         self.__root.hide()
-        if self.__dlg is not None:
-            self.__hide_dlg()
+        self.__hide_dlg()
 
     def __update_drawpref(self, option: int = None):
         if option is not None:
@@ -299,29 +312,62 @@ class MultiplayerSettings(app.AppBase):
             else:
                 self.__nodes.drawpref[i].enabled = True
 
-    def __hide_dlg(self):
-        self.__dlg.hide()
+    def __hide_dlg(self) -> None:
+        for dlg in self.__dlgs.all:
+            if dlg is not None:
+                dlg.hide()
         self.__frame.show()
 
-    def __gen_dlg(self, txt: str):
+    def __gen_dlg(self, dlg: str, txt: str):
         sdl2.SDL_StopTextInput()
-        if self.__dlg is None:
-            fnt = self.config.get('font', 'bold')
-            buttons = [DialogueButton(text='Ok',
-                                      fmtkwargs=common.get_dialogue_btn_kw(),
-                                      callback=self.__hide_dlg)]
-            dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
-                           size=(0.7, 0.7), font=fnt, align='center',
-                           frame_color=common.FRAME_COLOR_STD,
-                           border_thickness=0.01,
-                           corner_radius=0.05, multi_sampling=2)
-            dlg.pos = -0.35, -0.35
-            dlg.reparent_to(self.ui.center)
-            dlg.depth = 1000
-            self.__dlg = dlg
-        else:
-            self.__dlg.text = txt
-            self.__dlg.show()
+        fnt = self.config.get('font', 'bold')
+        if dlg == 'info':
+            if self.__dlgs.info is None:
+                kwargs = common \
+                    .get_settings_btn_kw(font_size=0.05, size=(0.35, 0.1),
+                                         border_thickness=0.005,
+                                         down_border_thickness=0.007,
+                                         disabled_border_thickness=0.006,
+                                         corner_radius=0.045)
+                buttons = [DialogueButton(text='Ok',
+                                          fmtkwargs=kwargs,
+                                          callback=self.__hide_dlg)]
+                dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
+                               size=(0.7, 0.7), font=fnt, align='center',
+                               frame_color=common.SETTINGS_FRAME_COLOR,
+                               border_thickness=0.01, parent=self.ui.center,
+                               corner_radius=0.05, multi_sampling=2)
+                dlg.pos = -0.35, -0.35
+                dlg.depth = 1000
+                self.__dlgs.info = dlg
+            else:
+                self.__dlgs.info.text = txt
+                self.__dlgs.info.show()
+        elif dlg == 'confirm':
+            if self.__dlgs.confirm is None:
+                kwargs = common \
+                    .get_settings_btn_kw(font_size=0.05, size=(0.2, 0.1),
+                                         border_thickness=0.005,
+                                         down_border_thickness=0.007,
+                                         disabled_border_thickness=0.006,
+                                         corner_radius=0.045)
+                buttons = [DialogueButton(text='Yes',
+                                          fmtkwargs=kwargs,
+                                          callback=self.__reset_account),
+                           DialogueButton(text='No',
+                                          fmtkwargs=kwargs,
+                                          callback=self.__hide_dlg)]
+                dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
+                               size=(0.7, 0.8), font=fnt, align='center',
+                               frame_color=common.SETTINGS_FRAME_COLOR,
+                               border_thickness=0.01, parent=self.ui.center,
+                               corner_radius=0.05, multi_sampling=2)
+                dlg.pos = -0.35, -0.35
+                dlg.depth = 1000
+                self.__dlgs.confirm = dlg
+            else:
+                self.__dlgs.confirm.text = txt
+                self.__dlgs.confirm.show()
         self.__frame.hide()
 
     def __setup_menu_buttons(self):
@@ -381,6 +427,11 @@ class MultiplayerSettings(app.AppBase):
                                                 pos=(-0.29, 0.038),
                                                 parent=self.__frame, **kwargs)
         self.__nodes.useraction.onclick(self.__useractioncb)
+        self.__nodes.logout = button.Button(name='logout btn', size=(0.32, 0.1),
+                                            text='Logout', parent=self.__frame,
+                                            pos=(0.07, 0.038), **kwargs)
+        self.__nodes.logout.onclick(self.__logout)
+        self.__nodes.logout.hide()
 
         # Draw Preference
         self.__nodes.drawpref = []
@@ -409,12 +460,12 @@ class MultiplayerSettings(app.AppBase):
         sdl2.SDL_StopTextInput()
         if self.mps.ctrl.noaccount:
             if not self.__nodes.username.text or not self.__nodes.password.text:
-                self.__gen_dlg('CANNOT BE EMPTY\n\nPlease insert\n'
-                               'a valid username\nand password\n\n\n')
+                self.__gen_dlg('info', 'CANNOT BE EMPTY\n\nPlease insert\n'
+                                       'a valid username\nand password\n\n\n')
                 return
             if not 2 < len(self.__nodes.username.text) < 14:
-                self.__gen_dlg('Username must\nbe between 3\n'
-                               'and 13 characters\n\n\n')
+                self.__gen_dlg('info', 'Username must\nbe between 3\n'
+                                       'and 13 characters\n\n\n')
                 return
             req = self.mps.ctrl \
                 .create_new_account(self.__nodes.username.text.strip(),
@@ -423,12 +474,12 @@ class MultiplayerSettings(app.AppBase):
             self.global_nodes.show_status('Attempting to connect...')
         else:
             if not self.__nodes.username.text or not self.__nodes.password.text:
-                self.__gen_dlg('CANNOT BE EMPTY\n\nPlease insert\n'
-                               'a valid username\nand password\n\n\n')
+                self.__gen_dlg('info', 'CANNOT BE EMPTY\n\nPlease insert\n'
+                                       'a valid username\nand password\n\n\n')
                 return
             if not 2 < len(self.__nodes.username.text) < 14:
-                self.__gen_dlg('Username must\nbe between 3\n'
-                               'and 13 characters\n\n\n')
+                self.__gen_dlg('info', 'Username must\nbe between 3\n'
+                                       'and 13 characters\n\n\n')
                 return
             if self.__nodes.username.text == self.config.get('mp', 'user',
                                                              fallback='') \
@@ -442,8 +493,8 @@ class MultiplayerSettings(app.AppBase):
 
     def __update_acc(self, rescode: int = None) -> None:
         if rescode is not None and rescode != 0:
-            self.__gen_dlg(f'Unable to update\n\n'
-                           f'{mpctrl.RESTXT[rescode]}\n\n')
+            self.__gen_dlg('info', f'Unable to update\n\n'
+                                   f'{mpctrl.RESTXT[rescode]}\n\n')
             return
 
         self.__update_data['user'] = False
@@ -478,7 +529,7 @@ class MultiplayerSettings(app.AppBase):
                   f'{self.__update_data["msg"]}'
         username = self.config.get('mp', 'user', fallback='')
         self.global_nodes.set_mpstatus(f'Logged in as {username}')
-        self.__gen_dlg(msg)
+        self.__gen_dlg('info', msg)
         self.__update_data['user'] = False
         self.__nodes.username.text = self.config.get('mp', 'user', fallback='')
         self.global_nodes.hide_status()
@@ -499,7 +550,7 @@ class MultiplayerSettings(app.AppBase):
                   f'{self.__update_data["msg"]}'
         username = self.config.get('mp', 'user', fallback='')
         self.global_nodes.set_mpstatus(f'Logged in as {username}')
-        self.__gen_dlg(msg)
+        self.__gen_dlg('info', msg)
         self.__update_data['password'] = False
         self.__nodes.password.text = UNCHANGED
         self.global_nodes.hide_status()
@@ -509,8 +560,8 @@ class MultiplayerSettings(app.AppBase):
         if rescode == 0:
             logger.info('New account created successfully.')
             self.global_nodes.hide_status()
-            self.__gen_dlg('Success')
-            self.__useraction.change_text('Update')
+            self.__gen_dlg('info', 'Success')
+            self.__toggle_logout_btn(False)
             self.__nodes.password.text = UNCHANGED
             self.__update_drawpref(0)
             username = self.config.get('mp', 'user', fallback='')
@@ -521,7 +572,7 @@ class MultiplayerSettings(app.AppBase):
             pwhash = util.generate_hash(self.__nodes.password.text)
             self.config.set('mp', 'password', util.encode_hash(pwhash))
             self.config.save()
-            req = self.mps.ctrl.update_user_ranking()
+            req = self.mps.ctrl.nop()
             self.mps.ctrl.register_callback(req, self.__login_success)
             self.global_nodes.show_status('Attempting login...')
 
@@ -529,11 +580,11 @@ class MultiplayerSettings(app.AppBase):
         self.global_nodes.hide_status()
         self.mps.login = rescode
         if rescode == 5:
-            self.__gen_dlg('Unable to create\nor login to account!\n\n'
-                           'Either wrong password\nor the username\n'
-                           'is already taken\n\n')
+            self.__gen_dlg('info', 'Unable to create\nor login to account!\n\n'
+                                   'Either wrong password\nor the username\n'
+                                   'is already taken\n\n')
         elif rescode == 0:
-            self.__gen_dlg('Login successful\n')
+            self.__gen_dlg('info', 'Login successful\n')
             self.__update_drawpref()
             self.__toggle_logout_btn(False)
             self.__nodes.password.text = UNCHANGED
@@ -541,11 +592,30 @@ class MultiplayerSettings(app.AppBase):
             self.global_nodes.set_mpstatus(f'Logged in as {username}')
             return
         else:
-            self.__gen_dlg('LOGIN FAILED!\n\ncheck provided\n'
-                           'username/password\n\n\n')
+            self.__gen_dlg('info', 'LOGIN FAILED!\n\ncheck provided\n'
+                                   'username/password\n\n\n')
         self.config.set('mp', 'user', '')
         self.config.set('mp', 'password', '')
         self.config.save()
+
+    def __logout(self) -> None:
+        self.__gen_dlg('confirm', 'Are you sure?\n\nYou are about to\ndelete '
+                                  'locally stored\naccount information.\n'
+                                  'To login again later\njust return to this\n'
+                                  'page and enter your\nusername/password.\n\n')
+
+    def __reset_account(self) -> None:
+        self.config.set('mp', 'user', '')
+        self.config.set('mp', 'password', '')
+        self.config.save()
+        self.mps.ctrl.logout()
+        self.mps.login = -1
+        self.__nodes.username.text = ''
+        self.__nodes.password.text = ''
+        self.__toggle_logout_btn(True)
+        self.__update_drawpref(4)
+        self.fsm_global_data['dlg_shown'] = None
+        self.__hide_dlg()
 
     def __set_drawpref(self, option: int) -> None:
         req = self.mps.ctrl.set_draw_count_pref(option)
@@ -558,7 +628,8 @@ class MultiplayerSettings(app.AppBase):
         if rescode == 0:
             self.__update_drawpref()
         else:
-            self.__gen_dlg(f'REQUEST FAILED:\n\n{mpctrl.RESTXT[rescode]}')
+            self.__gen_dlg('info', f'REQUEST FAILED:\n\n'
+                                   f'{mpctrl.RESTXT[rescode]}')
 
     def __clearpw(self):
         if self.__nodes.password.text == UNCHANGED:

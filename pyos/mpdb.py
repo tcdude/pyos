@@ -181,6 +181,13 @@ class Activity(Base):
     key = Column(Integer)
     activity = Column(Integer, nullable=False)
     timestamp = Column(Integer, default=lambda: int(time.time()))
+
+
+class UserID(Base):
+    """Holds the users own id."""
+    __tablename__ = 'user_id'
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer)
 # pylint: enable=too-few-public-methods
 
 
@@ -828,6 +835,18 @@ class MPDBHandler:
             return -1.0, 0, 0
         return res.duration, res.moves, res.points
 
+    def purge_database(self) -> None:
+        """Purge all user related data in the database!"""
+        logger.warning('Purging all user data')
+        self._session.query(User).delete()
+        self._session.query(State).delete()
+        self._session.query(UserData).delete()
+        self._session.query(Challenge).delete()
+        self._session.query(ChallengeRound).delete()
+        self._session.query(Activity).delete()
+        self._session.query(UserID).delete()
+        self._session.commit()
+
     def _check_challenge_complete(self, challenge_id: int) -> None:
         """Finalizes a challenge if all rounds have been played."""
         count = self._session.query(ChallengeRound) \
@@ -1170,3 +1189,20 @@ class MPDBHandler:
                     continue
                 unsent.append((start_i.days + i, k))
         return unsent
+
+    @property
+    def own_userid(self) -> int:
+        """Returns the users own id or -1 if None is present."""
+        userid = self._session.query(UserID).first()
+        if userid is None:
+            return -1
+        return userid.user_id
+
+    @own_userid.setter
+    def own_userid(self, new_id: int) -> None:
+        userid = self._session.query(UserID).first()
+        if userid is None:
+            userid = UserID()
+            self._session.add(userid)
+        userid.user_id = new_id
+        self._session.commit()

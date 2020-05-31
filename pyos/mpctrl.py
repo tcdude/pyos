@@ -88,7 +88,13 @@ class Request:
                 BrokenPipeError, ConnectionResetError):
             SEL.unregister(sock)
             self.res_dict[self.reqid] = 7
-        SEL.modify(sock, selectors.EVENT_READ, self.recv)
+        else:
+            if self.req != REQ[253]:
+                SEL.modify(sock, selectors.EVENT_READ, self.recv)
+                return
+            self.res_dict[self.reqid] = 0
+            SEL.unregister(sock)
+            sock.close()
 
     def recv(self, sock: socket.socket) -> None:
         """Reads the request as soons as the socket becomes readable."""
@@ -249,6 +255,10 @@ class MPControl:
         return self._request(
             REQ[20] + f'{challenge_id}{SEP}{draw}{SEP}{score}'.encode('utf8'))
 
+    def logout(self) -> None:
+        """Close any open connection to the server."""
+        self._request(REQ[253])
+
     def nop(self) -> int:
         """
         No Operation request that always returns SUCCESS if service is running.
@@ -282,7 +292,7 @@ class MPControl:
         Method to call regularly to process pending jobs and execute registered
         callbacks.
         """
-        if not self._data.active:
+        if not self._data.active and not self.noaccount:
             logger.debug('Update called before the service has come online')
             return
         events = SEL.select(timeout=-1)
@@ -304,8 +314,12 @@ class MPControl:
         for k in need_req:
             req = self._data.pending[k]
             if self._data.retry:
-                self._data.pending[k] = Request(k, self._port, req,
-                                                self._data.results)
+                try:
+                    self._data.pending[k] = Request(k, self._port, req,
+                                                    self._data.results)
+                except (NameError, FileNotFoundError, ConnectionRefusedError,
+                        BrokenPipeError, ConnectionResetError) as err:
+                    logger.warning(f'Request retry failed with error: {err}')
             else:
                 if req:
                     logger.warning(f'Request [{req[0]}] reached max retries')

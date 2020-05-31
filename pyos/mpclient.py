@@ -313,6 +313,15 @@ class MultiplayerClient:
             return False
         return True
 
+    def get_user_id(self) -> int:
+        """Return the users own id. Returns -1 on failure."""
+        self._verify_connected()
+        self._send(REQ[17])
+        data = self._recv()
+        if len(data) != 5:
+            return -1
+        return util.parse_id(data[1:])
+
     def pending_recv_friend_request(self, timestamp: int = 0) -> List[int]:
         """Retrieve pending received friend requests."""
         self._verify_connected()

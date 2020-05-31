@@ -172,13 +172,28 @@ class Multiplayer:
             self.stop(conn)
         elif req == 254:  # NOP
             logger.debug('NOP')
+            self.cfg.reload()
             account = self.cfg.get('mp', 'user', fallback='').strip()
             if self.sys.mpc.connected or (account and self._check_login()):
                 logger.debug('NOP while client is connected')
                 self.data.result[conn] = SUCCESS
             else:
-                logger.warning('NOP while client is disconnected')
-                self.data.result[conn] = NO_CONNECTION
+                if self.sys.mpc.connect() and account:
+                    self._check_login()
+                    logger.debug('NOP triggered connect')
+                    self.data.result[conn] = SUCCESS
+                else:
+                    logger.warning('NOP while client is disconnected')
+                    self.data.result[conn] = NO_CONNECTION
+        elif req == 253:  # Logout
+            if self.sys.mpc.connected:
+                self.sys.mpc.close()
+            self.cfg.reload()  # Possibly no username/password anymore
+            if not self.cfg.get('mp', 'user', fallback='').strip():
+                self.sys.mpdbh.update_timestamp(0)
+            SELECTOR.unregister(conn)
+            conn.close()
+            return
         elif req in self._handler_methods:
             logger.debug(f'Valid request {req}')
             if not self.sys.mpc.connected and not self.sys.mpc.connect():
@@ -235,9 +250,15 @@ class Multiplayer:
             username, password = data.decode('utf8').split(SEP, 1)
         except ValueError:
             return WRONG_FORMAT
-        if self.sys.mpc.new_user(username, password):
-            logger.debug('New Account request was successful')
-            return SUCCESS
+        try:
+            if self.sys.mpc.new_user(username, password):
+                logger.debug('New Account request was successful')
+        except mpclient.NotConnectedError:
+            return NO_CONNECTION
+        else:
+            if not self._check_login():
+                return NOT_LOGGED_IN
+            return self._check_userid()
         logger.warning('New Account request failed')
         return FAILURE
 
@@ -575,8 +596,26 @@ class Multiplayer:
             res = self.sys.mpc.login()
         except (mpclient.NotConnectedError, mpclient.CouldNotLoginError):
             res = False
+        if self._check_userid() != SUCCESS:
+            res = False
         self.data.login = res
         return res
+
+    def _check_userid(self) -> bytes:
+        try:
+            new_id = self.sys.mpc.get_user_id()
+        except mpclient.NotConnectedError:
+            return NO_CONNECTION
+        except mpclient.CouldNotLoginError:
+            return NOT_LOGGED_IN
+        current_id = self.sys.mpdbh.own_userid
+        if current_id not in (-1, new_id):
+            logger.warning('Purging database because of new user id')
+            self.sys.mpdbh.purge_database()
+        else:
+            logger.debug('Retaining database contents')
+        self.sys.mpdbh.own_userid = new_id
+        return SUCCESS
 
     # DB Sync
 
