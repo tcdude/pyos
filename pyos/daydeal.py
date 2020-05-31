@@ -8,11 +8,11 @@ from typing import Dict, List
 from foolysh.scene.layout import GridLayout
 from foolysh.scene.node import Origin
 from foolysh.ui import button, frame, UIState
+from foolysh.ui.dialogue import Dialogue, DialogueButton
 from loguru import logger
 
 import app
 import common
-from dialogue import Dialogue, DialogueButton
 import mpctrl
 
 __author__ = 'Tiziano Bettio'

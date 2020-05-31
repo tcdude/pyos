@@ -125,6 +125,26 @@ class Statistic(Base):
         return f'Statistic(id={self.id}, ...)'
 
 
+class Statistic1(Base):
+    """Holds additional statistical information."""
+    __tablename__ = 'statistic1'
+    id = Column(Integer, primary_key=True)
+    one_avg_duration = Column(Float)
+    one_avg_moves = Column(Float)
+    one_max_duration = Column(Float)
+    one_max_moves = Column(Integer)
+    three_avg_duration = Column(Float)
+    three_avg_moves = Column(Float)
+    three_max_duration = Column(Float)
+    three_max_moves = Column(Integer)
+    current_win_streak = Column(Integer)
+    avg_session = Column(Float)
+    tot_session = Column(Float)
+
+    def __repr__(self):
+        return f'Statistic1(id={self.id}, ...)'
+
+
 class Seed(Base):
     """Holds winable game seeds and the corresponding solution."""
     __tablename__ = 'seed'
@@ -502,10 +522,14 @@ class Stats:
                 return
         last_move = attempt.last_move
         stat: Statistic = self._session.query(Statistic).first()
+        stat1: Statistic1 = self._session.query(Statistic1).first()
         if stat is None:
             stat = Statistic()
             stat.last_update = common.START_DATE
             self._session.add(stat)
+        if stat1 is None:
+            stat1 = Statistic1()
+            self._session.add(stat1)
         if stat.last_update >= last_move:
             self._session.commit()
             return
@@ -533,6 +557,7 @@ class Stats:
             self._update_online_stats(stat)
 
         self._compute_winstreak(stat)
+        self._compute_stat1(stat1)
         stat.last_update = attempt.last_move
         self._session.commit()
 
@@ -551,6 +576,77 @@ class Stats:
         sol.game_id = game_id
         self._session.add(sol)
         self._session.commit()
+
+    def fmt_stats1(self) -> List[str]:
+        """
+        Returns a list of entries for offline stats, defined in Statistic1.
+        """
+        res: Statistic1 = self._session.query(Statistic1).first()
+        ret = ['N/A'] * 8
+        if res is None:
+            return ret
+        if res.one_avg_duration is not None:
+            ret[0] = common.format_duration(res.one_avg_duration)
+        if res.one_avg_moves is not None:
+            ret[1] = f'{res.one_avg_moves:.1f}'
+        if res.one_max_duration is not None:
+            ret[2] = common.format_duration(res.one_max_duration)
+        if res.one_max_moves is not None:
+            ret[3] = f'{res.one_max_moves}'
+        if res.three_avg_duration is not None:
+            ret[4] = common.format_duration(res.three_avg_duration)
+        if res.three_avg_moves is not None:
+            ret[5] = f'{res.three_avg_moves:.1f}'
+        if res.three_max_duration is not None:
+            ret[6] = common.format_duration(res.three_max_duration)
+        if res.three_max_moves is not None:
+            ret[7] = f'{res.three_max_moves}'
+        return ret
+
+    def _compute_stat1(self, stat1: Statistic1) -> None:
+        # AVG / MAX per draw count
+        res = self._session \
+            .query(Game.draw, func.avg(Attempt.duration),
+                   func.avg(Attempt.moves), func.max(Attempt.duration),
+                   func.max(Attempt.moves)) \
+            .join(Attempt, Attempt.game_id == Game.id) \
+            .filter(Attempt.solved == true()) \
+            .group_by(Game.draw).all()
+        for draw, avg_dur, avg_mvs, max_dur, max_mvs in res:
+            if draw == 1:
+                stat1.one_avg_duration = avg_dur
+                stat1.one_avg_moves = avg_mvs
+                stat1.one_max_duration = max_dur
+                stat1.one_max_moves = max_mvs
+            else:
+                stat1.three_avg_duration = avg_dur
+                stat1.three_avg_moves = avg_mvs
+                stat1.three_max_duration = max_dur
+                stat1.three_max_moves = max_mvs
+        # Current winstreak
+        res = self._session.query(Attempt) \
+            .join(Game, Game.id == Attempt.game_id) \
+            .filter(Attempt.moves > 0, Game.challenge == -1,
+                    Game.windeal == true()) \
+            .order_by(Attempt.id.desc()).all()
+        win_streak = 0
+        for attempt in res:
+            if not attempt.solved:
+                break
+            win_streak += 1
+        stat1.current_win_streak = win_streak
+        # Session
+        res = self._session.query(Session.end, Session.start) \
+            .filter(Session.start.isnot(None),
+                    Session.end.isnot(None)).all()
+        dur = [end - start for end, start in res if end is not None]
+        if dur:
+            dur = [i.total_seconds() for i in dur]
+            stat1.tot_session = sum(dur)
+            stat1.avg_session = stat1.tot_session / len(dur)
+            return
+        stat1.avg_session = 0
+        stat1.tot_session = 0
 
     def _compute_winstreak(self, stat: Statistic) -> None:
         attempts = self._session \
@@ -752,6 +848,33 @@ class Stats:
         if res is None:
             return 0
         return res.win_streak
+
+    @property
+    def current_win_streak(self) -> float:
+        """Returns current win streak."""
+        self.commit_attempt()
+        res: Statistic1 = self._session.query(Statistic1).first()
+        if res is None:
+            return 0
+        return res.current_win_streak
+
+    @property
+    def avg_session(self) -> float:
+        """Returns the average session duration."""
+        self.commit_attempt()
+        res: Statistic1 = self._session.query(Statistic1).first()
+        if res is None:
+            return 0.0
+        return res.avg_session
+
+    @property
+    def tot_session(self) -> float:
+        """Returns the total session duration."""
+        self.commit_attempt()
+        res: Statistic1 = self._session.query(Statistic1).first()
+        if res is None:
+            return 0.0
+        return res.tot_session
 
     @property
     def stats_type(self) -> int:

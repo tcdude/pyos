@@ -407,5 +407,19 @@ def format_duration(duration: float) -> str:
     if duration < 600:
         return f'{mins}:{secs:05.2f}'
     if duration >= 6000:
-        return f'{mins}:{int(secs):03d}'
+        return f'{mins}:{int(secs):02d}'
     return f'{mins}:{secs:04.1f}'
+
+def format_duration_hhmmss(duration: float) -> str:
+    """Formats a duration in seconds to a readable output."""
+    hrs, mins, secs = int(duration / 3600), int(duration / 60), duration % 60
+    mins -= hrs * 60
+    secs = int(secs)
+    if duration < 600:
+        return f'{mins}m{secs:02d}s'
+    if duration < 3600:
+        return f'{mins}m{secs:02d}s'
+    if hrs < 24:
+        return f'{hrs}h{mins:02d}m'
+    days, hrs = hrs // 24, hrs % 24
+    return f'{days}d{hrs:02d}h'

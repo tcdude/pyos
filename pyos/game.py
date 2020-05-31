@@ -14,10 +14,10 @@ from foolysh.animation import DepthInterval, BlendType, PosInterval, Sequence \
                               , RotationInterval
 from foolysh.scene.node import Origin
 from foolysh.tools.vec2 import Vec2
+from foolysh.ui.dialogue import Dialogue, DialogueButton
 
 import app
 import common
-from dialogue import Dialogue, DialogueButton
 from hud import HUD
 from table import Table
 from table_layout import TableLayout

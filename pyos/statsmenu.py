@@ -47,12 +47,16 @@ class StatsData:
     fltr: int = None
     idmap: Dict[int, int] = field(default_factory=dict)
     text_std: Tuple[str] = ('Deals played', 'Solved ratio', 'Avg attempts/deal',
-                            'Median attempts/deal')
+                            'Median attempts/deal', 'D1 avg duration',
+                            'D1 avg moves', 'D1 max duration', 'D1 max moves',
+                            'D3 avg duration', 'D3 avg moves',
+                            'D3 max duration', 'D3 max moves')
     text_misc: Tuple[str] = ('Draw one highscore', 'Draw one quickest',
                              'Draw one least moves', 'Draw one most points',
                              'Draw three highscore', 'Draw three quickest',
                              'Draw three least moves', 'Draw three most points',
-                             'Longest winning streak')
+                             'Longest winning streak', 'Current winning streak',
+                             'Avg time spent in app', 'Tot time spent in app')
 
 
 @dataclass
@@ -147,9 +151,14 @@ class Statistics(app.AppBase):
                 f'{self.systems.stats.solved_ratio * 100:.3f}%',
                 f'{self.systems.stats.avg_attempts + 0.04:.1f}',
                 f'{self.systems.stats.median_attempts:.1f}']
+        if stype == 0:
+            vals += self.systems.stats.fmt_stats1()
+            text = self.__data.text_std
+        else:
+            text = self.__data.text_std[:4]
         maxlen = max(
-            [len(i) + len(j) for i, j in zip(self.__data.text_std, vals)])
-        for txt, val in zip(self.__data.text_std, vals):
+            [len(i) + len(j) for i, j in zip(text, vals)])
+        for txt, val in zip(text, vals):
             offset = maxlen - len(txt) - len(val)
             self.__data.data.append(f'{txt}: {" " * offset}{val}')
 
@@ -176,6 +185,11 @@ class Statistics(app.AppBase):
             else:
                 vals.append('     N/A')
         vals.append(f'{self.systems.stats.win_streak}')
+        vals.append(f'{self.systems.stats.current_win_streak}')
+        vals.append(common.format_duration_hhmmss(
+            self.systems.stats.avg_session))
+        vals.append(common.format_duration_hhmmss(
+            self.systems.stats.tot_session))
         maxlen = max(
             [len(i) + len(j) for i, j in zip(self.__data.text_misc, vals)])
         for txt, val in zip(self.__data.text_misc, vals):

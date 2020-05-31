@@ -7,12 +7,12 @@ from typing import List, Tuple
 
 from foolysh.scene.node import Origin
 from foolysh.ui import button, frame, entry, label
+from foolysh.ui.dialogue import Dialogue, DialogueButton
 from loguru import logger
 import sdl2
 
 import app
 import common
-from dialogue import Dialogue, DialogueButton
 import mpctrl
 import util
 
