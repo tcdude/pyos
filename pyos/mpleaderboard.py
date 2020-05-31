@@ -7,13 +7,12 @@ from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
 from foolysh.scene.node import Origin
-from foolysh.ui import button, frame, label
+from foolysh.ui import button, buttonlist, frame, label
+from foolysh.ui.dialogue import Dialogue, DialogueButton
 from loguru import logger
 
 import app
-import buttonlist
 import common
-from dialogue import Dialogue, DialogueButton
 import mpctrl
 
 __author__ = 'Tiziano Bettio'

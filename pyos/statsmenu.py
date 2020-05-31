@@ -6,13 +6,12 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
 
 from foolysh.scene.node import Node, Origin
-from foolysh.ui import button, frame, label
+from foolysh.ui import button, buttonlist, frame, label
+from foolysh.ui.dialogue import Dialogue, DialogueButton
 from loguru import logger
 
 import app
-import buttonlist
 import common
-from dialogue import Dialogue, DialogueButton
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = """

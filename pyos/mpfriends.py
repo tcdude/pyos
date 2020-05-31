@@ -8,14 +8,13 @@ from typing import Dict, List
 
 from foolysh.scene import node
 from foolysh.scene.node import Origin
-from foolysh.ui import button, frame, entry, label
+from foolysh.ui import button, buttonlist, frame, entry, label
+from foolysh.ui.dialogue import Dialogue, DialogueButton
 from loguru import logger
 import sdl2
 
 import app
-import buttonlist
 import common
-from dialogue import Dialogue, DialogueButton
 import mpctrl
 
 __author__ = 'Tiziano Bettio'

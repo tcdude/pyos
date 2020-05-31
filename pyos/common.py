@@ -10,7 +10,7 @@ import os
 import struct
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-import buttonlist
+from foolysh.ui import buttonlist
 
 __author__ = 'Tiziano Bettio'
 __copyright__ = """
