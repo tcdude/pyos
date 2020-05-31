@@ -185,8 +185,8 @@ class MainMenu(app.AppBase):
         stats.onclick(self.request, 'statistics')
         pos_y += offset
         txt = chr(0xf6e6) + ' Multiplayer ' + chr(0xf6e6)
-        multiplayer = button.Button(name='Multiplayer', pos=(0, pos_y), text=txt,
-                                    parent=self.__frame, **kwargs)
+        multiplayer = button.Button(name='Multiplayer', pos=(0, pos_y),
+                                    text=txt, parent=self.__frame, **kwargs)
         multiplayer.origin = Origin.CENTER
         multiplayer.onclick(self.request, 'multiplayer_menu')
         if self.config.getboolean('pyos', 'left_handed', fallback=False):
@@ -457,6 +457,6 @@ class SettingsMenu(app.AppBase):
 
     def __create_label(self, text, size, pos, alt_font_size=None, **kwargs):
         fnt_size = alt_font_size or kwargs['font_size']
-        lbl = label.Label(text=text, size=size, margin=0.01, pos=pos, alpha=0,
-                          font=kwargs['font'], font_size=fnt_size,
-                          parent=self.__frame)
+        _ = label.Label(text=text, size=size, margin=0.01, pos=pos, alpha=0,
+                        font=kwargs['font'], font_size=fnt_size,
+                        parent=self.__frame)

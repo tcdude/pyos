@@ -289,7 +289,7 @@ class TableLayout:
 
     def process(self, dt):
         """Task to be registered on the App side for processing."""
-        # pylint: disable=invalid-name
+        # pylint: disable=invalid-name,unused-argument
         self._relative_positions = RelativePositions(
             stack=self._nodes.stack.relative_pos,
             waste=[self._children.waste[i].relative_pos for i in range(4)],

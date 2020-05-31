@@ -137,8 +137,8 @@ class ToolBar:
         newb.onclick(callbacks[0])
         newb.pos = offset, (size[1] - height) / 2
         giveup = button.Button(name='new but', size=(unit_width * 3, height),
-                               text=common.GUP_SYM + 'Give Up', parent=self._frame,
-                               **kwargs)
+                               text=common.GUP_SYM + 'Give Up',
+                               parent=self._frame, **kwargs)
         giveup.onclick(callbacks[4])
         giveup.pos = offset, (size[1] - height) / 2
         giveup.hide()

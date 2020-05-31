@@ -140,7 +140,7 @@ def main(cfg_file):
 
 if __name__ == '__main__':
     try:
-        import android  # pylint: disable=unused-import
+        import android  # pylint: disable=unused-import,ungrouped-imports
         CFG = 'com.tizilogic.pyos/files/.foolysh/foolysh.ini'
     except ImportError:
         CFG = '.foolysh/foolysh.ini'

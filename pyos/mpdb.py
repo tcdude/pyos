@@ -1,6 +1,7 @@
 """
 Provides multiplayer data storage in a sqlite3 db file locally.
 """
+# pylint: disable=too-many-lines
 
 import datetime
 import time
