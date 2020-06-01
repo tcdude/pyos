@@ -116,8 +116,10 @@ class Game(app.AppBase):
                 .attach_text_node(text='', font_size=0.04,
                                   font=self.config.get('font', 'bold'),
                                   text_color=common.TITLE_TXT_COLOR)
+        self.global_nodes.seed.show()
         self.__state.fresh_state = True
         if self.state.challenge > 0:
+            self.global_nodes.seed.hide()
             seed, draw, score = self.mps.dbh \
                 .get_round_info(self.state.challenge)
             res = self.systems.stats.current_attempt
@@ -150,7 +152,6 @@ class Game(app.AppBase):
             self.__state.first_move = True
         if not chg:
             self.__systems.hud.set_gametype()
-            self.global_nodes.seed.show()
         self.__systems.toolbar.toggle(not chg)
         self.__systems.toolbar.toggle_order(
             self.config.getboolean('pyos', 'left_handed', fallback=False))

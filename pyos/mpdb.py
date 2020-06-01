@@ -575,9 +575,7 @@ class MPDBHandler:
 
     def round_result(self, challenge_id: int, roundno: int) -> Result:
         """
-        Returns the relevant part of the result of the other player in a
-        challenge round. Special values -1 = No result yet, -2 = Forfeited and
-        -3 = Unable to find the challenge round.
+        Returns the users result in a challenge round.
         """
         chround = self._session.query(ChallengeRound.user_duration,
                                       ChallengeRound.user_points,
@@ -1140,8 +1138,7 @@ class MPDBHandler:
             .query(ChallengeRound.challenge_id, ChallengeRound.roundno) \
             .join(Challenge,
                   Challenge.challenge_id == ChallengeRound.challenge_id) \
-            .filter(Challenge.active == true(),
-                    ChallengeRound.result_sent != true(),
+            .filter(ChallengeRound.result_sent != true(),
                     ChallengeRound.seed != 0).all()
 
     @property

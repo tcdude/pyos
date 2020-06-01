@@ -39,5 +39,8 @@ that data is available for reading (success) or an error code to be handled
 | 18  | **Update Specific User** | User ID |
 | 19  | **Reject Challenge** | Challenge ID |
 | 20  | **Accept Challenge** | Challenge ID, Draw, Score |
+| 21  | **Submit pending results** | *None* |
+| 253 | **Logout** | *None* |
+| 254 | **NOP** | *None* |
 | 255 | **Stop Service** | *None* |
 

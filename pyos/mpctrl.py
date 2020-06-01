@@ -255,6 +255,10 @@ class MPControl:
         return self._request(
             REQ[20] + f'{challenge_id}{SEP}{draw}{SEP}{score}'.encode('utf8'))
 
+    def submit_unsent_results(self) -> int:
+        """Trigger result sending in the multiplayer service."""
+        return self._request(REQ[21])
+
     def logout(self) -> None:
         """Close any open connection to the server."""
         self._request(REQ[253])

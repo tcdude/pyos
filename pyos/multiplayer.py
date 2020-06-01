@@ -108,7 +108,8 @@ class Multiplayer:
             17: self._challenge_stats,
             18: self._update_single_user,
             19: self._reject_challenge,
-            20: self._accept_challenge}
+            20: self._accept_challenge,
+            21: self._submit_pending_results}
         logger.debug('Multiplayer initialized')
 
     @logger.catch
@@ -587,6 +588,11 @@ class Multiplayer:
             return SUCCESS
         return FAILURE
 
+    def _submit_pending_results(self, unused_data: bytes) -> bytes:
+        if not self._check_login():
+            return NOT_LOGGED_IN
+        return SUCCESS if self._send_unsent_results() else FAILURE
+
     # Helper
 
     def _check_login(self) -> bool:
@@ -780,9 +786,9 @@ class Multiplayer:
                     i, self.sys.mpdbh.num_rounds(i) - 1)
             self.sys.mpdbh.inactive_challenge(i)
 
-    def _send_unsent_results(self) -> None:
+    def _send_unsent_results(self) -> bool:
         if not self._check_login():
-            return
+            return False
         for challenge_id, roundno in self.sys.mpdbh.unsent_results:
             seed, draw, _ = self.sys.mpdbh.get_round_info(challenge_id, roundno)
             result = self.sys.mpdbh.round_result(challenge_id, roundno)
@@ -790,18 +796,19 @@ class Multiplayer:
                 try:
                     duration, moves, points, _ = self.sys.stats \
                         .result(seed, draw, True, challenge=challenge_id)
-                except TypeError:
+                except TypeError:  # Got None
                     continue
                 result = duration, points, moves
             try:
                 if not self.sys.mpc.ping_pong or not self.sys.mpc \
                     .submit_round_result(challenge_id, roundno, result):
-                    return
+                    return False
             except (mpclient.NotConnectedError, mpclient.CouldNotLoginError):
-                return
+                return False
             self.sys.mpdbh.update_challenge_round(challenge_id, roundno,
                                                   resuser=result,
                                                   result_sent=True)
+        return True
 
 @logger.catch
 def main(cfg: str):

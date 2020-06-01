@@ -174,20 +174,6 @@ class Challenges(app.AppBase):
             self.__dlgs.newchallenge.hide()
 
     def __send_pending_results(self, callback: Callable) -> None:
-        for challenge_id, roundno in self.mps.dbh.unsent_results:
-            seed, draw, _ = self.mps.dbh.get_round_info(challenge_id, roundno)
-            res = self.systems.stats.result(seed, draw, True,
-                                            challenge=challenge_id)
-            if res is None:
-                logger.debug(f'No result found for {challenge_id} {roundno}')
-                continue
-            dur, mvs, pts, _ = res
-            req = self.mps.ctrl \
-                .submit_challenge_round_result(challenge_id, roundno,
-                                               (dur, pts, mvs))
-            self.mps.ctrl.register_callback(req, self.__empty_pending, req,
-                                            callback)
-            self.__data.pending[req] = challenge_id, roundno
         if 'result' in self.fsm_global_data \
               and self.fsm_global_data['result'] is not None \
               and self.fsm_global_data['result'][0] == -2.0:
@@ -196,12 +182,10 @@ class Challenges(app.AppBase):
             # Ensure the challenge result is stored in the DB on forfeit
             self.mps.dbh.update_challenge_round(challenge_id, roundno,
                                                 resuser=(-2.0, 0, 0))
-            req = self.mps.ctrl \
-                .submit_challenge_round_result(challenge_id, roundno,
-                                               (-2.0, 0, 0))
-            self.mps.ctrl.register_callback(req, self.__empty_pending, req,
-                                            callback)
-            self.__data.pending[req] = challenge_id, roundno
+        req = self.mps.ctrl.submit_unsent_results()
+        self.mps.ctrl.register_callback(req, self.__empty_pending, req,
+                                        callback)
+        self.__data.pending[req] = '"Send unsent results"'
 
     def __empty_pending(self, rescode: int, req: int, callback: Callable
                         ) -> None:
