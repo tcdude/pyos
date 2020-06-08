@@ -206,6 +206,7 @@ class MPDBHandler:
         Base.metadata.bind = engine
         self._session = sessionmaker(bind=engine)()
         self._populate_missing_activity()
+        self._clear_leaderboard()
         logger.debug('MPDBHandler initialized')
 
     def update_timestamp(self, timestamp: int) -> None:
@@ -904,6 +905,10 @@ class MPDBHandler:
         act.timestamp = int(time.time())
         if commit:
             self._session.commit()
+
+    def _clear_leaderboard(self) -> None:
+        self._session.query(Leaderboard).delete()
+        self._session.commit()
 
     @property
     def timestamp(self) -> int:
