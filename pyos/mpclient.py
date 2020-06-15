@@ -90,10 +90,10 @@ class MultiplayerClient:
     def connect(self) -> bool:
         """Attempts to connect to the server."""
         self.cfg.reload()
-        username = self.cfg.get('mp', 'user')
-        if not username:
-            logger.warning('No username set in config')
-            return False
+        # username = self.cfg.get('mp', 'user')
+        # if not username:
+        #     logger.warning('No username set in config')
+        #     return False
         ctx = ssl.create_default_context(cafile=certifi.where())
         server = self.cfg.get('mp', 'server')
         port = self.cfg.getint('mp', 'port')
@@ -147,6 +147,7 @@ class MultiplayerClient:
 
     def login(self) -> bool:
         """Login with locally stored username/password."""
+        self.cfg.reload()
         username = self.cfg.get('mp', 'user')
         if not username:
             logger.warning('No username set in config')

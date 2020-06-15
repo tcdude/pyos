@@ -137,7 +137,8 @@ class Multiplayer:
             for key, _ in events:
                 callback = key.data
                 callback(key.fileobj)
-            if self.data.first_comm or not self.sys.mpc.connected:
+            if self.data.first_comm or not self.sys.mpc.connected \
+                  or not self.data.login:
                 continue
             self._send_unsent_results()
             now = time.time()
@@ -609,6 +610,7 @@ class Multiplayer:
         return res
 
     def _check_userid(self) -> bytes:
+
         try:
             new_id = self.sys.mpc.get_user_id()
         except mpclient.NotConnectedError:

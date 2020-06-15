@@ -564,6 +564,7 @@ class MultiplayerSettings(app.AppBase):
             self.__toggle_logout_btn(False)
             self.__nodes.password.text = UNCHANGED
             self.__update_drawpref(0)
+            self.config.reload()
             username = self.config.get('mp', 'user', fallback='')
             self.global_nodes.set_mpstatus(f'Logged in as {username}')
         else:
