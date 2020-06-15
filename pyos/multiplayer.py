@@ -211,6 +211,7 @@ class Multiplayer:
                     logger.error(f'Unhandled Exception {err}\n'
                                  + traceback.format_exc())
                     ret = UNHANDLED_EXCEPTION
+                    self.sys.mpdbh.update_timestamp(0)  # Force reload all
                 self.data.result[conn] = ret
                 logger.debug(f'Request {req} processed')
         else:

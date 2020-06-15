@@ -562,6 +562,7 @@ class Challenges(app.AppBase):
             else:
                 self.__gen_dlg('error', f'Unable to start\nnew round\n\n'
                                         f'Error:\n"{mpctrl.RESTXT[rescode]}"\n')
+                self.mps.dbh.update_timestamp(0)  # Force reload all
             return
         self.__show_listview()
         self.state.challenge = self.__data.idmap[self.__data.active]

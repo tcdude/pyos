@@ -590,6 +590,7 @@ class MultiplayerSettings(app.AppBase):
             self.__nodes.password.text = UNCHANGED
             username = self.config.get('mp', 'user', fallback='')
             self.global_nodes.set_mpstatus(f'Logged in as {username}')
+            self.mps.dbh.update_timestamp(0)  # Force reload all
             return
         else:
             self.__gen_dlg('info', 'LOGIN FAILED!\n\ncheck provided\n'
