@@ -172,7 +172,7 @@ class Table:
             g_time = time.perf_counter() - self._state.start_time
         elif self._state.paused and not self._state.fresh_deal:
             g_time = self._state.elapsed_time
-        return self._state.moves, g_time, self._state.points
+        return int(self._state.moves), float(g_time), int(self._state.points)
 
     @property
     def result(self) -> Tuple[float, int, int, int]:
@@ -188,10 +188,10 @@ class Table:
             elapsed_time = self._state.last_move - self._state.start_time
             bonus = rules.bonus(elapsed_time)
             self._state.result = (
-                elapsed_time,
-                self._state.points,
-                bonus,
-                self._state.moves
+                float(elapsed_time),
+                int(self._state.points),
+                int(bonus),
+                int(self._state.moves)
             )
         return self._state.result
 

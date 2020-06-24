@@ -629,7 +629,10 @@ class Multiplayer:
     # DB Sync
 
     def _sync_local_database(self) -> bytes:
-        timestamp = max(self.sys.mpdbh.timestamp - 60, 0)
+        if self.data.first_sync:
+            timestamp = 0
+        else:
+            timestamp = max(self.sys.mpdbh.timestamp - 60, 0)
         self.data.first_sync = False
         now = util.timestamp() - 60
         ret = SUCCESS
@@ -640,11 +643,9 @@ class Multiplayer:
         except mpclient.CouldNotLoginError:
             return NOT_LOGGED_IN
         if ret == SUCCESS and sum([i in reqs for i in (3, 4, 5, 14, 15)]) > 0:
-            self._prune_user()
             if not self._update_user(timestamp, reqs):
                 ret = FAILURE
         if ret == SUCCESS and 129 in reqs or 130 in reqs or 136 in reqs:
-            self._prune_challenge()
             if not self._update_challenges(timestamp, reqs):
                 ret = FAILURE
         try:
@@ -656,6 +657,8 @@ class Multiplayer:
         if ret == SUCCESS:
             self.sys.mpdbh.update_draw_count_pref(pref)
             self.sys.mpdbh.update_timestamp(now)
+        self._prune_user()
+        self._prune_challenge()
         return ret
 
     def _update_user(self, timestamp, reqs: List[int]) -> bool:
@@ -775,6 +778,7 @@ class Multiplayer:
         now = time.time()
         if now - self.data.chupdate > WAIT:
             res = [i[0] for i in self.sys.mpdbh.chwaiting]
+            res += [i[0] for i in self.sys.mpdbh.chmyturn]
             self.data.chupdate = now
             logger.debug('Pruning challenges full')
         else:
