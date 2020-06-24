@@ -238,10 +238,16 @@ class Stats:
                 raise RuntimeError('No attempt created through new_attempt yet')
             if res.solved:
                 # No need to raise here, if it is just confirming solved
-                if 'solved' in kwargs and kwargs['solved'] \
-                      and 0 < len(kwargs) < 3:
-                    return
-                raise RuntimeError('Attempt already solved')
+                if 'solved' in kwargs:
+                    if kwargs['solved'] and 0 < len(kwargs) < 3:
+                        return
+                    if kwargs['solved'] and len(kwargs) > 2:
+                        logger.warning('Attempt apparently not finished but '
+                                       'stored as solved ¯\\_(ツ)_/¯')
+                        res.solved = False
+                        write = True
+                    else:
+                        raise RuntimeError('Attempt already solved')
             self._active_attempt = res
         for k in kwargs:
             if k in ('id', 'game_id', 'first_move', 'last_move'):

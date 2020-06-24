@@ -114,6 +114,6 @@ def log_thread(title, cmdq):
     """Start a new log window."""
     root = tkinter.Tk()
     root.title(title)
-    root.geometry('1080x600+6200+0')
+    root.geometry('1080x600+0+0')
     _ = LogWindow(root, cmdq)
     root.mainloop()
