@@ -341,7 +341,7 @@ class Table:
                 self._history
             ) = pickle.loads(state)
             logger.info('State set')
-        except pickle.UnpicklingError:
+        except (pickle.UnpicklingError, EOFError):
             logger.warning('Invalid state')
         self._state.paused = True
 
