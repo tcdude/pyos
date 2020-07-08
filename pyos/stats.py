@@ -241,7 +241,7 @@ class Stats:
                 if 'solved' in kwargs:
                     if kwargs['solved'] and 0 < len(kwargs) < 3:
                         return
-                    if kwargs['solved'] and len(kwargs) > 2:
+                    if not kwargs['solved'] and len(kwargs) > 2:
                         logger.warning('Attempt apparently not finished but '
                                        'stored as solved ¯\\_(ツ)_/¯')
                         res.solved = False
@@ -710,6 +710,10 @@ class Stats:
         stat.median_attempts_online = med
 
     def _check_migrate(self, engine):
+        for game, attempt in self._session.query(Game, Attempt) \
+              .join(Attempt, Attempt.game_id == Game.id) \
+              .order_by(Attempt.id.desc()).limit(10).all():
+            logger.info(f'{game} --- {attempt}')
         try:
             _ = self.first_launch
         except OperationalError:
@@ -724,6 +728,10 @@ class Stats:
             return
         engine.execute(f'UPDATE game SET challenge=-1 WHERE challenge IS NULL')
         _ = self.first_launch
+        res = self._session.query(Attempt) \
+            .join(Game, Game.id == Attempt.game_id) \
+            .filter(Game.seed == 1194623069, Game.daydeal == true()) \
+            .order_by(Attempt.id)
 
     @property
     def first_launch(self) -> bool:
