@@ -97,6 +97,7 @@ class Solver:
                 self.solitaire.shuffle1(seed)
             else:
                 seed = self.solitaire.shuffle1(random.randint(1, 2**31 - 1))
+            self.solitaire.draw_count = draw_count
             rep = f'draw={draw_count} seed={seed} request={req}'
             logger.debug(f'Solving {rep}')
             i = 1
