@@ -47,7 +47,7 @@ BASE = os.path.abspath(os.path.split(__file__)[0])
 if os.getcwd() != BASE:
     os.chdir(BASE)
 
-P4A = 'https://www.tizilogic.com/various/p4a-3.zip'
+P4A = 'https://www.tizilogic.com/various/p4a-4.zip'
 # P4A = 'https://github.com/tcdude/python-for-android/archive/' \
 #     'android-backup-rules.zip'
 # P4A = 'https://github.com/kivy/python-for-android/archive/develop.zip'

@@ -47,7 +47,7 @@ OPTIONS = {'apk': {'debug': None,
                    'local-recipes': './p4a-recipes',
                    'orientation': 'fullUser',
                    'permission': 'INTERNET',
-                   'backup-rules': '/home/userhome/workspace/backup_rules.xml',
+                   'backup-rules': 'backup_rules.xml',
                    # Service args to be passed on the cmd line
                    # --service=solver:solver.py
                    # --service=multiplayer:multiplayer.py
@@ -68,6 +68,7 @@ setup(
     options=OPTIONS,
     package_data={'pyos': [
         '*.py',
+        'backup_rules.xml',
         'assets/images/*.png',
         # Add other fonts as needed
         'assets/fonts/SpaceMono.ttf',
