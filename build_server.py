@@ -47,14 +47,14 @@ BASE = os.path.abspath(os.path.split(__file__)[0])
 if os.getcwd() != BASE:
     os.chdir(BASE)
 
-P4A = 'https://www.tizilogic.com/various/p4a-4.zip'
+P4A = 'https://www.tizilogic.com/various/p4a-5.zip'
 # P4A = 'https://github.com/tcdude/python-for-android/archive/' \
 #     'android-backup-rules.zip'
 # P4A = 'https://github.com/kivy/python-for-android/archive/develop.zip'
 UDS = '/tmp/pyosbs.sock'
 UDSENVS = './buildenv.sock'
-BE_ARGS = (1000, 'p4a-py3-api28ndk21', '.', P4A, 'master')
-ENVCMD = f'p4aspaces cmd p4a-py3-api28ndk21 --map-to-user tc ' \
+BE_ARGS = (1000, 'p4a-py3-api28ndk19', '.', P4A, 'master')
+ENVCMD = f'p4aspaces cmd p4a-py3-api28ndk19 --map-to-user tc ' \
     f' --workspace {BASE} --p4a {P4A} --force-redownload-p4a ' \
     f'--buildozer master "python3 /home/userhome/workspace/buildenv.py ' \
     f'-eid --ENVID--"'
