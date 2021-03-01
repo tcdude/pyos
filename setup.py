@@ -37,7 +37,7 @@ OPTIONS = {'apk': {'debug': None,
                                    'pysdl2,pyksolve,Pillow,plyer,loguru,'
                                    'foolysh,pyjnius,sqlalchemy,certifi',
                    'package': 'com.tizilogic.pyos',
-                   'android-api': 28,
+                   'android-api': 29,
                    # 'arch': 'arm64-v8a',    # Pass one on the cmd line
                    # 'arch': 'armeabi-v7a',
                    'dist-name': 'pyos-beta',
