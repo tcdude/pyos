@@ -58,6 +58,7 @@ class Solver:
     def run(self):
         """Run the main loop until stop is called."""
         logger.info('Solver started')
+        self.stats.clean_seeds()
         self.stats.solver_running = True
         self.stats.exit_solver = False
         try:
@@ -136,7 +137,7 @@ if __name__ == '__main__':
     logger.remove()
     try:
         import android  # pylint: disable=unused-import
-        logger.add(sys.stderr, level='INFO')
+        logger.add(sys.stderr, level='DEBUG')
     except ImportError:
         logger.add(sys.stderr, level='DEBUG')
     Solver().run()
