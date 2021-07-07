@@ -167,6 +167,7 @@ class Shuffler:
         return seed, tableau, stack
 
     def _get_deal(self, draw: int) -> Tuple[int, str]:
+        logger.debug('Requesting a new solvable seed from stats.')
         seed = self._stats.get_seed(draw)
         self._solitaire.shuffle1(seed)
         self._solitaire.reset_game()

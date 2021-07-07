@@ -471,6 +471,7 @@ class Stats:
     def get_seed(self, draw: int) -> None:
         """Retrieves a seed from the database and marks it as played."""
         self.commit_attempt()
+        logger.debug('Trying to get new solvable deal')
         while True:
             res = self._session.query(Seed) \
                 .filter(Seed.draw == draw,

@@ -127,7 +127,7 @@ class Solver:
             return seed, draw, True
         seedcount = self.stats.seed_count
         for draw in seedcount:
-            if seedcount[draw] < 10:
+            if seedcount[draw] < 20:
                 logger.debug(f'Not enough seeds for draw={draw}')
                 return 0, draw, False
         return 0, 0, False

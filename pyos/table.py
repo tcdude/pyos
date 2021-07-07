@@ -239,6 +239,8 @@ class Table:
         Args:
             random_seed: Optional[int] unsigned in range 2^31.
         """
+        logger.debug(f'Requesting a winner deal from the shuffler with '
+                     f'random_seed={random_seed}')
         res = self._shuffler.winner_deal(random_seed, self.draw_count)
         self._state.seed = res[0]
         logger.info(f'Random Seed: {self._state.seed}')
@@ -273,6 +275,7 @@ class Table:
     def pause(self) -> None:
         """Pause the game."""
         if self._state.paused:
+            logger.debug('Already paused')
             return
         logger.info('Pausing game')
         self._state.elapsed_time = self.stats[1]

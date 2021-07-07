@@ -821,8 +821,9 @@ class Game(app.AppBase):
             logger.debug('Started an unsolved deal')
         elif (self.__state.day_deal or self.state.challenge != -1) \
               and self.state.need_new_game:
-            pass
+            logger.warning('This should not happen')
         else:
+            logger.debug('Starting a regular deal')
             if self.config.getboolean('pyos', 'draw_one'):
                 self.__systems.game_table.draw_count = 1
             else:
@@ -840,6 +841,7 @@ class Game(app.AppBase):
         self.__state.refresh_next_frame = 2
         self.state.need_new_game = False
         self.global_nodes.set_seed(self.__systems.game_table.seed)
+        logger.debug('Exit function')
 
     def __update_prev_value(self, gametype: int):
         """Update the previous attempt total depending on the game type."""
