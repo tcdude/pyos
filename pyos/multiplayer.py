@@ -59,6 +59,7 @@ NO_CONNECTION = _BYTES[4]
 NOT_LOGGED_IN = _BYTES[5]
 UNHANDLED_EXCEPTION = _BYTES[6]
 WAIT = 60
+KEEPALIVE = 10
 
 
 @dataclass
@@ -81,6 +82,7 @@ class MPData:
     chupdate: int = 0
     relupdate: int = 0
     dbsync: int = 0
+    keepalive: int = 0
 
 
 class Multiplayer:
@@ -144,13 +146,20 @@ class Multiplayer:
             now = time.time()
             lbu = now - self.data.lbupdate
             dbs = now - self.data.dbsync
+            pingpong = now - self.data.keepalive
             if lbu > WAIT and self.data.lbrange:
                 start, end = self.data.lbrange
                 self._update_challenge_leaderboard(
                     f'{start}{SEP}{end}'.encode('utf8'))
+                self.data.keepalive = now
             if dbs > WAIT:
                 self._sync_local_database()
                 self.data.dbsync = now
+                self.data.keepalive = now
+            if pingpong > KEEPALIVE:
+                self.sys.mpc.ping_pong()
+                self.data.keepalive = now
+                logger.info('Ping Pong to keep connection alive...')
 
     def accept(self, unused_conn) -> None:
         """Accepts and handles a new connection."""
