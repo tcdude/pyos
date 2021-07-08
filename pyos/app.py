@@ -150,12 +150,16 @@ class GlobalNodes:
         self.mpstatus.text = text
         self.mpstatus.show()
 
-    def set_seed(self, seed: int) -> None:
+    def set_seed(self, seed: int, dealtype: str = '') -> None:
         """Sets the random seed."""
         if self.seed is None:
             logger.warning('Seed node not initialized yet')
             return
-        self.seed.text = f'Deal {seed:010d}'
+        txt = f'Deal {seed:010d}'
+        if dealtype:
+            self.seed.text = ' '.join([dealtype, txt])
+        else:
+            self.seed.text = txt
 
 
 class AppBase(app.App):

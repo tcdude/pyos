@@ -90,7 +90,7 @@ class HUD:
         self._moves_value.pos = size[0] - 0.2, size[1] * 0.51
         self._gametype = None
 
-    def set_gametype(self, gametype: int = None) -> None:
+    def set_gametype(self, gametype: int = None, name: str = '') -> None:
         """Set the game type to display."""
         self._gametype = gametype
         if gametype is None:
@@ -104,9 +104,9 @@ class HUD:
             self._time_title.text = 'Time:'
             self._moves_title.text = 'Moves:'
         else:
-            self._points_title.hide()
+            self._points_title.text = 'Challenge:'
             self._moves_title.hide()
-            self._points_value.hide()
+            self._points_value.text = name
             self._moves_value.hide()
             self._time_title.show()
             self._time_value.show()

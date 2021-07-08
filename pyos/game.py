@@ -15,6 +15,7 @@ from foolysh.animation import DepthInterval, BlendType, PosInterval, Sequence \
 from foolysh.scene.node import Origin
 from foolysh.tools.vec2 import Vec2
 from foolysh.ui.dialogue import Dialogue, DialogueButton
+from sdl2 import touch
 
 import app
 import common
@@ -137,7 +138,8 @@ class Game(app.AppBase):
         if self.state.daydeal is not None:
             draw, seed = self.state.daydeal
             new_daydeal = game.daydeal is False or draw != game.draw or seed != game.seed
-        if not attempt.solved and (new_chg_rnd or new_daydeal):
+        touched = self.__systems.game_table.stats[0] > 0
+        if not attempt.solved and (new_chg_rnd or new_daydeal) and touched:
             self.__hide_dlg()
             self.__systems.game_table.pause()
             self.__disable_all()
@@ -159,6 +161,9 @@ class Game(app.AppBase):
 
     def __enter_do(self):
         """Enter game normally if no previous state was found/discarded."""
+        logger.debug(f'{repr(self.state)}')
+        self.__systems.ondiscard = None
+        self.__systems.oncontinue = None
         self.__state.fresh_state = True
         if self.state.challenge > 0:
             self.global_nodes.seed.hide()
@@ -174,7 +179,8 @@ class Game(app.AppBase):
             else:
                 logger.debug(f'Playing a round in challenge '
                              f'{self.state.challenge}')
-                self.__new_deal(seed, draw, score)
+                opponent = self.mps.dbh.get_username(self.mps.dbh.opponent_id(self.state.challenge))
+                self.__new_deal(seed, draw, score, opponent)
                 chg = True
         else:
             chg = False
@@ -198,7 +204,10 @@ class Game(app.AppBase):
         self.__systems.toolbar.toggle(not chg)
         self.__systems.toolbar.toggle_order(
             self.config.getboolean('pyos', 'left_handed', fallback=False))
-        self.global_nodes.set_seed(self.__systems.game_table.seed)
+        if self.__state.day_deal:
+            self.global_nodes.set_seed(self.__systems.game_table.seed, 'Day')
+        else:
+            self.global_nodes.set_seed(self.__systems.game_table.seed)
         common.lock_gamestate()
         logger.debug(f'{repr(self.__state)}')
 
@@ -840,7 +849,7 @@ class Game(app.AppBase):
 
     def __reset_deal(self):
         """On Reset click: Reset the current game to start."""
-        if not self.__systems.game_table.win_condition:
+        if not self.__systems.game_table.solved and self.__systems.game_table.stats[0] > 0:
             self.__hide_dlg()
             self.__systems.game_table.pause()
             self.__disable_all()
@@ -863,19 +872,31 @@ class Game(app.AppBase):
         self.__update_prev_value(self.__state.gametype)
         self.__state.refresh_next_frame = 2
         self.__state.first_move = True
+        self.__systems.ondiscard = None
+        self.__systems.oncontinue = None
 
     def __new_deal_click(self):
         """Make sure the user really wants a new deal."""
-        if not self.__systems.game_table.win_condition:
+        if not self.__systems.game_table.solved and self.__systems.game_table.stats[0] > 0:
             self.__hide_dlg()
             self.__systems.game_table.pause()
             self.__disable_all()
-            self.__systems.ondiscard = self.__new_deal
+            self.__systems.ondiscard = self.__new_deal_do
             self.__gen_dlg('Do you really\nwant a new deal?\n\n\n', 'discard')
         else:
+            self.state.challenge = -1
+            self.state.daydeal = None
             self.__new_deal()
 
-    def __new_deal(self, seed: int = None, draw: int = None, score: int = None):
+    def __new_deal_do(self):
+        self.__state.day_deal = False
+        self.state.challenge = -1
+        self.state.daydeal = None
+        self.__new_deal()
+        self.__systems.ondiscard = None
+        self.__systems.oncontinue = None
+
+    def __new_deal(self, seed: int = None, draw: int = None, score: int = None, opponent: str = ''):
         """On New Deal click: Deal new game."""
         dlg = self.__systems.windlg
         if dlg is not None and not dlg.hidden:
@@ -883,7 +904,7 @@ class Game(app.AppBase):
             self.__setup()
         logger.debug(f'New deal called with {seed=} {draw=} {score=}')
         self.__state.gametype = score
-        self.__systems.hud.set_gametype(score)
+        self.__systems.hud.set_gametype(score, opponent)
         if seed is not None:
             if self.__systems.game_table.seed != seed \
                   or self.__systems.game_table.draw_count != draw \
@@ -948,7 +969,10 @@ class Game(app.AppBase):
             logger.debug('Started a regular deal')
         self.__state.refresh_next_frame = 2
         self.state.need_new_game = False
-        self.global_nodes.set_seed(self.__systems.game_table.seed)
+        if self.__state.day_deal:
+            self.global_nodes.set_seed(self.__systems.game_table.seed, 'Day')
+        else:
+            self.global_nodes.set_seed(self.__systems.game_table.seed)
         logger.debug('Exit function')
 
     def __update_prev_value(self, gametype: int):
@@ -984,6 +1008,7 @@ class Game(app.AppBase):
         self.__hide_dlg()
         self.__systems.ondiscard()
         self.__systems.ondiscard = None
+        self.__systems.oncontinue = None
 
     def __hide_dlg(self):
         """Hide all open dialogues."""

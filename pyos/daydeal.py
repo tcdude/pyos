@@ -141,6 +141,7 @@ class DayDeal(app.AppBase):
             self.__gen_dlg(txt)
         else:
             self.state.daydeal = draw, seed
+            self.state.challenge = -1
             self.systems.shuffler.request_deal(draw, seed)
             self.request('game')
 
