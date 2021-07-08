@@ -105,6 +105,7 @@ class MainMenu(app.AppBase):
             self.fsm_global_data['firstopen'] = None
         else:
             self.login('Checking connection...')
+        
 
     def exit_main_menu(self):
         """Exit state -> Setup."""

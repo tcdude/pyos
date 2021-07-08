@@ -6,7 +6,6 @@ verify_ssl = true
 [dev-packages]
 pylint = "*"
 rope = "*"
-p4a-build-spaces = {file = "https://github.com/JonasT/p4a-build-spaces/archive/master.zip"}
 
 [packages]
 pillow = "*"

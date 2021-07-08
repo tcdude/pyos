@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import os
 import random
 import traceback
-from typing import Callable, Tuple, Union
+from typing import Any, Callable, Tuple, Union
 
 from loguru import logger
 import sdl2
@@ -61,12 +61,16 @@ class DragInfo:
 @dataclass
 class GameSystems:
     """Holds all the various systems."""
+    # pylint: disable=too-many-instance-attributes
     game_table: Table
     layout: TableLayout
     hud: HUD
     toolbar: ToolBar
     windlg: Union[None, Dialogue] = None
     suredlg: Union[None, Dialogue] = None
+    discarddlg: Union[None, Dialogue] = None
+    ondiscard: Any = None
+    oncontinue: Any = None
 
 
 @dataclass
@@ -106,6 +110,7 @@ class Game(app.AppBase):
     def enter_game(self):
         """Tasks to be performed when this state is activated."""
         logger.info('Enter state game')
+        self.__active = False
         self.disable_connection_check()
         self.global_nodes.mpstatus.hide()
         self.global_nodes.hide_status()
@@ -116,7 +121,44 @@ class Game(app.AppBase):
                 .attach_text_node(text='', font_size=0.04,
                                   font=self.config.get('font', 'bold'),
                                   text_color=common.TITLE_TXT_COLOR)
-        self.global_nodes.seed.show()
+        self.__check_state()
+
+    def __check_state(self):
+        """Check for previous started game state / ask to discard."""
+        game, attempt = self.systems.stats.current_attempt
+        new_chg_rnd = False
+        if self.state.challenge > 0:
+            self.global_nodes.seed.hide()
+            seed, draw, _ = self.mps.dbh \
+                .get_round_info(self.state.challenge)
+            new_chg_rnd = seed != game.seed or draw != game.draw \
+                or self.state.challenge != game.challenge
+        new_daydeal = False
+        if self.state.daydeal is not None:
+            draw, seed = self.state.daydeal
+            new_daydeal = game.daydeal is False or draw != game.draw or seed != game.seed
+        if not attempt.solved and (new_chg_rnd or new_daydeal):
+            self.__hide_dlg()
+            self.__systems.game_table.pause()
+            self.__disable_all()
+            self.__systems.ondiscard = self.__enter_do
+            self.__systems.oncontinue = self.__continue_current
+            self.__gen_dlg('You have an\nunfinished deal!\nDiscard current deal?\n\n', 'discard')
+        else:
+            self.__enter_do()
+
+    def __continue_current(self):
+        self.__hide_dlg()
+        game, _ = self.systems.stats.current_attempt
+        self.state.challenge = game.challenge
+        if game.daydeal:
+            self.state.daydeal = game.draw, game.seed
+        else:
+            self.state.daydeal = None
+        self.__enter_do()
+
+    def __enter_do(self):
+        """Enter game normally if no previous state was found/discarded."""
         self.__state.fresh_state = True
         if self.state.challenge > 0:
             self.global_nodes.seed.hide()
@@ -151,6 +193,7 @@ class Game(app.AppBase):
         if self.__state.fresh_state:
             self.__state.first_move = True
         if not chg:
+            self.global_nodes.seed.show()
             self.__systems.hud.set_gametype()
         self.__systems.toolbar.toggle(not chg)
         self.__systems.toolbar.toggle_order(
@@ -166,8 +209,8 @@ class Game(app.AppBase):
         self.fsm_global_data['unsolved'] = None
         self.enable_connection_check()
         common.release_gamestate()
-        self.__disable_all()
         self.__hide_dlg()
+        self.__disable_all()
         self.__systems.layout.root.hide()
         self.__systems.toolbar.hide()
         self.__systems.game_table.pause()
@@ -221,16 +264,30 @@ class Game(app.AppBase):
             upe = sdl2.SDL_MOUSEBUTTONUP
 
         # make sure mouse events run after drag_drop
-        self.event_handler.listen('mouse_down', down, self.__mouse_down,
-                                  priority=-5)
-        self.event_handler.listen('mouse_up', upe, self.__mouse_up, priority=-5)
-
-        self.task_manager.add_task('HUD_Update', self.__update_hud, 0.2)
-        self.task_manager.add_task('auto_save', self.__auto_save_task, 1, False)
-        self.task_manager.add_task('auto_complete', self.__auto_complete,
-                                   0.05)
-        self.task_manager.add_task('layout_process',
-                                   self.__systems.layout.process, 0)
+        try:
+            self.event_handler.listen('mouse_down', down, self.__mouse_down, priority=-5)
+        except ValueError:
+            pass
+        try:
+            self.event_handler.listen('mouse_up', upe, self.__mouse_up, priority=-5)
+        except ValueError:
+            pass
+        try:
+            self.task_manager.add_task('HUD_Update', self.__update_hud, 0.2)
+        except ValueError:
+            pass
+        try:
+            self.task_manager.add_task('auto_save', self.__auto_save_task, 1, False)
+        except ValueError:
+            pass
+        try:
+            self.task_manager.add_task('auto_complete', self.__auto_complete, 0.05)
+        except ValueError:
+            pass
+        try:
+            self.task_manager.add_task('layout_process', self.__systems.layout.process, 0)
+        except ValueError:
+            pass
 
     def __setup_layout(self):
         """One time setup of the scene."""
@@ -251,7 +308,7 @@ class Game(app.AppBase):
         toolbar = ToolBar(self.ui.bottom_center,
                           tuple([float(i) for i in tool_size]),
                           self.config['font']['bold'],
-                          (self.__new_deal, self.__reset_deal, self.__undo_move,
+                          (self.__new_deal_click, self.__reset_deal, self.__undo_move,
                            self.__menu, self.__giveup))
         game_table = Table(layout.callback, self.systems.shuffler)
         layout.set_table(game_table)
@@ -710,6 +767,24 @@ class Game(app.AppBase):
             else:
                 self.__systems.suredlg.text = txt
                 self.__systems.suredlg.show()
+        elif dlgtype == 'discard':
+            if self.__systems.discarddlg is None:
+                fnt = self.config.get('font', 'bold')
+                dlgkw['size'] = 0.2, 0.1
+                buttons = [DialogueButton(text='Yes', fmtkwargs=dlgkw,
+                                          callback=self.__discarddo),
+                           DialogueButton(text='No', fmtkwargs=dlgkw,
+                                          callback=self.__on_continue)]
+                dlg = Dialogue(text=txt, buttons=buttons, margin=0.01,
+                               size=(0.7, 0.7), font=fnt, align='center',
+                               frame_color=common.FRAME_COLOR_STD,
+                               border_thickness=0.01, parent=self.ui.center,
+                               corner_radius=0.05, multi_sampling=2)
+                dlg.pos = -0.35, -0.35
+                self.__systems.discarddlg = dlg
+            else:
+                self.__systems.discarddlg.text = txt
+                self.__systems.discarddlg.show()
 
     def __win_animation(self):
         # pylint: disable=too-many-locals
@@ -755,17 +830,50 @@ class Game(app.AppBase):
             self.__state.last_undo = True
             self.__update_attempt()
 
+    def __on_continue(self):
+        """If no is clicked in the discard dialog."""
+        if self.__systems.oncontinue is not None:
+            self.__systems.oncontinue()
+            self.__systems.oncontinue = None
+        else:
+            self.__hide_dlg()
+
     def __reset_deal(self):
         """On Reset click: Reset the current game to start."""
-        dlg = self.__systems.windlg
-        if dlg is not None and not dlg.hidden:
-            dlg.hide()
+        if not self.__systems.game_table.win_condition:
+            self.__hide_dlg()
+            self.__systems.game_table.pause()
+            self.__disable_all()
+            self.__systems.ondiscard = self.__reset_do
+            self.__gen_dlg('Do you really\nwant to reset?\n\n\n', 'discard')
+        else:
+            self.__reset_do()
+
+    def __reset_do(self):
+        """Actually reset the current game to start."""
+        didhide = False
+        for dlg in (self.__systems.windlg, self.__systems.discarddlg):
+            if dlg is not None and not dlg.hidden:
+                dlg.hide()
+                didhide = True
+        if didhide:
             self.__setup()
         self.__systems.game_table.reset()
         self.state.foundation_moves = 0
         self.__update_prev_value(self.__state.gametype)
         self.__state.refresh_next_frame = 2
         self.__state.first_move = True
+
+    def __new_deal_click(self):
+        """Make sure the user really wants a new deal."""
+        if not self.__systems.game_table.win_condition:
+            self.__hide_dlg()
+            self.__systems.game_table.pause()
+            self.__disable_all()
+            self.__systems.ondiscard = self.__new_deal
+            self.__gen_dlg('Do you really\nwant a new deal?\n\n\n', 'discard')
+        else:
+            self.__new_deal()
 
     def __new_deal(self, seed: int = None, draw: int = None, score: int = None):
         """On New Deal click: Deal new game."""
@@ -871,12 +979,19 @@ class Game(app.AppBase):
         self.fsm_global_data['result'] = -2.0, 0, 0
         self.request('challenges')
 
+    def __discarddo(self):
+        """Really reset or new deal."""
+        self.__hide_dlg()
+        self.__systems.ondiscard()
+        self.__systems.ondiscard = None
+
     def __hide_dlg(self):
         """Hide all open dialogues."""
-        for dlg in (self.__systems.windlg, self.__systems.suredlg):
+        for dlg in (self.__systems.windlg, self.__systems.suredlg, self.__systems.discarddlg):
             if dlg is not None and not dlg.hidden:
                 dlg.hide()
         if not self.__active:
+            logger.debug('Not active, registering events and tasks')
             self.__setup_events_tasks()
             self.__active = True
 
