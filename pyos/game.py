@@ -196,12 +196,6 @@ class Game(app.AppBase):
         if self.__active:
             return
         self.__setup_layout()
-        for suit in range(4):
-            for value in range(13):
-                k = suit, value
-                self.drag_drop.enable(self.__systems.layout.get_card(k),
-                                      self.__drag_cb, (k, ), self.__drop_cb,
-                                      (k, ))
         self.__setup_events_tasks()
         self.__systems.layout.root.show()
         self.__systems.toolbar.show()
@@ -213,6 +207,12 @@ class Game(app.AppBase):
     def __setup_events_tasks(self):
         """Setup Events and Tasks."""
         logger.debug('Setup events and tasks')
+        for suit in range(4):
+            for value in range(13):
+                k = suit, value
+                self.drag_drop.enable(self.__systems.layout.get_card(k),
+                                      self.__drag_cb, (k, ), self.__drop_cb,
+                                      (k, ))
         if self.isandroid:
             down = sdl2.SDL_FINGERDOWN
             upe = sdl2.SDL_FINGERUP
@@ -876,6 +876,9 @@ class Game(app.AppBase):
         for dlg in (self.__systems.windlg, self.__systems.suredlg):
             if dlg is not None and not dlg.hidden:
                 dlg.hide()
+        if not self.__active:
+            self.__setup_events_tasks()
+            self.__active = True
 
     # Anti Cheat measures
     def __foundation_move(self, meth: Callable, *args) -> bool:
