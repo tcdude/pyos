@@ -139,6 +139,8 @@ class Game(app.AppBase):
             draw, seed = self.state.daydeal
             new_daydeal = game.daydeal is False or draw != game.draw or seed != game.seed
         touched = self.__systems.game_table.stats[0] > 0
+        touched = touched \
+            and not self.__check_round_complete(game.challenge, game.seed, game.draw)
         if not attempt.solved and (new_chg_rnd or new_daydeal) and touched:
             self.__hide_dlg()
             self.__systems.game_table.pause()
@@ -148,6 +150,17 @@ class Game(app.AppBase):
             self.__gen_dlg('You have an\nunfinished deal!\nDiscard current deal?\n\n', 'discard')
         else:
             self.__enter_do()
+
+    def __check_round_complete(self, challenge_id: int, seed: int, draw: int) -> bool:
+        if challenge_id < 0:
+            return False
+        for round_no in range(self.mps.dbh.num_rounds(challenge_id)):
+            rseed, rdraw, _ = self.mps.dbh.get_round_info(challenge_id, round_no + 1)
+            if rseed == seed and rdraw == draw:
+                state = self.mps.dbh.round_result(challenge_id, round_no + 1) != (-1.0, 0, 0)
+                logger.debug(f'Challenge {challenge_id} Round {round_no + 1} complete={state}')
+                return state
+        return False
 
     def __continue_current(self):
         self.__hide_dlg()
@@ -402,7 +415,7 @@ class Game(app.AppBase):
         moves, elapsed_time, points = self.__systems.game_table.stats
         moves += self.__state.prev_value
         elapsed_time += self.__state.prev_value
-        self.__systems.hud.update(points, int(elapsed_time + 0.5), moves)
+        self.__systems.hud.update(points, int(elapsed_time + 0.5), int(moves))
         if self.__systems.game_table.win_condition:
             self.__systems.layout.setup(self.__state.last_window_size,
                                         self.config.getboolean('pyos',
