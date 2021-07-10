@@ -847,6 +847,29 @@ class MPDBHandler:
         self._session.query(UserID).delete()
         self._session.commit()
 
+    def clean_finished_challenges(self) -> None:
+        """Clean all but the last finished challenge per opponent."""
+        res = self._session.query(Challenge) \
+            .join(Activity, Activity.key == Challenge.challenge_id) \
+            .filter(Challenge.active != true(),
+                    Challenge.status == 3,
+                    Activity.activity == CHALLENGE) \
+            .order_by(Activity.timestamp.desc(),
+                      Challenge.start_date.desc()).all()
+        keep = {}
+        delete = []
+        for i in res:
+            if i.otherid not in keep:
+                keep[i.otherid] = i.challenge_id
+            else:
+                delete.append(i.challenge_id)
+        for i in delete:
+            self._session.query(ChallengeRound).filter(ChallengeRound.challenge_id == i).delete()
+            self._session.query(Challenge).filter(Challenge.challenge_id == i).delete()
+            self._session.query(Activity).filter(Activity.activity == CHALLENGE,
+                                                 Activity.key == i).delete()
+        self._session.commit()
+
     def _check_challenge_complete(self, challenge_id: int) -> None:
         """Finalizes a challenge if all rounds have been played."""
         count = self._session.query(ChallengeRound) \

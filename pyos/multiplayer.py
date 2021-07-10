@@ -666,6 +666,7 @@ class Multiplayer:
         if ret == SUCCESS:
             self.sys.mpdbh.update_draw_count_pref(pref)
             self.sys.mpdbh.update_timestamp(now)
+            self.sys.mpdbh.clean_finished_challenges()
         self._prune_user()
         self._prune_challenge()
         return ret
