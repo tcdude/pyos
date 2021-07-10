@@ -370,20 +370,20 @@ class Challenges(app.AppBase):
 
         lbl = parent \
             .attach_text_node(text='Draw count:',
-                              text_color=common.TITLE_TXT_COLOR,
+                              text_color=common.BLACK,
                               font=self.config.get('font', 'bold'),
                               font_size=0.05)
-        lbl.pos = 0, -0.1
+        lbl.pos = 0, -0.075
         lbl.origin = Origin.CENTER
 
         self.__nodes.gametypedraw = button \
-            .Button(text='One', pos=(-0.125, -0.05), parent=parent,
+            .Button(text='One', pos=(-0.125, -0.025), parent=parent,
                     **common.get_dialogue_btn_kw(size=(0.25, 0.1)))
         self.__nodes.gametypedraw.onclick(self.__toggle_gt, 'draw')
 
         lbl = parent \
             .attach_text_node(text='Score type:',
-                              text_color=common.TITLE_TXT_COLOR,
+                              text_color=common.BLACK,
                               font=self.config.get('font', 'bold'),
                               font_size=0.05)
         lbl.pos = 0, 0.125
@@ -484,7 +484,11 @@ class Challenges(app.AppBase):
         else:
             self.__nodes.gametypereject.show()
             self.__nodes.gametypestart.x = -0.255
-        self.__nodes.gametypetxt.text = f'Choose the game type\n' \
+        res = self.mps.dbh.challenge_result(self.__data.idmap[self.__data.active])
+        self.__nodes.gametypetxt.text = f'Won: {res[0]} ' \
+                                        f'Lost: {res[1]} ' \
+                                        f'Draw: {res[2]}\n\n' \
+                                        f'Choose the game type\n' \
                                         f'for round {roundno + 1}:\n\n'
         oid = self.mps.dbh.opponent_id(self.__data.idmap[self.__data.active])
         other = self.mps.dbh.get_username(oid)
