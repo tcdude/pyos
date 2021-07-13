@@ -456,7 +456,7 @@ class Stats:
             res.keep = keep
         self._session.commit()
 
-    def clean_seeds(self) -> None:
+    def clean_seeds(self, force: bool = False) -> None:
         """Deletes all seeds that aren't needed anymore."""
         self.commit_attempt()
         pcnt = self._session.query(Seed).filter(Seed.played == true()).count()
@@ -466,12 +466,22 @@ class Stats:
                   .order_by(Seed.id).limit(pcnt - 2).all():
                 self._session.delete(i)
         self._session.query(Seed).filter(Seed.keep != true()).delete()
+        if force:
+            self._session.query(Seed) \
+                .filter(Seed.keep == true(),
+                        Seed.draw == 1) \
+                .order_by(Seed.id).first().delete()
+            self._session.query(Seed) \
+                .filter(Seed.keep == true(),
+                        Seed.draw == 3) \
+                .order_by(Seed.id).first().delete()
         self._session.commit()
 
     def get_seed(self, draw: int) -> None:
         """Retrieves a seed from the database and marks it as played."""
         self.commit_attempt()
         logger.debug('Trying to get new solvable deal')
+        retry = 0
         while True:
             res = self._session.query(Seed) \
                 .filter(Seed.draw == draw,
@@ -481,6 +491,11 @@ class Stats:
                 res.played = True
                 self._session.commit()
                 return res.seed
+            if retry > 50:
+                logger.warning('Unable to get new seed, trying to force clean')
+                self.clean_seeds(True)
+                retry = -20
+            retry += 1
             time.sleep(0.05)
 
     def get_solution(self, draw: int, seed: int) -> str:
@@ -983,6 +998,7 @@ class Stats:
         for i in self._session.query(Seed.draw, func.count(Seed.id)) \
               .filter(Seed.keep == true(),
                       Seed.solution != '',
-                      Seed.played != true()).group_by(Seed.draw).all():
+                      Seed.played != true(),
+                      Seed.need != true()).group_by(Seed.draw).all():
             ret[i[0]] = i[1]
         return ret
