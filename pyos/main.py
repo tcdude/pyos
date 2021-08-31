@@ -116,7 +116,10 @@ def start_mpservice():
 
 def main(cfg_file):
     """Launches the app."""
-    cfg_file = os.path.join(plyer.storagepath.get_application_dir(), cfg_file)
+    if os.name != 'nt':
+        cfg_file = os.path.join(plyer.storagepath.get_application_dir(), cfg_file)
+    else:
+        cfg_file = os.path.join(os.path.split(__file__)[0], cfg_file)
     if not os.path.isfile(cfg_file):
         os.makedirs(os.path.split(cfg_file)[0], exist_ok=True)
         cfg = configparser.ConfigParser()
