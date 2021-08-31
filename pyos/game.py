@@ -126,6 +126,9 @@ class Game(app.AppBase):
 
     def __check_state(self):
         """Check for previous started game state / ask to discard."""
+        if self.systems.stats.current_attempt is None:
+            self.__enter_do()
+            return
         game, attempt = self.systems.stats.current_attempt
         new_chg_rnd = False
         if self.state.challenge > 0:
